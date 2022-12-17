@@ -204,6 +204,10 @@ Changes in existing checks
   The check now skips concept definitions since redundant expressions still make sense
   inside them.
 
+- Improved :doc:`misc-redundant-expression <clang-tidy/checks/modernize/loop-convert>`
+  to check for container functions ``begin``/``end`` etc on base classes of the container
+  type, instead of only as direct members of the container type itself.
+
 Removed checks
 ^^^^^^^^^^^^^^
 
