@@ -39,6 +39,14 @@ struct S {
   iterator end();
 };
 
+S::const_iterator begin(const S& s);
+S::const_iterator end(const S& s);
+S::const_iterator cbegin(const S& s);
+S::const_iterator cend(const S& s);
+S::iterator begin(S& s);
+S::iterator end(S& s);
+unsigned size(const S& s);
+
 struct T {
   typedef int value_type;
   struct iterator {
@@ -125,6 +133,11 @@ class dependent {
   void foo();
   void constFoo() const;
 };
+
+template<typename ElemType>
+unsigned size(const dependent<ElemType>&);
+template<typename ElemType>
+unsigned length(const dependent<ElemType>&);
 
 template<typename First, typename Second>
 class doublyDependent{

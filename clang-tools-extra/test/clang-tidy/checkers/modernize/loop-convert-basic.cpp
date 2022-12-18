@@ -445,6 +445,34 @@ void f() {
   // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (auto & I : Dpp)
   // CHECK-FIXES-NEXT: printf("%d\n", I->X);
+
+  for (S::iterator It = begin(Ss), E = end(Ss); It != E; ++It) {
+    printf("s has value %d\n", (*It).X);
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (auto & It : Ss)
+  // CHECK-FIXES-NEXT: printf("s has value %d\n", It.X);
+
+  for (S::iterator It = begin(*Ps), E = end(*Ps); It != E; ++It) {
+    printf("s has value %d\n", (*It).X);
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (auto & It : *Ps)
+  // CHECK-FIXES-NEXT: printf("s has value %d\n", It.X);
+
+  for (S::iterator It = begin(*Ps); It != end(*Ps); ++It) {
+    printf("s has value %d\n", (*It).X);
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (auto & It : *Ps)
+  // CHECK-FIXES-NEXT: printf("s has value %d\n", It.X);
+
+  for (S::const_iterator It = cbegin(Ss), E = cend(Ss); It != E; ++It) {
+    printf("s has value %d\n", (*It).X);
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (auto It : Ss)
+  // CHECK-FIXES-NEXT: printf("s has value %d\n", It.X);
 }
 
 // Tests to verify the proper use of auto where the init variable type and the
@@ -653,6 +681,28 @@ void f() {
   // CHECK-FIXES: for (int I : V)
   // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
   // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0, E = size(V); E != I; ++I) {
+    printf("Fibonacci number is %d\n", V[I]);
+    Sum += V[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int & I : V)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0, E = size(V); E != I; ++I) {
+    V[I] = 0;
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int& I : V)
+  // CHECK-FIXES-NEXT: I = 0;
+
+  // Although 'length' might be a valid free function, only std::size() is standardized
+  for (int I = 0, E = length(V); E != I; ++I) {
+    printf("Fibonacci number is %d\n", V[I]);
+    Sum += V[I] + 2;
+  }
 }
 
 // Ensure that 'const auto &' is used with containers of non-trivial types.

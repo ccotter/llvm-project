@@ -21,6 +21,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstring>
+#include <tuple>
 #include <utility>
 
 using namespace clang::ast_matchers;
@@ -129,6 +130,8 @@ StatementMatcher makeArrayLoopMatcher() {
 ///        e = createIterator(); it != e; ++it) { ... }
 ///   for (containerType::iterator it = container.begin();
 ///        it != anotherContainer.end(); ++it) { ... }
+///   for (containerType::iterator it = begin(container),
+///        e = end(container); it != e; ++it) { ... }
 /// \endcode
 /// The following string identifiers are bound to the parts of the AST:
 ///   InitVarName: 'it' (as a VarDecl)
@@ -136,7 +139,8 @@ StatementMatcher makeArrayLoopMatcher() {
 ///   In the first example only:
 ///     EndVarName: 'e' (as a VarDecl)
 ///   In the second example only:
-///     EndCallName: 'container.end()' (as a CXXMemberCallExpr)
+///     EndCallName: 'container.end()' (as a CXXMemberCallExpr) or
+///     'end(container)' (as a CallExpr)
 ///
 /// Client code will need to make sure that:
 ///   - The two containers on which 'begin' and 'end' are called are the same.
@@ -149,8 +153,10 @@ StatementMatcher makeIteratorLoopMatcher(bool IsReverse) {
       IsReverse ? hasAnyName("rend", "crend") : hasAnyName("end", "cend");
 
   StatementMatcher BeginCallMatcher =
-      cxxMemberCallExpr(argumentCountIs(0),
-                        callee(cxxMethodDecl(BeginNameMatcher)))
+      callExpr(anyOf(cxxMemberCallExpr(argumentCountIs(0),
+                                       callee(cxxMethodDecl(BeginNameMatcher))),
+                     callExpr(argumentCountIs(1),
+                              callee(functionDecl(BeginNameMatcher)))))
           .bind(BeginCallName);
 
   DeclarationMatcher InitDeclMatcher =
@@ -163,8 +169,10 @@ StatementMatcher makeIteratorLoopMatcher(bool IsReverse) {
   DeclarationMatcher EndDeclMatcher =
       varDecl(hasInitializer(anything())).bind(EndVarName);
 
-  StatementMatcher EndCallMatcher = cxxMemberCallExpr(
-      argumentCountIs(0), callee(cxxMethodDecl(EndNameMatcher)));
+  StatementMatcher EndCallMatcher = expr(anyOf(
+      cxxMemberCallExpr(argumentCountIs(0),
+                        callee(cxxMethodDecl(EndNameMatcher))),
+      callExpr(argumentCountIs(1), callee(functionDecl(EndNameMatcher)))));
 
   StatementMatcher IteratorBoundMatcher =
       expr(anyOf(ignoringParenImpCasts(
@@ -223,6 +231,7 @@ StatementMatcher makeIteratorLoopMatcher(bool IsReverse) {
 /// \code
 ///   for (int i = 0, j = container.size(); i < j; ++i) { ... }
 ///   for (int i = 0; i < container.size(); ++i) { ... }
+///   for (int i = 0; i < size(container); ++i) { ... }
 /// \endcode
 /// The following string identifiers are bound to the parts of the AST:
 ///   InitVarName: 'i' (as a VarDecl)
@@ -230,7 +239,8 @@ StatementMatcher makeIteratorLoopMatcher(bool IsReverse) {
 ///   In the first example only:
 ///     EndVarName: 'j' (as a VarDecl)
 ///   In the second example only:
-///     EndCallName: 'container.size()' (as a CXXMemberCallExpr)
+///     EndCallName: 'container.size()' (as a CXXMemberCallExpr) or
+///     'size(contaner)' (as a CallExpr)
 ///
 /// Client code will need to make sure that:
 ///   - The containers on which 'size()' is called is the container indexed.
@@ -264,10 +274,12 @@ StatementMatcher makePseudoArrayLoopMatcher() {
                                  hasMethod(hasName("end"))))))) // qualType
       ));
 
-  StatementMatcher SizeCallMatcher = cxxMemberCallExpr(
-      argumentCountIs(0), callee(cxxMethodDecl(hasAnyName("size", "length"))),
-      on(anyOf(hasType(pointsTo(RecordWithBeginEnd)),
-               hasType(RecordWithBeginEnd))));
+  StatementMatcher SizeCallMatcher = expr(anyOf(
+      cxxMemberCallExpr(argumentCountIs(0),
+                        callee(cxxMethodDecl(hasAnyName("size", "length"))),
+                        on(anyOf(hasType(pointsTo(RecordWithBeginEnd)),
+                                 hasType(RecordWithBeginEnd)))),
+      callExpr(argumentCountIs(1), callee(functionDecl(hasAnyName("size"))))));
 
   StatementMatcher EndInitMatcher =
       expr(anyOf(ignoringParenImpCasts(expr(SizeCallMatcher).bind(EndCallName)),
@@ -295,6 +307,35 @@ StatementMatcher makePseudoArrayLoopMatcher() {
       .bind(LoopNamePseudoArray);
 }
 
+// Find the Expr likely initializing an iterator.
+//
+// Call is either a CXXMemberCallExpr ('c.begin()') or CallExpr of a free
+// function with the first argument as a container ('begin(c)'), or nullptr.
+// Returns at a 3-tuple with the container expr, function name (begin/end/etc),
+// and whether the call is made through an arrow (->) for CXXMemberCallExprs.
+// The returned Expr* is nullptr if any of the assumptions are not met.
+static const std::tuple<const Expr *, StringRef, bool>
+getContainerExpr(const Expr *Call) {
+  const Expr *Dug = digThroughConstructorsConversions(Call);
+
+  if (const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(Dug)) {
+    const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee());
+    if (!Member) {
+      return std::make_tuple(TheCall->getArg(0),
+                             TheCall->getDirectCallee()->getName(), false);
+    }
+    return std::make_tuple(TheCall->getImplicitObjectArgument(),
+                           Member->getMemberDecl()->getName(),
+                           Member->isArrow());
+  } else if (const auto *TheCall = dyn_cast_or_null<CallExpr>(Dug)) {
+    if (TheCall->getNumArgs() != 1)
+      return std::make_tuple(nullptr, StringRef{}, false);
+    return std::make_tuple(TheCall->getArg(0),
+                           TheCall->getDirectCallee()->getName(), false);
+  }
+  return std::make_tuple(nullptr, StringRef{}, false);
+}
+
 /// Determine whether Init appears to be an initializing an iterator.
 ///
 /// If it is, returns the object whose begin() or end() method is called, and
@@ -303,28 +344,20 @@ StatementMatcher makePseudoArrayLoopMatcher() {
 static const Expr *getContainerFromBeginEndCall(const Expr *Init, bool IsBegin,
                                                 bool *IsArrow, bool IsReverse) {
   // FIXME: Maybe allow declaration/initialization outside of the for loop.
-  const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(
-      digThroughConstructorsConversions(Init));
-  if (!TheCall || TheCall->getNumArgs() != 0)
-    return nullptr;
 
-  const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee());
-  if (!Member)
+  StringRef Name;
+  const Expr *ContainerExpr;
+  std::tie(ContainerExpr, Name, *IsArrow) = getContainerExpr(Init);
+  if (!ContainerExpr) {
     return nullptr;
-  StringRef Name = Member->getMemberDecl()->getName();
+  }
   if (!Name.consume_back(IsBegin ? "begin" : "end"))
     return nullptr;
   if (IsReverse && !Name.consume_back("r"))
     return nullptr;
   if (!Name.empty() && !Name.equals("c"))
     return nullptr;
-
-  const Expr *SourceExpr = Member->getBase();
-  if (!SourceExpr)
-    return nullptr;
-
-  *IsArrow = Member->isArrow();
-  return SourceExpr;
+  return ContainerExpr;
 }
 
 /// Determines the container whose begin() and end() functions are called
@@ -691,7 +724,7 @@ StringRef LoopConvertCheck::getContainerString(ASTContext *Context,
   } else {
     // For CXXOperatorCallExpr such as vector_ptr->size() we want the class
     // object vector_ptr, but for vector[2] we need the whole expression.
-    if (const auto* E = dyn_cast<CXXOperatorCallExpr>(ContainerExpr))
+    if (const auto *E = dyn_cast<CXXOperatorCallExpr>(ContainerExpr))
       if (E->getOperator() != OO_Subscript)
         ContainerExpr = E->getArg(0);
     ContainerString =
@@ -816,10 +849,10 @@ bool LoopConvertCheck::isConvertible(ASTContext *Context,
     QualType InitVarType = InitVar->getType();
     QualType CanonicalInitVarType = InitVarType.getCanonicalType();
 
-    const auto *BeginCall = Nodes.getNodeAs<CXXMemberCallExpr>(BeginCallName);
+    const auto *BeginCall = Nodes.getNodeAs<CallExpr>(BeginCallName);
     assert(BeginCall && "Bad Callback. No begin call expression");
     QualType CanonicalBeginType =
-        BeginCall->getMethodDecl()->getReturnType().getCanonicalType();
+        BeginCall->getDirectCallee()->getReturnType().getCanonicalType();
     if (CanonicalBeginType->isPointerType() &&
         CanonicalInitVarType->isPointerType()) {
       // If the initializer and the variable are both pointers check if the
@@ -830,10 +863,15 @@ bool LoopConvertCheck::isConvertible(ASTContext *Context,
         return false;
     }
   } else if (FixerKind == LFK_PseudoArray) {
-    // This call is required to obtain the container.
-    const auto *EndCall = Nodes.getNodeAs<CXXMemberCallExpr>(EndCallName);
-    if (!EndCall || !isa<MemberExpr>(EndCall->getCallee()))
+    if (const auto *EndCall = Nodes.getNodeAs<CXXMemberCallExpr>(EndCallName)) {
+      // This call is required to obtain the container.
+      if (!isa<MemberExpr>(EndCall->getCallee()))
+        return false;
+    } else if (const auto *EndCall = Nodes.getNodeAs<CallExpr>(EndCallName)) {
+      return true;
+    } else {
       return false;
+    }
   }
   return true;
 }
@@ -872,7 +910,7 @@ void LoopConvertCheck::check(const MatchFinder::MatchResult &Result) {
 
   // If the end comparison isn't a variable, we can try to work with the
   // expression the loop variable is being tested against instead.
-  const auto *EndCall = Nodes.getNodeAs<CXXMemberCallExpr>(EndCallName);
+  const auto *EndCall = Nodes.getNodeAs<Expr>(EndCallName);
   const auto *BoundExpr = Nodes.getNodeAs<Expr>(ConditionBoundName);
 
   // Find container expression of iterators and pseudoarrays, and determine if
@@ -886,9 +924,8 @@ void LoopConvertCheck::check(const MatchFinder::MatchResult &Result) {
         &Descriptor.ContainerNeedsDereference,
         /*IsReverse=*/FixerKind == LFK_ReverseIterator);
   } else if (FixerKind == LFK_PseudoArray) {
-    ContainerExpr = EndCall->getImplicitObjectArgument();
-    Descriptor.ContainerNeedsDereference =
-        dyn_cast<MemberExpr>(EndCall->getCallee())->isArrow();
+    std::tie(ContainerExpr, std::ignore, Descriptor.ContainerNeedsDereference) =
+        getContainerExpr(EndCall);
   }
 
   // We must know the container or an array length bound.
