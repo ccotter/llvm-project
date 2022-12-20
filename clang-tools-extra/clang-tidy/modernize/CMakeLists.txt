@@ -53,6 +53,7 @@ add_clang_library(clangTidyModernizeModule
 
 clang_target_link_libraries(clangTidyModernizeModule
   PRIVATE
+  clangAnalysis
   clangAST
   clangASTMatchers
   clangBasic

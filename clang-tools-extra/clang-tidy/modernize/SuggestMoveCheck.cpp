@@ -14,9 +14,6 @@
 
 #include "../utils/ExprSequence.h"
 
-#include <unordered_map>
-#include <unordered_set>
-
 using namespace clang::ast_matchers;
 
 using clang::tidy::utils::ExprSequence;
@@ -69,32 +66,14 @@ void SuggestMoveCheck::registerMatchers(MatchFinder *Finder) {
 namespace {
 
 template <typename T>
-static std::string getExprText(const clang::CompilerInstance* ci, const T* arg)
+static std::string getExprText(const clang::ASTContext& astContext, const clang::SourceManager& sourceManager, const T* arg)
 {
-    const auto& sourceManager = ci->getSourceManager();
-    const auto& astContext = ci->getASTContext();
     return clang::Lexer::getSourceText(
                clang::CharSourceRange::getTokenRange(arg->getSourceRange()),
                sourceManager,
                astContext.getLangOpts(),
                nullptr)
         .str();
-}
-
-/**
- * Return a source location to the beginning of the line before or at the
- * given source location.
- **/
-clang::SourceLocation findLineBegin(
-    clang::SourceLocation location,
-    const clang::CompilerInstance* ci)
-{
-    const clang::SourceManager& sourceManager = ci->getSourceManager();
-
-    location = sourceManager.getSpellingLoc(location);
-    clang::FileID fileID = sourceManager.getFileID(location);
-    unsigned int line = sourceManager.getSpellingLineNumber(location);
-    return sourceManager.translateLineCol(fileID, line, 1);
 }
 
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -156,156 +135,14 @@ class FindEscaped
 
 } // namespace
 
-class CB : public ::clang::ast_matchers::MatchFinder::MatchCallback
-{
-  public:
-    clang::CompilerInstance* d_ci;
-
-    struct Scope
-    {
-        const clang::CompoundStmt* stmt;
-        std::unique_ptr<clang::CFG> cfg;
-        std::unique_ptr<ExprSequence> sequence;
-        std::unique_ptr<StmtToBlockMap> blockMap;
-    };
-
-    struct CopiedFromData
-    {
-        bool isConstruct = false;
-        const clang::VarDecl* decl = nullptr;
-    };
-
-    std::unordered_map<const clang::DeclRefExpr*, CopiedFromData> d_variablesCopiedFrom;
-    std::unordered_multimap<const clang::VarDecl*, const clang::DeclRefExpr*> d_varUsages;
-    std::unordered_map<const clang::VarDecl*, Scope> d_scopes;
-    std::unordered_set<const clang::VarDecl*> d_escaped;
-    std::unordered_set<const clang::Type*> d_bitwiseMoveable;
-
-    const decltype(d_variablesCopiedFrom)& variablesCopiedFrom() const
-    {
-        return d_variablesCopiedFrom;
-    }
-    const decltype(d_varUsages)& varUsages() const
-    {
-        return d_varUsages;
-    }
-    const decltype(d_scopes)& scopes() const
-    {
-        return d_scopes;
-    }
-    const decltype(d_escaped)& escaped() const
-    {
-        return d_escaped;
-    }
-    const decltype(d_bitwiseMoveable)& bitwiseMoveable() const
-    {
-        return d_bitwiseMoveable;
-    }
-
-  public:
-    CB(clang::CompilerInstance* ci) : d_ci(ci)
-    {
-    }
-
-    // Evaluates whether T has a const member value equal to true.
-    // E.g., std::true_type. Maybe there is a better way built into
-    // libTooling to directly evaluate the equivalent of
-    // `if constexpr (T::value)`?
-    static bool isTrueType(const clang::CXXRecordDecl* recordDecl)
-    {
-        for (const auto* decl : recordDecl->decls())
-        {
-            if (const auto* varDecl = llvm::dyn_cast<clang::VarDecl>(decl))
-            {
-                if (varDecl->getNameAsString() == "value")
-                {
-                    clang::APValue* evaluated = varDecl->evaluateValue();
-                    if (evaluated->hasValue() && evaluated->isInt())
-                    {
-                        return evaluated->getInt().getBoolValue();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        for (auto base : recordDecl->bases())
-        {
-            if (const auto* baseRecordDecl = base.getType()->getAsCXXRecordDecl())
-            {
-                if (isTrueType(baseRecordDecl))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    virtual void run(const clang::ast_matchers::MatchFinder::MatchResult& matchResult) override
-    {
-        if (matchResult.Nodes.getNodeAs<clang::CXXConstructorDecl>("copyCtor") ||
-            matchResult.Nodes.getNodeAs<clang::CXXMethodDecl>("copyAssign"))
-        {
-            const bool isConstruct = matchResult.Nodes.getNodeAs<clang::CXXConstructorDecl>(
-                "copyCtor");
-            const clang::DeclRefExpr* src = matchResult.Nodes.getNodeAs<clang::DeclRefExpr>("src");
-            const clang::VarDecl* srcDecl = matchResult.Nodes.getNodeAs<clang::VarDecl>("srcDecl");
-            d_variablesCopiedFrom[src] = {isConstruct, srcDecl};
-
-            clang::CompoundStmt* scope = const_cast<clang::CompoundStmt*>(
-                matchResult.Nodes.getNodeAs<clang::CompoundStmt>("scope"));
-            clang::CFG::BuildOptions options;
-            std::unique_ptr<clang::CFG> cfg = clang::CFG::buildCFG(
-                nullptr, scope, &d_ci->getASTContext(), options);
-            auto sequence = std::make_unique<ExprSequence>(
-                cfg.get(), scope, &d_ci->getASTContext());
-            auto blockMap = std::make_unique<StmtToBlockMap>(cfg.get(), &d_ci->getASTContext());
-            d_scopes[srcDecl] = Scope{
-                scope, std::move(cfg), std::move(sequence), std::move(blockMap)};
-        }
-        else if (const auto* ref = (matchResult.Nodes.getNodeAs<clang::DeclRefExpr>("allRefs")))
-        {
-            const clang::VarDecl* decl = matchResult.Nodes.getNodeAs<clang::VarDecl>("decl");
-            d_varUsages.emplace(decl, ref);
-        }
-        else if (const auto* ref = (matchResult.Nodes.getNodeAs<clang::Stmt>("allStmts")))
-        {
-            if (const clang::VarDecl* varDecl = FindEscaped::isEscaped(ref))
-            {
-                d_escaped.insert(varDecl);
-            }
-        }
-        else if (
-            const auto* type = (matchResult.Nodes.getNodeAs<clang::QualType>("bitwiseMoveable")))
-        {
-            const auto* recordDecl =
-                matchResult.Nodes.getNodeAs<clang::ClassTemplateSpecializationDecl>(
-                    "classSpecialization");
-            assert(recordDecl);
-
-            if (isTrueType(recordDecl))
-            {
-                d_bitwiseMoveable.insert(type->getTypePtr());
-            }
-        }
-        else
-        {
-            assert(false && "Unhandled match");
-        }
-    }
-};
-
 class FindMoveCandidates
 {
-    clang::CompilerInstance* d_ci;
-    CB d_cb;
+    clang::ASTContext& d_ctx;
+    clang::SourceManager& d_sm;
 
-    std::string d_target;
+    SuggestMoveCheck& d_cb;
 
+#if 0
     template <int N>
     void reportDiagnostic(
         const clang::CharSourceRange& location,
@@ -360,6 +197,7 @@ class FindMoveCandidates
             fixIts,
             arguments);
     }
+#endif
 
     struct Reporter
     {
@@ -371,52 +209,14 @@ class FindMoveCandidates
         void operator()(const char (&message)[N], const std::vector<clang::FixItHint>& fixIts = {})
             const
         {
-            self->reportDiagnostic(*stmt, message, level, fixIts);
+            //self->reportDiagnostic(*stmt, message, level, fixIts);
         }
     };
 
   public:
-    FindMoveCandidates(clang::CompilerInstance* _ci, clang::ast_matchers::MatchFinder* f)
-        : d_ci(_ci), d_cb(d_ci)
+    FindMoveCandidates(clang::ASTContext* ctx, clang::SourceManager* sm, SuggestMoveCheck* cb)
+        : d_ctx(*ctx), d_sm(*sm), d_cb(*cb)
     {
-        using namespace clang::ast_matchers;
-
-        auto src = declRefExpr(
-                       hasDeclaration(anyOf(
-                           varDecl(hasAncestor(compoundStmt().bind("scope"))).bind("srcDecl"),
-                           parmVarDecl(
-                               hasAncestor(functionDecl(hasAnyBody(compoundStmt().bind("scope")))))
-                               .bind("srcDecl"))))
-                       .bind("src");
-
-        auto copyCtors = cxxConstructExpr(
-                             isExpansionInMainFile(),
-                             hasArgument(0, src),
-                             hasDeclaration(
-                                 decl(cxxConstructorDecl(isCopyConstructor()).bind("copyCtor"))))
-                             .bind("root");
-        auto copyAssigns = cxxOperatorCallExpr(
-                               isExpansionInMainFile(),
-                               hasArgument(1, src),
-                               isAssignmentOperator(),
-                               hasDeclaration(
-                                   cxxMethodDecl(isCopyAssignmentOperator()).bind("copyAssign")))
-                               .bind("root");
-
-        auto allRefs = declRefExpr(isExpansionInMainFile(), hasDeclaration(varDecl().bind("decl")))
-                           .bind("allRefs");
-        auto allStmts = stmt(isExpansionInMainFile()).bind("allStmts");
-        auto bitwiseMoveable = classTemplateSpecializationDecl(
-                                   hasName("BloombergLP::bslmf::IsBitwiseMoveable"),
-                                   hasTemplateArgument(
-                                       0, refersToType(qualType().bind("bitwiseMoveable"))))
-                                   .bind("classSpecialization");
-
-        f->addMatcher(copyCtors, &d_cb);
-        f->addMatcher(copyAssigns, &d_cb);
-        f->addMatcher(allRefs, &d_cb);
-        f->addMatcher(allStmts, &d_cb);
-        f->addMatcher(bitwiseMoveable, &d_cb);
     }
 
     const clang::CXXRecordDecl* getCXXRecordDecl(const clang::DeclRefExpr* ref) const
@@ -443,7 +243,7 @@ class FindMoveCandidates
         return getCXXRecordDecl(ref)->hasMoveAssignment();
     }
 
-    bool isStmtWithinCycle(const CB::Scope& scope, const clang::Stmt* stmt) const
+    bool isStmtWithinCycle(const SuggestMoveCheck::Scope& scope, const clang::Stmt* stmt) const
     {
         // Checks whether the Stmt is contained in a SCC in the CFG.
 
@@ -473,7 +273,7 @@ class FindMoveCandidates
         return dfs(dfs, block);
     }
 
-    bool isMoveAlwaysSafe(const clang::DeclRefExpr* ref, const CB::CopiedFromData& data) const
+    bool isMoveAlwaysSafe(const clang::DeclRefExpr* ref, const SuggestMoveCheck::CopiedFromData& data) const
     {
         // If the ref occurs in the last expression statement of the compound statement
         // that declares the variable, then it should always be safe to do a move. This
@@ -498,12 +298,12 @@ class FindMoveCandidates
 
     MoveSafety isTypeSafeToMove(clang::QualType type) const
     {
-        type = type.getDesugaredType(d_ci->getASTContext());
+        type = type.getDesugaredType(d_ctx);
         if (d_cb.bitwiseMoveable().count(type.getTypePtr()))
         {
             return Always;
         }
-        if (type.isTrivialType(d_ci->getASTContext()))
+        if (type.isTrivialType(d_ctx))
         {
             return Always;
         }
@@ -659,7 +459,7 @@ class FindMoveCandidates
     clang::SmallVector<const clang::Stmt*, 1> getParentStmts(const clang::Stmt* S) const
     {
         using namespace clang;
-        auto* Context = &d_ci->getASTContext();
+        auto* Context = &d_ctx;
         SmallVector<const Stmt*, 1> Result;
 
         TraversalKindScope RAII(*Context, TK_AsIs);
@@ -722,21 +522,20 @@ class FindMoveCandidates
     {
         return {clang::FixItHint::CreateReplacement(
             clang::CharSourceRange::getTokenRange(stmt->getSourceRange()),
-            "std::move(" + getExprText(d_ci, stmt) + ")")};
+            "std::move(" + getExprText(d_ctx, d_sm, stmt) + ")")};
     }
 
-    std::vector<clang::tooling::Replacement> report(
+    void report(
         const clang::DeclRefExpr* ref,
         bool isSafe,
         bool isConstruct,
         bool hasMoveCtor,
         bool hasMoveAssign) const
     {
-        std::vector<clang::tooling::Replacement> replacements;
-        std::vector<clang::FixItHint> fixIts = generateFixIts(ref);
+        std::vector<clang::FixItHint> FixIts = generateFixIts(ref);
 
-        char diagnostic[] =
-            "std::move candidate: consider moving the source into the destination object [%0]";
+        //char diagnostic[] =
+        //    "std::move candidate: consider moving the source into the destination object [%0]";
         std::string note = "move";
         if (isSafe)
         {
@@ -765,42 +564,43 @@ class FindMoveCandidates
         {
         }
 
-        reportDiagnostic(
-            *ref, diagnostic, clang::DiagnosticsEngine::Warning, fixIts, {std::move(note)});
+        d_cb.diag(ref->getBeginLoc(), "use std::move to avoid copy") << FixIts;
+
+        //reportDiagnostic(
+        //    *ref, diagnostic, clang::DiagnosticsEngine::Warning, fixIts, {std::move(note)});
 
         if (reportRemoveConstNote) {
             // Notes are output based on the previously emitted diagnostic. We wait to
             // emit the note until after emitting the warning.
-            reportDiagnostic(
-                *ref->getDecl(),
-                "std::move candidate: Consider removing const to allow the variable to be moved "
-                "[remove-const]",
-                clang::DiagnosticsEngine::Note);
+            //reportDiagnostic(
+            //    *ref->getDecl(),
+            //    "std::move candidate: Consider removing const to allow the variable to be moved "
+            //    "[remove-const]",
+            //    clang::DiagnosticsEngine::Note);
         }
 
-        return replacements;
     }
 
-    std::vector<clang::tooling::Replacement> checkUsage(
+    void checkUsage(
         const clang::DeclRefExpr* ref,
-        const CB::CopiedFromData& data) const
+        const SuggestMoveCheck::CopiedFromData& data) const
     {
         const clang::VarDecl* decl = data.decl;
-        const CB::Scope& scope = d_cb.scopes().find(decl)->second;
+        const SuggestMoveCheck::Scope& scope = d_cb.scopes().find(decl)->second;
 
         if (decl->getStorageClass() != clang::SC_Auto && decl->getStorageClass() != clang::SC_None)
         {
-            return {};
+            return;
         }
         if (decl->getTLSKind() != clang::VarDecl::TLS_None)
         {
-            return {};
+            return;
         }
 
         if (d_cb.escaped().count(decl))
         {
             // Don't consider variables whose address is taken.
-            return {};
+            return;
         }
 
         auto usageRange = d_cb.varUsages().equal_range(decl);
@@ -816,7 +616,7 @@ class FindMoveCandidates
         if (lastUsage != ref)
         {
             // Definitely not the last reference.
-            return {};
+            return;
         }
 
         auto sharesAnyOuterStmt = [&](const clang::Stmt* stmt) {
@@ -840,14 +640,14 @@ class FindMoveCandidates
             // to the same variable, then we will assume there is a potential non-sequence
             // ordering in the order of evaluation. E.g., function call has no order of
             // evaluation of its arguments.
-            return {};
+            return;
         }
 
         if (isStmtWithinCycle(scope, ref))
         {
             // If we're in a cycle in the CFG, give up. We could try to be
             // smarter, but that's too complicated for this tool's intent.
-            return {};
+            return;
         }
 
         bool alwaysSafe = isMoveAlwaysSafe(ref, data);
@@ -855,43 +655,93 @@ class FindMoveCandidates
         MoveSafety safety = isTypeSafeToMove(ref);
         if (safety == Never)
         {
-            return {};
+            return;
         }
 
         bool isSafe = alwaysSafe || safety == Always;
-        return report(
+        report(
             ref, isSafe, data.isConstruct, hasMoveConstructor(ref), hasMoveAssignment(ref));
     }
 
-    void postProcessing(std::map<std::string, clang::tooling::Replacements>& replacementsMap)
+    void postProcessing()
     {
         for (const auto& [ref, decl] : d_cb.variablesCopiedFrom())
         {
-            std::string filename = d_ci->getSourceManager().getFilename(ref->getBeginLoc()).str();
-            for (const auto& replacement : checkUsage(ref, decl))
-            {
-                if (auto error = replacementsMap[filename].add(replacement))
-                {
-                    llvm::errs() << "Replacement add error=" << error << "\n";
-                    reportDiagnostic(
-                        *ref,
-                        "internal error: Unable to add replacement",
-                        clang::DiagnosticsEngine::Error);
-                }
-            }
+            std::string filename = d_sm.getFilename(ref->getBeginLoc()).str();
+            checkUsage(ref, decl);
         }
     }
 };
 
 void SuggestMoveCheck::check(const MatchFinder::MatchResult &Result) {
-  // FIXME: Add callback implementation.
-  const auto *MatchedDecl = Result.Nodes.getNodeAs<FunctionDecl>("x");
-  if (!MatchedDecl->getIdentifier() || MatchedDecl->getName().startswith("awesome_"))
-    return;
-  diag(MatchedDecl->getLocation(), "function %0 is insufficiently awesome")
-      << MatchedDecl;
-  diag(MatchedDecl->getLocation(), "insert 'awesome'", DiagnosticIDs::Note)
-      << FixItHint::CreateInsertion(MatchedDecl->getLocation(), "awesome_");
+  clang::ASTContext& ctx = *Result.Context;
+
+  if (d_ctx) {
+    assert(d_ctx == Result.Context);
+  }
+  if (d_sm) {
+    assert(d_sm == Result.SourceManager);
+  }
+
+  d_ctx = Result.Context;
+  d_sm = Result.SourceManager;
+
+  if (Result.Nodes.getNodeAs<clang::CXXConstructorDecl>("copyCtor") ||
+      Result.Nodes.getNodeAs<clang::CXXMethodDecl>("copyAssign"))
+  {
+      const bool isConstruct = Result.Nodes.getNodeAs<clang::CXXConstructorDecl>(
+          "copyCtor");
+      const clang::DeclRefExpr* src = Result.Nodes.getNodeAs<clang::DeclRefExpr>("src");
+      const clang::VarDecl* srcDecl = Result.Nodes.getNodeAs<clang::VarDecl>("srcDecl");
+      d_variablesCopiedFrom[src] = {isConstruct, srcDecl};
+
+      clang::CompoundStmt* scope = const_cast<clang::CompoundStmt*>(
+          Result.Nodes.getNodeAs<clang::CompoundStmt>("scope"));
+      clang::CFG::BuildOptions options;
+      std::unique_ptr<clang::CFG> cfg = clang::CFG::buildCFG(
+          nullptr, scope, &ctx, options);
+      auto sequence = std::make_unique<ExprSequence>(
+          cfg.get(), scope, &ctx);
+      auto blockMap = std::make_unique<StmtToBlockMap>(cfg.get(), &ctx);
+      d_scopes[srcDecl] = Scope{
+          scope, std::move(cfg), std::move(sequence), std::move(blockMap)};
+  }
+  else if (const auto* ref = (Result.Nodes.getNodeAs<clang::DeclRefExpr>("allRefs")))
+  {
+      const clang::VarDecl* decl = Result.Nodes.getNodeAs<clang::VarDecl>("decl");
+      d_varUsages.emplace(decl, ref);
+  }
+  else if (const auto* ref = (Result.Nodes.getNodeAs<clang::Stmt>("allStmts")))
+  {
+      if (const clang::VarDecl* varDecl = FindEscaped::isEscaped(ref))
+      {
+          d_escaped.insert(varDecl);
+      }
+  }
+  else if (
+      const auto* type = (Result.Nodes.getNodeAs<clang::QualType>("bitwiseMoveable")))
+  {
+      const auto* recordDecl =
+          Result.Nodes.getNodeAs<clang::ClassTemplateSpecializationDecl>(
+              "classSpecialization");
+      assert(recordDecl);
+
+      if (isTrueType(recordDecl))
+      {
+          d_bitwiseMoveable.insert(type->getTypePtr());
+      }
+  }
+  else
+  {
+      assert(false && "Unhandled match");
+  }
+}
+
+void SuggestMoveCheck::onEndOfTranslationUnit() {
+  FindMoveCandidates finder(d_ctx, d_sm, this);
+  finder.postProcessing();
+  d_ctx = nullptr;
+  d_sm = nullptr;
 }
 
 } // namespace modernize

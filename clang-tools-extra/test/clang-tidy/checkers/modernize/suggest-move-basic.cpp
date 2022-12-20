@@ -1,7 +1,7 @@
 #include <vector>
 
 void containers() {
-    std::vector<int> vs;
+    std::vector<int> Vs;
 
-    std::vector<int> other{vs};
+    std::vector<int> Other{std::move(Vs)};
 }

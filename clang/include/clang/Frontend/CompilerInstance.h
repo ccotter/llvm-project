@@ -347,7 +347,7 @@ public:
 
   /// }
   /// @name VerboseOutputStream
-  /// }
+  /// {
 
   /// Replace the current stream for verbose output.
   void setVerboseOutputStream(raw_ostream &Value);
