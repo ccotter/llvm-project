@@ -278,6 +278,7 @@ Clang-Tidy Checks
    `modernize-replace-random-shuffle <modernize/replace-random-shuffle.html>`_, "Yes"
    `modernize-return-braced-init-list <modernize/return-braced-init-list.html>`_, "Yes"
    `modernize-shrink-to-fit <modernize/shrink-to-fit.html>`_, "Yes"
+   `modernize-suggest-move <modernize/suggest-move.html>`_, "Yes"
    `modernize-unary-static-assert <modernize/unary-static-assert.html>`_, "Yes"
    `modernize-use-auto <modernize/use-auto.html>`_, "Yes"
    `modernize-use-bool-literals <modernize/use-bool-literals.html>`_, "Yes"
