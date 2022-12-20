@@ -8,9 +8,19 @@
 
 #include "SuggestMoveCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/Lex/Lexer.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
+#include "../utils/ExprSequence.h"
+
+#include <unordered_map>
+#include <unordered_set>
+
 using namespace clang::ast_matchers;
+
+using clang::tidy::utils::ExprSequence;
+using clang::tidy::utils::StmtToBlockMap;
 
 namespace clang {
 namespace tidy {
@@ -87,11 +97,10 @@ clang::SourceLocation findLineBegin(
     return sourceManager.translateLineCol(fileID, line, 1);
 }
 
-namespace {
-using namespace clang;
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // // See https://llvm.org/LICENSE.txt for license information.
 // // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+using namespace clang;
 class FindEscaped
 {
   public:
@@ -123,7 +132,7 @@ class FindEscaped
     static const VarDecl* findLambdaReferenceCaptures(const LambdaExpr* LE)
     {
         const CXXRecordDecl* LambdaClass = LE->getLambdaClass();
-        llvm::DenseMap<const VarDecl*, FieldDecl*> CaptureFields;
+        llvm::DenseMap<const ValueDecl*, FieldDecl*> CaptureFields;
         FieldDecl* ThisCaptureField;
         LambdaClass->getCaptureFields(CaptureFields, ThisCaptureField);
 
@@ -132,168 +141,18 @@ class FindEscaped
             if (!C.capturesVariable())
                 continue;
 
-            VarDecl* VD = C.getCapturedVar();
+            ValueDecl* VD = C.getCapturedVar();
             const FieldDecl* FD = CaptureFields[VD];
-            if (!FD)
+            if (!FD || !isa<VarDecl>(VD))
                 continue;
 
             // If the capture field is a reference type, it is capture-by-reference.
             if (FD->getType()->isReferenceType())
-                return VD;
+                return cast<VarDecl>(VD);
         }
         return nullptr;
     }
 };
-} // namespace
-
-class CB : public ::clang::ast_matchers::MatchFinder::MatchCallback
-{
-  public:
-    clang::CompilerInstance* d_ci;
-
-    struct Scope
-    {
-        const clang::CompoundStmt* stmt;
-        std::unique_ptr<clang::CFG> cfg;
-        std::unique_ptr<ExprSequence> sequence;
-        std::unique_ptr<StmtToBlockMap> blockMap;
-    };
-
-    struct CopiedFromData
-    {
-        bool isConstruct = false;
-        const clang::VarDecl* decl = nullptr;
-    };
-
-    std::unordered_map<const clang::DeclRefExpr*, CopiedFromData> d_variablesCopiedFrom;
-    std::unordered_multimap<const clang::VarDecl*, const clang::DeclRefExpr*> d_varUsages;
-    std::unordered_map<const clang::VarDecl*, Scope> d_scopes;
-    std::unordered_set<const clang::VarDecl*> d_escaped;
-    std::unordered_set<const clang::Type*> d_bitwiseMoveable;
-
-    const decltype(d_variablesCopiedFrom)& variablesCopiedFrom() const
-    {
-        return d_variablesCopiedFrom;
-    }
-    const decltype(d_varUsages)& varUsages() const
-    {
-        return d_varUsages;
-    }
-    const decltype(d_scopes)& scopes() const
-    {
-        return d_scopes;
-    }
-    const decltype(d_escaped)& escaped() const
-    {
-        return d_escaped;
-    }
-    const decltype(d_bitwiseMoveable)& bitwiseMoveable() const
-    {
-        return d_bitwiseMoveable;
-    }
-
-  public:
-    CB(clang::CompilerInstance* ci) : d_ci(ci)
-    {
-    }
-
-    // Evaluates whether T has a const member value equal to true.
-    // E.g., std::true_type. Maybe there is a better way built into
-    // libTooling to directly evaluate the equivalent of
-    // `if constexpr (T::value)`?
-    static bool isTrueType(const clang::CXXRecordDecl* recordDecl)
-    {
-        for (const auto* decl : recordDecl->decls())
-        {
-            if (const auto* varDecl = llvm::dyn_cast<clang::VarDecl>(decl))
-            {
-                if (varDecl->getNameAsString() == "value")
-                {
-                    clang::APValue* evaluated = varDecl->evaluateValue();
-                    if (evaluated->hasValue() && evaluated->isInt())
-                    {
-                        return evaluated->getInt().getBoolValue();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        for (auto base : recordDecl->bases())
-        {
-            if (const auto* baseRecordDecl = base.getType()->getAsCXXRecordDecl())
-            {
-                if (isTrueType(baseRecordDecl))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    virtual void run(const clang::ast_matchers::MatchFinder::MatchResult& matchResult) override
-    {
-        if (matchResult.Nodes.getNodeAs<clang::CXXConstructorDecl>("copyCtor") ||
-            matchResult.Nodes.getNodeAs<clang::CXXMethodDecl>("copyAssign"))
-        {
-            const bool isConstruct = matchResult.Nodes.getNodeAs<clang::CXXConstructorDecl>(
-                "copyCtor");
-            const clang::DeclRefExpr* src = matchResult.Nodes.getNodeAs<clang::DeclRefExpr>("src");
-            const clang::VarDecl* srcDecl = matchResult.Nodes.getNodeAs<clang::VarDecl>("srcDecl");
-            d_variablesCopiedFrom[src] = {isConstruct, srcDecl};
-
-            clang::CompoundStmt* scope = const_cast<clang::CompoundStmt*>(
-                matchResult.Nodes.getNodeAs<clang::CompoundStmt>("scope"));
-            clang::CFG::BuildOptions options;
-            std::unique_ptr<clang::CFG> cfg = clang::CFG::buildCFG(
-                nullptr, scope, &d_ci->getASTContext(), options);
-            auto sequence = std::make_unique<ExprSequence>(
-                cfg.get(), scope, &d_ci->getASTContext());
-            auto blockMap = std::make_unique<StmtToBlockMap>(cfg.get(), &d_ci->getASTContext());
-            d_scopes[srcDecl] = Scope{
-                scope, std::move(cfg), std::move(sequence), std::move(blockMap)};
-        }
-        else if (const auto* ref = (matchResult.Nodes.getNodeAs<clang::DeclRefExpr>("allRefs")))
-        {
-            const clang::VarDecl* decl = matchResult.Nodes.getNodeAs<clang::VarDecl>("decl");
-            d_varUsages.emplace(decl, ref);
-        }
-        else if (const auto* ref = (matchResult.Nodes.getNodeAs<clang::Stmt>("allStmts")))
-        {
-            if (const clang::VarDecl* varDecl = FindEscaped::isEscaped(ref))
-            {
-                d_escaped.insert(varDecl);
-            }
-        }
-        else if (
-            const auto* type = (matchResult.Nodes.getNodeAs<clang::QualType>("bitwiseMoveable")))
-        {
-            const auto* recordDecl =
-                matchResult.Nodes.getNodeAs<clang::ClassTemplateSpecializationDecl>(
-                    "classSpecialization");
-            assert(recordDecl);
-
-            if (isTrueType(recordDecl))
-            {
-                d_bitwiseMoveable.insert(type->getTypePtr());
-            }
-        }
-        else
-        {
-            assert(!"Unhandled match");
-        }
-    }
-};
-
-llvm::cl::OptionCategory& helpCategory()
-{
-    static llvm::cl::OptionCategory s_helpCategory("find-possible-move options");
-    return s_helpCategory;
-}
 
 } // namespace
 
@@ -435,7 +294,7 @@ class CB : public ::clang::ast_matchers::MatchFinder::MatchCallback
         }
         else
         {
-            assert(!"Unhandled match");
+            assert(false && "Unhandled match");
         }
     }
 };
@@ -565,7 +424,7 @@ class FindMoveCandidates
         auto refType = ref->getDecl()->getType().getTypePtr();
         if (!refType)
         {
-            std::cout << "Unexpected missing CxxRecordDecl for\n";
+            llvm::errs() << "Unexpected missing CxxRecordDecl for\n";
             refType->dump();
             assert(false);
         }
@@ -944,10 +803,10 @@ class FindMoveCandidates
             return {};
         }
 
-        auto [fst, lst] = d_cb.varUsages().equal_range(decl);
+        auto usageRange = d_cb.varUsages().equal_range(decl);
         std::vector<const clang::DeclRefExpr*> usages;
         std::transform(
-            fst, lst, std::back_inserter(usages), [](const auto& itr) { return itr.second; });
+            usageRange.first, usageRange.second, std::back_inserter(usages), [](const auto& itr) { return itr.second; });
         std::nth_element(
             usages.begin(), usages.end() - 1, usages.end(), [&](const auto* a, const auto* b) {
                 return scope.sequence->inSequence(a, b);
@@ -962,7 +821,7 @@ class FindMoveCandidates
 
         auto sharesAnyOuterStmt = [&](const clang::Stmt* stmt) {
             const clang::Stmt* fullStmt = getOuterStmt(stmt);
-            for (auto itr = fst; itr != lst; ++itr)
+            for (auto itr = usageRange.first; itr != usageRange.second; ++itr)
             {
                 if (stmt == itr->second)
                 {
