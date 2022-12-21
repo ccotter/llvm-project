@@ -501,7 +501,7 @@ class FindMoveCandidates
 
         for (const clang::Stmt* parent : getParentStmts(stmt))
         {
-            if (const auto* compoundStmt = llvm::dyn_cast<clang::CompoundStmt>(parent))
+            if (llvm::dyn_cast<clang::CompoundStmt>(parent))
             {
                 return stmt;
             }

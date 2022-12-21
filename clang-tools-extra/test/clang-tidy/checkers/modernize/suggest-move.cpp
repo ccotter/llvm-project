@@ -1,14 +1,31 @@
 // RUN: %check_clang_tidy %s modernize-suggest-move %t
 
-// FIXME: Add something that triggers the check here.
-void f();
-// CHECK-MESSAGES: :[[@LINE-1]]:6: warning: function 'f' is insufficiently awesome [modernize-suggest-move]
+namespace std {
 
-// FIXME: Verify the applied fix.
-//   * Make the CHECK patterns specific enough and try to make verified lines
-//     unique to avoid incorrect matches.
-//   * Use {{}} for regular expressions.
-// CHECK-FIXES: {{^}}void awesome_f();{{$}}
+template <typename T> struct vector { // NOLINT
+  vector();
+  vector(const vector&);
+  vector(vector&&);
+  vector& operator=(const vector&);
+  vector& operator=(vector&&);
 
-// FIXME: Add something that doesn't trigger the check here.
-void awesome_f2();
+  unsigned size() const;
+};
+
+} // namespace std
+
+void containers() {
+  std::vector<int> Vs;
+
+  std::vector<int> Vs2{Vs};
+  // CHECK-MESSAGES: :[[@LINE-1]]:6: warning: use std::move to avoid copy [modernize-suggest-move]
+  // CHECK-FIXES: std::vector<int> Vs2{Vs};
+}
+
+void containers_that_dont_trigger() {
+  std::vector<int> Vs;
+
+  std::vector<int> Vs2{Vs};
+
+  if (Vs.size()) { }
+}
