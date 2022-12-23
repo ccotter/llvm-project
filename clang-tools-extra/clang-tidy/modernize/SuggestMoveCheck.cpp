@@ -136,75 +136,6 @@ class FindMoveCandidates {
 
   SuggestMoveCheck &d_cb;
 
-#if 0
-    template <int N>
-    void reportDiagnostic(
-        const clang::CharSourceRange& location,
-        const char (&message)[N],
-        clang::DiagnosticsEngine::Level level,
-        const std::vector<clang::FixItHint>& fixIts = {},
-        const std::vector<std::string>& arguments = {}) const
-    {
-        auto& diagnosticsEngine = d_ci->getDiagnostics();
-        const auto id = diagnosticsEngine.getCustomDiagID(level, message);
-
-        auto builder = diagnosticsEngine.Report(location.getBegin(), id);
-        for (const auto& item : arguments)
-        {
-            builder.AddString(item);
-        }
-        builder.AddSourceRange(location);
-        for (const auto& fixIt : fixIts)
-        {
-            builder.AddFixItHint(fixIt);
-        }
-    }
-
-    template <typename T, int N>
-    void reportDiagnostic(
-        const T& node,
-        const char (&message)[N],
-        clang::DiagnosticsEngine::Level level,
-        const std::vector<clang::FixItHint>& fixIts = {},
-        const std::vector<std::string>& arguments = {}) const
-    {
-        reportDiagnostic(
-            clang::CharSourceRange::getTokenRange(node.getSourceRange()),
-            message,
-            level,
-            fixIts,
-            arguments);
-    }
-
-    template <int N>
-    void reportDiagnostic(
-        const clang::SourceLocation& location,
-        const char (&message)[N],
-        clang::DiagnosticsEngine::Level level,
-        const std::vector<clang::FixItHint>& fixIts = {},
-        const std::vector<std::string>& arguments = {}) const
-    {
-        reportDiagnostic(
-            clang::CharSourceRange(clang::SourceRange(location), false),
-            message,
-            level,
-            fixIts,
-            arguments);
-    }
-#endif
-
-  struct Reporter {
-    FindMoveCandidates *self;
-    const clang::Stmt *stmt;
-    clang::DiagnosticsEngine::Level level;
-
-    template <int N>
-    void operator()(const char (&message)[N],
-                    const std::vector<clang::FixItHint> &fixIts = {}) const {
-      // self->reportDiagnostic(*stmt, message, level, fixIts);
-    }
-  };
-
 public:
   FindMoveCandidates(clang::ASTContext *ctx, clang::SourceManager *sm,
                      SuggestMoveCheck *cb)
@@ -484,9 +415,6 @@ public:
               bool hasMoveCtor, bool hasMoveAssign) const {
     std::vector<clang::FixItHint> FixIts = generateFixIts(ref);
 
-    // char diagnostic[] =
-    //     "std::move candidate: consider moving the source into the destination
-    //     object [%0]";
     std::string note = "move";
     if (isSafe) {
       note += "-safe";
@@ -508,10 +436,6 @@ public:
     }
 
     d_cb.diag(ref->getBeginLoc(), "use std::move to avoid copy") << FixIts;
-
-    // reportDiagnostic(
-    //     *ref, diagnostic, clang::DiagnosticsEngine::Warning, fixIts,
-    //     {std::move(note)});
 
     if (reportRemoveConstNote) {
       // Notes are output based on the previously emitted diagnostic. We wait to

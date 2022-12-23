@@ -41,18 +41,61 @@ template <typename T> struct vector { // NOLINT
 
 } // namespace std
 
-void containers() {
-  std::vector<int> Vs;
+struct HasMove {
+  HasMove(const HasMove&);
+  HasMove(HasMove&&);
+  HasMove& operator=(const HasMove&);
+  HasMove& operator=(HasMove&&);
+};
 
-  std::vector<int> Vs2{Vs};
-  // CHECK-MESSAGES: :[[@LINE-1]]:24: warning: use std::move to avoid copy [modernize-suggest-move]
-  // CHECK-FIXES: std::vector<int> Vs2{std::move(Vs)};
+struct NoMove {
+  NoMove(const NoMove&);
+  NoMove& operator=(const NoMove&);
+};
+
+void containers_are_movable() {
+  {
+    std::vector<int> Vs;
+
+    std::vector<int> Vs2{Vs};
+    // CHECK-MESSAGES: :[[@LINE-1]]:26: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: std::vector<int> Vs2{std::move(Vs)};
+  }
+
+  {
+    std::vector<HasMove> Vs;
+
+    std::vector<HasMove> Vs2{Vs};
+    // CHECK-MESSAGES: :[[@LINE-1]]:30: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: std::vector<HasMove> Vs2{std::move(Vs)};
+  }
+
+  {
+    std::vector<NoMove> Vs;
+
+    std::vector<NoMove> Vs2{Vs};
+  }
+
+  {
+    std::vector<int> Vs;
+
+    std::vector<int> Vs2;
+    Vs2 = Vs;
+    // CHECK-MESSAGES: :[[@LINE-1]]:11: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: Vs2 = std::move(Vs);
+  }
 }
 
-void containers_that_dont_trigger() {
-  std::vector<int> Vs;
-
-  std::vector<int> Vs2{Vs};
-
-  if (Vs.size()) { }
+void use_after_does_not_suggest_move() {
+  {
+    std::vector<int> Vs;
+    std::vector<int> Vs2{Vs};
+    if (Vs.size()) { }
+  }
+  {
+    std::vector<int> Vs;
+    std::vector<int> Vs2;
+    Vs2 = Vs;
+    if (Vs.size()) { }
+  }
 }
