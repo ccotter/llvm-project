@@ -42,6 +42,7 @@ template <typename T> struct vector { // NOLINT
 } // namespace std
 
 struct HasMove {
+  HasMove();
   HasMove(const HasMove&);
   HasMove(HasMove&&);
   HasMove& operator=(const HasMove&);
@@ -49,9 +50,37 @@ struct HasMove {
 };
 
 struct NoMove {
+  NoMove();
   NoMove(const NoMove&);
   NoMove& operator=(const NoMove&);
 };
+
+void last_use_suggests() {
+  {
+    HasMove Val;
+    HasMove Val2{Val};
+    // CHECK-MESSAGES: :[[@LINE-1]]:18: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: HasMove Val2{std::move(Val)};
+  }
+
+  {
+    HasMove Val;
+    HasMove Val2{Val};
+    HasMove Val3{Val};
+    // CHECK-MESSAGES: :[[@LINE-1]]:18: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: HasMove Val3{std::move(Val)};
+  }
+}
+
+void const_value_doesnt_suggest() {
+  const HasMove Val;
+  HasMove Val2{Val};
+}
+
+void non_movable_doesnt_suggest() {
+  NoMove Val;
+  NoMove Val2{Val};
+}
 
 void containers_are_movable() {
   {
@@ -72,8 +101,9 @@ void containers_are_movable() {
 
   {
     std::vector<NoMove> Vs;
-
     std::vector<NoMove> Vs2{Vs};
+    // CHECK-MESSAGES: :[[@LINE-1]]:29: warning: use std::move to avoid copy [modernize-suggest-move]
+    // CHECK-FIXES: std::vector<NoMove> Vs2{std::move(Vs)};
   }
 
   {
@@ -83,6 +113,16 @@ void containers_are_movable() {
     Vs2 = Vs;
     // CHECK-MESSAGES: :[[@LINE-1]]:11: warning: use std::move to avoid copy [modernize-suggest-move]
     // CHECK-FIXES: Vs2 = std::move(Vs);
+  }
+}
+
+void do_escape(std::vector<int>*);
+
+void escaped_values_do_not_trigger() {
+  {
+    std::vector<int> Vs;
+    do_escape(&Vs);
+    std::vector<int> Vs2{Vs};
   }
 }
 

@@ -51,17 +51,10 @@ void SuggestMoveCheck::registerMatchers(MatchFinder *Finder) {
                              hasDeclaration(varDecl().bind("decl")))
                      .bind("allRefs");
   auto allStmts = stmt(isExpansionInMainFile()).bind("allStmts");
-  auto bitwiseMoveable =
-      classTemplateSpecializationDecl(
-          hasName("BloombergLP::bslmf::IsBitwiseMoveable"),
-          hasTemplateArgument(0,
-                              refersToType(qualType().bind("bitwiseMoveable"))))
-          .bind("classSpecialization");
   Finder->addMatcher(copyCtors, this);
   Finder->addMatcher(copyAssigns, this);
   Finder->addMatcher(allRefs, this);
   Finder->addMatcher(allStmts, this);
-  Finder->addMatcher(bitwiseMoveable, this);
 }
 
 namespace {
@@ -211,9 +204,6 @@ public:
 
   MoveSafety isTypeSafeToMove(clang::QualType type) const {
     type = type.getDesugaredType(d_ctx);
-    if (d_cb.bitwiseMoveable().count(type.getTypePtr())) {
-      return Always;
-    }
     if (type.isTrivialType(d_ctx)) {
       return Always;
     }
@@ -413,40 +403,15 @@ public:
 
   void report(const clang::DeclRefExpr *ref, bool isSafe, bool isConstruct,
               bool hasMoveCtor, bool hasMoveAssign) const {
-    std::vector<clang::FixItHint> FixIts = generateFixIts(ref);
-
-    std::string note = "move";
-    if (isSafe) {
-      note += "-safe";
-    } else {
-      note += "-unsafe";
+    if ((isConstruct && !hasMoveCtor) || (!isConstruct && !hasMoveAssign)) {
+      return;
     }
-    if (isConstruct && !hasMoveCtor) {
-      note += "-needs-move-ctor";
-    } else if (!isConstruct && !hasMoveAssign) {
-      note += "-needs-move-assign";
-    }
-    bool reportRemoveConstNote = false;
     if (ref->getType().isConstQualified()) {
-      reportRemoveConstNote = true;
-      note += "-remove-const";
+      return;
     }
 
-    if (note == "move-safe") {
-    }
-
+    std::vector<clang::FixItHint> FixIts = generateFixIts(ref);
     d_cb.diag(ref->getBeginLoc(), "use std::move to avoid copy") << FixIts;
-
-    if (reportRemoveConstNote) {
-      // Notes are output based on the previously emitted diagnostic. We wait to
-      // emit the note until after emitting the warning.
-      // reportDiagnostic(
-      //    *ref->getDecl(),
-      //    "std::move candidate: Consider removing const to allow the variable
-      //    to be moved "
-      //    "[remove-const]",
-      //    clang::DiagnosticsEngine::Note);
-    }
   }
 
   void checkUsage(const clang::DeclRefExpr *ref,
@@ -569,16 +534,6 @@ void SuggestMoveCheck::check(const MatchFinder::MatchResult &Result) {
                  (Result.Nodes.getNodeAs<clang::Stmt>("allStmts"))) {
     if (const clang::VarDecl *varDecl = FindEscaped::isEscaped(ref)) {
       d_escaped.insert(varDecl);
-    }
-  } else if (const auto *type =
-                 (Result.Nodes.getNodeAs<clang::QualType>("bitwiseMoveable"))) {
-    const auto *recordDecl =
-        Result.Nodes.getNodeAs<clang::ClassTemplateSpecializationDecl>(
-            "classSpecialization");
-    assert(recordDecl);
-
-    if (isTrueType(recordDecl)) {
-      d_bitwiseMoveable.insert(type->getTypePtr());
     }
   } else {
     assert(false && "Unhandled match");
