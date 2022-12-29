@@ -204,6 +204,10 @@ Changes in existing checks
   The check now skips concept definitions since redundant expressions still make sense
   inside them.
 
+- Improved :doc:`modernize-loop-convert <clang-tidy/checks/modernize/loop-convert>` to
+  refactor container based for loops that initialize iterators with free function calls
+  to ``begin``, ``end``, or ``size``.
+
 Removed checks
 ^^^^^^^^^^^^^^
 
