@@ -163,6 +163,10 @@ Changes in existing checks
   <clang-tidy/checks/bugprone/reserved-identifier>`, so that it does not warn
   on macros starting with underscore and lowercase letter.
 
+- Improved :doc:`modernize-loop-convert <clang-tidy/checks/modernize/loop-convert>` to
+  refactor container based for loops that initialize iterators with free function calls
+  to ``begin``, ``end``, or ``size``.
+
 Removed checks
 ^^^^^^^^^^^^^^
 
