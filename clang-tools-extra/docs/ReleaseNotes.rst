@@ -118,6 +118,11 @@ New checks
 
   Warns when using ``do-while`` loops.
 
+- New :doc:`cppcoreguidelines-avoid-lambda-capturing-coroutines
+  <clang-tidy/checks/cppcoreguidelines/avoid-lambda-capturing-coroutines>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`misc-use-anonymous-namespace
   <clang-tidy/checks/misc/use-anonymous-namespace>` check.
 

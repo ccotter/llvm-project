@@ -181,6 +181,7 @@ Clang-Tidy Checks
    `cppcoreguidelines-avoid-const-or-ref-data-members <cppcoreguidelines/avoid-const-or-ref-data-members.html>`_,
    `cppcoreguidelines-avoid-do-while <cppcoreguidelines/avoid-do-while.html>`_,
    `cppcoreguidelines-avoid-goto <cppcoreguidelines/avoid-goto.html>`_,
+   `cppcoreguidelines-avoid-lambda-capturing-coroutines <cppcoreguidelines/avoid-lambda-capturing-coroutines.html>`_, "Yes"
    `cppcoreguidelines-avoid-non-const-global-variables <cppcoreguidelines/avoid-non-const-global-variables.html>`_,
    `cppcoreguidelines-init-variables <cppcoreguidelines/init-variables.html>`_, "Yes"
    `cppcoreguidelines-interfaces-global-init <cppcoreguidelines/interfaces-global-init.html>`_,

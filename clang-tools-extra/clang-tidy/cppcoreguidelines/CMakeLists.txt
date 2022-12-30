@@ -7,6 +7,7 @@ add_clang_library(clangTidyCppCoreGuidelinesModule
   AvoidConstOrRefDataMembersCheck.cpp
   AvoidDoWhileCheck.cpp
   AvoidGotoCheck.cpp
+  AvoidLambdaCapturingCoroutinesCheck.cpp
   AvoidNonConstGlobalVariablesCheck.cpp
   CppCoreGuidelinesTidyModule.cpp
   InitVariablesCheck.cpp

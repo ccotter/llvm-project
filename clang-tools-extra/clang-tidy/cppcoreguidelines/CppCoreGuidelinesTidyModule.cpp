@@ -17,6 +17,7 @@
 #include "AvoidConstOrRefDataMembersCheck.h"
 #include "AvoidDoWhileCheck.h"
 #include "AvoidGotoCheck.h"
+#include "AvoidLambdaCapturingCoroutinesCheck.h"
 #include "AvoidNonConstGlobalVariablesCheck.h"
 #include "InitVariablesCheck.h"
 #include "InterfacesGlobalInitCheck.h"
@@ -55,6 +56,8 @@ public:
         "cppcoreguidelines-avoid-do-while");
     CheckFactories.registerCheck<AvoidGotoCheck>(
         "cppcoreguidelines-avoid-goto");
+    CheckFactories.registerCheck<AvoidLambdaCapturingCoroutinesCheck>(
+        "cppcoreguidelines-avoid-lambda-capturing-coroutines");
     CheckFactories.registerCheck<readability::MagicNumbersCheck>(
         "cppcoreguidelines-avoid-magic-numbers");
     CheckFactories.registerCheck<AvoidNonConstGlobalVariablesCheck>(
