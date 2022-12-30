@@ -697,7 +697,7 @@ void f() {
     Sum += V[I] + 2;
   }
   // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
-  // CHECK-FIXES: for (int & I : V)
+  // CHECK-FIXES: for (int I : V)
   // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
   // CHECK-FIXES-NEXT: Sum += I + 2;
 
@@ -705,7 +705,7 @@ void f() {
     V[I] = 0;
   }
   // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
-  // CHECK-FIXES: for (int& I : V)
+  // CHECK-FIXES: for (int & I : V)
   // CHECK-FIXES-NEXT: I = 0;
 
   // Although 'length' might be a valid free function, only std::size() is standardized
@@ -713,6 +713,14 @@ void f() {
     printf("Fibonacci number is %d\n", V[I]);
     Sum += V[I] + 2;
   }
+
+  dependent<Val> Vals;
+  for (int I = 0, E = size(Vals); E != I; ++I) {
+    Sum += Vals[I].X;
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (auto & Val : Vals)
+  // CHECK-FIXES-NEXT: Sum += Val.X;
 }
 
 // Ensure that 'const auto &' is used with containers of non-trivial types.
