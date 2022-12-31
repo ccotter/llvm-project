@@ -5499,7 +5499,8 @@ AST_POLYMORPHIC_MATCHER_P(hasBody,
                           AST_POLYMORPHIC_SUPPORTED_TYPES(DoStmt, ForStmt,
                                                           WhileStmt,
                                                           CXXForRangeStmt,
-                                                          FunctionDecl),
+                                                          FunctionDecl,
+                                                          CoroutineBodyStmt),
                           internal::Matcher<Stmt>, InnerMatcher) {
   if (Finder->isTraversalIgnoringImplicitNodes() && isDefaultedHelper(&Node))
     return false;

@@ -698,6 +698,32 @@ void non_coro_function() {
   EXPECT_FALSE(matchesConditionally(NonCoroCode,
                                    coroutineBodyStmt(),
                                    true, {"-std=c++20", "-I/"}, M));
+
+  StringRef CoroWithDeclCode = R"cpp(
+#include <coro_header>
+void coro() {
+  int thevar;
+  co_return 1;
+}
+)cpp";
+  EXPECT_TRUE(matchesConditionally(
+      CoroWithDeclCode,
+      coroutineBodyStmt(hasBody(compoundStmt(
+          has(declStmt(containsDeclaration(0, varDecl(hasName("thevar")))))))),
+      true, {"-std=c++20", "-I/"}, M));
+
+  StringRef CoroWithTryCatchDeclCode = R"cpp(
+#include <coro_header>
+void coro() try {
+  int thevar;
+  co_return 1;
+} catch (...) {}
+)cpp";
+  EXPECT_TRUE(matchesConditionally(
+      CoroWithTryCatchDeclCode,
+      coroutineBodyStmt(hasBody(cxxTryStmt(has(compoundStmt(
+          has(declStmt(containsDeclaration(0, varDecl(hasName("thevar")))))))))),
+      true, {"-std=c++20", "-I/"}, M));
 }
 
 TEST(Matcher, isClassMessage) {
