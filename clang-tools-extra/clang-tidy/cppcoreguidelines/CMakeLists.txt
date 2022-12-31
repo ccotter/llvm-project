@@ -8,6 +8,7 @@ add_clang_library(clangTidyCppCoreGuidelinesModule
   AvoidDoWhileCheck.cpp
   AvoidGotoCheck.cpp
   AvoidNonConstGlobalVariablesCheck.cpp
+  AvoidReferenceCoroutineParametersCheck.cpp
   CppCoreGuidelinesTidyModule.cpp
   InitVariablesCheck.cpp
   InterfacesGlobalInitCheck.cpp
@@ -43,6 +44,7 @@ add_clang_library(clangTidyCppCoreGuidelinesModule
 
 clang_target_link_libraries(clangTidyCppCoreGuidelinesModule
   PRIVATE
+  clangAnalysis
   clangAST
   clangASTMatchers
   clangBasic
