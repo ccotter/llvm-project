@@ -130,6 +130,12 @@ New checks
 
   Warns on coroutines that accept reference parameters.
 
+- New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
+  <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
+
+  Warns when an rvalue reference function parameter is never moved within
+  the function body.
+
 - New :doc:`misc-use-anonymous-namespace
   <clang-tidy/checks/misc/use-anonymous-namespace>` check.
 
