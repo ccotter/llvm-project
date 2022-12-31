@@ -110,6 +110,12 @@ New checks
 
   Warns when lambda specify a capture default and capture ``this``.
 
+- New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
+  <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
+
+  Warns when an rvalue reference function parameter is never moved within
+  the function body.
+
 - New :doc: `llvmlibc-inline-function-decl
   <clang-tidy/checks/llvmlibc/inline-function-decl>` check.
 

@@ -1,0 +1,224 @@
+// RUN: %check_clang_tidy -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t
+
+// NOLINTBEGIN
+namespace std {
+template <typename>
+struct remove_reference;
+
+template <typename _Tp>
+struct remove_reference {
+  typedef _Tp type;
+};
+
+template <typename _Tp>
+struct remove_reference<_Tp &> {
+  typedef _Tp type;
+};
+
+template <typename _Tp>
+struct remove_reference<_Tp &&> {
+  typedef _Tp type;
+};
+
+template <typename _Tp>
+constexpr typename std::remove_reference<_Tp>::type &&move(_Tp &&__t) noexcept {
+  return static_cast<typename remove_reference<_Tp>::type &&>(__t);
+}
+
+template <typename _Tp>
+constexpr _Tp &&
+forward(typename remove_reference<_Tp>::type &__t) noexcept {
+  return static_cast<_Tp &&>(__t);
+}
+
+}
+// NOLINTEND
+
+struct Obj {
+  Obj();
+  Obj(const Obj&);
+  Obj& operator=(const Obj&);
+  Obj(Obj&&);
+  Obj& operator=(Obj&&);
+  void member() const;
+};
+
+void consumes_object(Obj);
+
+void never_moves_param(Obj&& o) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:24: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  o.member();
+}
+
+void copies_object(Obj&& o) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  Obj copy = o;
+}
+
+template <typename T>
+void never_moves_param_template(Obj&& o, T t) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:33: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  o.member();
+}
+
+void never_moves_params(Obj&& o1, Obj&& o2) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:25: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-2]]:35: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+}
+
+void never_moves_some_params(Obj&& o1, Obj&& o2) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:30: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+
+  Obj other{std::move(o2)};
+}
+
+void never_moves_mixed(Obj o1, Obj&& o2) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:32: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+}
+
+void lambda_captures_parameter_as_value(Obj&& o) {
+  auto f = [o]() {
+    consumes_object(std::move(o));
+  };
+  // CHECK-MESSAGES: :[[@LINE-4]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+}
+
+void lambda_captures_parameter_as_value_nested(Obj&& o) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:48: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  auto f = [&o]() {
+    auto f_nested = [o]() {
+      consumes_object(std::move(o));
+    };
+  };
+  auto f2 = [o]() {
+    auto f_nested = [&o]() {
+      consumes_object(std::move(o));
+    };
+  };
+  auto f3 = [o]() {
+    auto f_nested = [&o]() {
+      auto f_nested_inner = [&o]() {
+        consumes_object(std::move(o));
+      };
+    };
+  };
+  auto f4 = [&o]() {
+    auto f_nested = [&o]() {
+      auto f_nested_inner = [o]() {
+        consumes_object(std::move(o));
+      };
+    };
+  };
+}
+
+void misc_lambda_checks() {
+  auto never_moves = [](Obj&& o1) {
+    Obj other{o1};
+  };
+  // CHECK-MESSAGES: :[[@LINE-3]]:25: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+
+  auto never_moves_with_auto_param = [](Obj&& o1, auto& v) {
+    Obj other{o1};
+  };
+  // CHECK-MESSAGES: :[[@LINE-3]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+}
+
+// Negative tests - below functions do not violate the guideline
+
+template <typename T>
+void forwarding_ref(T&& t) {
+  t.member();
+}
+
+template <typename T>
+void forwarding_ref_forwarded(T&& t) {
+  forwarding_ref(std::forward<T>(t));
+}
+
+void good1(Obj&& o) {
+  Obj moved = std::move(o);
+  moved.member();
+}
+
+void good2(Obj& o) {
+  o.member();
+}
+
+void good3(Obj o) {
+  o.member();
+}
+
+void good4(const Obj& o) {
+  o.member();
+}
+
+void lambda_captures_parameter_as_reference(Obj&& o) {
+  auto f = [&o]() {
+    consumes_object(std::move(o));
+  };
+}
+
+void lambda_captures_parameter_as_reference_nested(Obj&& o) {
+  auto f = [&o]() {
+    auto f_nested = [&o]() {
+      auto f_nested2 = [&o]() {
+        consumes_object(std::move(o));
+      };
+    };
+  };
+}
+
+void lambda_captures_parameter_generalized(Obj&& o) {
+  auto f = [o = std::move(o)]() {
+    consumes_object(std::move(o));
+  };
+}
+
+void negative_lambda_checks() {
+  auto never_moves_nested = [](Obj&& o1) {
+    auto nested = [&]() {
+      Obj other{std::move(o1)};
+    };
+  };
+
+  auto auto_lvalue_ref_param = [](auto& o1) {
+    Obj other{o1};
+  };
+
+  auto auto_forwarding_ref_param = [](auto&& o1) {
+    Obj other{o1};
+  };
+
+  auto does_move = [](Obj&& o1) {
+    Obj other{std::move(o1)};
+  };
+
+  auto does_move_auto_rvalue_ref_param = [](auto&& o1) {
+    Obj other{std::forward(o1)};
+  };
+
+  auto not_rvalue_ref = [](Obj& o1) {
+    Obj other{std::move(o1)};
+  };
+
+  Obj local;
+  auto captures = [local]() {
+  };
+}
+
+struct DefinesMove {
+  DefinesMove(DefinesMove&& rhs) : o(std::move(rhs.o)) {
+  }
+  DefinesMove& operator=(DefinesMove&& rhs) {
+    if (this != &rhs) {
+      o = std::move(rhs.o);
+    }
+  }
+  Obj o;
+};
+
+struct AnotherObj {
+  AnotherObj(Obj&& o) : o(std::move(o)) {}
+  AnotherObj(Obj&& o, int) { o = std::move(o); }
+  Obj o;
+};
