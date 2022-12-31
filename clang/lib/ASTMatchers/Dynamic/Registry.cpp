@@ -168,6 +168,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(complexType);
   REGISTER_MATCHER(compoundLiteralExpr);
   REGISTER_MATCHER(compoundStmt);
+  REGISTER_MATCHER(coroutineBodyStmt);
   REGISTER_MATCHER(coawaitExpr);
   REGISTER_MATCHER(conditionalOperator);
   REGISTER_MATCHER(constantArrayType);

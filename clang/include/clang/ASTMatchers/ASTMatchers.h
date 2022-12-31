@@ -2449,6 +2449,17 @@ extern const internal::VariadicDynCastAllOfMatcher<Stmt, DependentCoawaitExpr>
 extern const internal::VariadicDynCastAllOfMatcher<Stmt, CoyieldExpr>
     coyieldExpr;
 
+/// Matches coroutine body statements.
+///
+/// coroutineBodyStmt() matches the coroutine below
+/// \code
+///   generator<int> gen() {
+///     co_return;
+///   }
+/// \endcode
+extern const internal::VariadicDynCastAllOfMatcher<Stmt, CoroutineBodyStmt>
+    coroutineBodyStmt;
+
 /// Matches nullptr literal.
 extern const internal::VariadicDynCastAllOfMatcher<Stmt, CXXNullPtrLiteralExpr>
     cxxNullPtrLiteralExpr;

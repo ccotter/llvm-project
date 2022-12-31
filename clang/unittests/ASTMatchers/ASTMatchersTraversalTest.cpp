@@ -678,6 +678,26 @@ void check_match_co_yield() {
   EXPECT_TRUE(matchesConditionally(CoYieldCode, 
                                    coyieldExpr(isExpansionInMainFile()), 
                                    true, {"-std=c++20", "-I/"}, M));
+
+  StringRef NonCoroCode = R"cpp(
+#include <coro_header>
+void non_coro_function() {
+}
+)cpp";
+
+  EXPECT_TRUE(matchesConditionally(CoReturnCode, 
+                                   coroutineBodyStmt(),
+                                   true, {"-std=c++20", "-I/"}, M));
+  EXPECT_TRUE(matchesConditionally(CoAwaitCode, 
+                                   coroutineBodyStmt(),
+                                   true, {"-std=c++20", "-I/"}, M));
+  EXPECT_TRUE(matchesConditionally(CoYieldCode, 
+                                   coroutineBodyStmt(),
+                                   true, {"-std=c++20", "-I/"}, M));
+
+  EXPECT_FALSE(matchesConditionally(NonCoroCode,
+                                   coroutineBodyStmt(),
+                                   true, {"-std=c++20", "-I/"}, M));
 }
 
 TEST(Matcher, isClassMessage) {

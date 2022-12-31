@@ -868,6 +868,8 @@ AST Matchers
 ------------
 - Add ``isInAnoymousNamespace`` matcher to match declarations in an anonymous namespace.
 
+- Add ``coroutineBodyStmt`` matcher.
+
 clang-format
 ------------
 - Add ``RemoveSemicolon`` option for removing ``;`` after a non-empty function definition.
