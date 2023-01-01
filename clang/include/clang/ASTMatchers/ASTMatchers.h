@@ -5471,9 +5471,9 @@ AST_MATCHER_P(ArraySubscriptExpr, hasBase,
 }
 
 /// Matches a 'for', 'while', 'do while' statement or a function
-/// definition that has a given body. Note that in case of functions
-/// this matcher only matches the definition itself and not the other
-/// declarations of the same function.
+/// or coroutine definition that has a given body. Note that in case of
+/// functions this matcher only matches the definition itself and not
+/// the other declarations of the same function.
 ///
 /// Given
 /// \code
