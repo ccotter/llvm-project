@@ -111,6 +111,12 @@ New checks
   Finds usages of ``realloc`` where the return value is assigned to the
   same expression as passed to the first argument.
 
+- New :doc:`cppcoreguidelines-avoid-capture-this-with-capture-default
+  <clang-tidy/checks/cppcoreguidelines/avoid-capture-this-with-capture-default>` check.
+
+  Warns when lambda specify a capture default and capture ``this``. The check also
+  offers FixIts.
+
 - New :doc:`cppcoreguidelines-avoid-const-or-ref-data-members
   <clang-tidy/checks/cppcoreguidelines/avoid-const-or-ref-data-members>` check.
 
