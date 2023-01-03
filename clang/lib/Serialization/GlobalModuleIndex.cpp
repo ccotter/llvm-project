@@ -391,7 +391,7 @@ LLVM_DUMP_METHOD void GlobalModuleIndex::dump() {
 namespace {
   /// Provides information about a specific module file.
   struct ModuleFileInfo {
-    /// The numberic ID for this module file.
+    /// The numeric ID for this module file.
     unsigned ID;
 
     /// The set of modules on which this module depends. Each entry is

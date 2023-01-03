@@ -370,7 +370,7 @@ kmp_str_loc_t __kmp_str_loc_init(char const *psource, bool init_fname) {
     __kmp_str_split(str, ';', &line, &str);
     __kmp_str_split(str, ';', &col, &str);
 
-    // Convert line and col into numberic values.
+    // Convert line and col into numeric values.
     if (line != NULL) {
       loc.line = atoi(line);
       if (loc.line < 0) {
