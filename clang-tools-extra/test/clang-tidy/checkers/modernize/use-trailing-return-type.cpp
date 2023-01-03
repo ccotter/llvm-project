@@ -80,8 +80,8 @@ a7
 // CHECK-MESSAGES: :[[@LINE-1]]:1: warning: use a trailing return type for this function [modernize-use-trailing-return-type]
 ()
 // CHECK-FIXES: {{^}}() -> const{{$}}
-// CHECK-FIXES: {{^}}int{{$}}
-// CHECK-FIXES: {{^}}*{{$}}
+// CHECK-FIXES-NEXT: {{^}}int{{$}}
+// CHECK-FIXES-NEXT: {{^}}*{{$}}
 ;
 
 int*a7(int arg);

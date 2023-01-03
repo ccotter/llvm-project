@@ -122,14 +122,14 @@ bool switch_stmt(int i, int j, bool b) {
       return true;
     return false;
     // CHECK-MESSAGES: :[[@LINE-2]]:14: warning: {{.*}} in conditional return
-    // FIXES: {{return j > 10;}}
+    // CHECK-FIXES: {{return j > 10;}}
 
   case 15:
     if (j > 10)
       return false;
     return true;
     // CHECK-MESSAGES: :[[@LINE-2]]:14: warning: {{.*}} in conditional return
-    // FIXES: {{return j <= 10;}}
+    // CHECK-FIXES: {{return j <= 10;}}
 
   case 16:
     if (j > 10)
@@ -541,7 +541,7 @@ bool default_stmt14(int i, int j, bool b) {
       return true;
     return false;
     // CHECK-MESSAGES: :[[@LINE-2]]:14: warning: {{.*}} in conditional return
-    // FIXES: {{return j > 10;}}
+    // CHECK-FIXES: {{return j > 10;}}
   }
   return false;
 }
@@ -556,7 +556,7 @@ bool default_stmt15(int i, int j, bool b) {
       return false;
     return true;
     // CHECK-MESSAGES: :[[@LINE-2]]:14: warning: {{.*}} in conditional return
-    // FIXES: {{return j <= 10;}}
+    // CHECK-FIXES: {{return j <= 10;}}
   }
   return false;
 }
@@ -731,7 +731,7 @@ label:
     return true;
   return false;
   // CHECK-MESSAGES: :[[@LINE-2]]:12: warning: {{.*}} in conditional return
-  // FIXES: {{return j > 10;}}
+  // CHECK-FIXES: {{return j > 10;}}
 }
 
 bool label_stmt15(int i, int j, bool b) {
@@ -740,5 +740,5 @@ label:
     return false;
   return true;
   // CHECK-MESSAGES: :[[@LINE-2]]:12: warning: {{.*}} in conditional return
-  // FIXES: {{return j <= 10;}}
+  // CHECK-FIXES: {{return j <= 10;}}
 }

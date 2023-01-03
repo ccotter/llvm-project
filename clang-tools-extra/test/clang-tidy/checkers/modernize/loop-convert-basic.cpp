@@ -392,7 +392,7 @@ void f() {
   }
   // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (auto & It : Intmap)
-  // CHECK-FIXES: printf("Intmap[%d] = %d", It.first, It.second);
+  // CHECK-FIXES-NEXT: printf("Intmap[%d] = %d", It.first, It.second);
 
   // PtrSet's iterator dereferences by value so auto & can't be used.
   {

@@ -13,7 +13,7 @@ void f(); // So that the namespace isn't empty.
 // CHECK-MESSAGES: :[[@LINE-10]]:11: note: namespace 'n1' starts here
 }}
 // CHECK-FIXES: }  // namespace n2
-// CHECK-FIXES: }  // namespace n1
+// CHECK-FIXES-NEXT: }  // namespace n1
 
 #define MACRO macro_expansion
 namespace MACRO {

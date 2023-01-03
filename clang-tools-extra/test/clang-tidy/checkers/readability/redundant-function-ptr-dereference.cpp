@@ -22,7 +22,7 @@ void invoke(const T& fn) {
   (*fn)(0); // 2
   // CHECK-MESSAGES: :[[@LINE-1]]:4: warning: redundant repeated
   // CHECK-FIXES: fn(0); // 1
-  // CHECK-FIXES: (fn)(0); // 2
+  // CHECK-FIXES-NEXT: (fn)(0); // 2
   // FIXME: Remove unnecessary parentheses.
 }
 

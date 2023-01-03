@@ -85,7 +85,7 @@ void bad_memcpy_s_known_dest(const char *src) {
   memcpy_s(dest41, 13, src, strlen(src));
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: the result from calling 'memcpy_s' is not null-terminated [bugprone-not-null-terminated-result]
   // CHECK-FIXES: char dest41[14];
-  // CHECK-FIXES: strcpy_s(dest41, src);
+  // CHECK-FIXES-NEXT: strcpy_s(dest41, src);
 }
 
 void good_memcpy_s_known_dest(const char *src) {

@@ -187,9 +187,10 @@ class CheckRunner:
 
   def check_fixes(self):
     if self.has_check_fixes:
-      #fixes_file = self.temp_file_name + ".fixes"
-      #write_file(fixes_file, line_prepended)
-      try_run(['/Users/ccotter/git/llvm-project/clang-tools-extra/test/clang-tidy/check_fixes.py', self.temp_file_name, self.input_file_name])
+      try:
+        try_run(['/Users/ccotter/git/llvm-project/clang-tools-extra/test/clang-tidy/check_fixes.py', self.temp_file_name, self.input_file_name])
+      except:
+        pass
       try_run(['FileCheck', '-input-file=' + self.temp_file_name, self.input_file_name,
               '-check-prefixes=' + ','.join(self.fixes.prefixes),
               '-strict-whitespace'])

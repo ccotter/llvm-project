@@ -13,5 +13,5 @@ void f();
 // CHECK-MESSAGES: :[[@LINE-10]]:11: note: namespace 'n1::n2' starts here
 }}
 // CHECK-FIXES: }  // namespace n3::n4
-// CHECK-FIXES: }  // namespace n1::n2
+// CHECK-FIXES-NEXT: }  // namespace n1::n2
 

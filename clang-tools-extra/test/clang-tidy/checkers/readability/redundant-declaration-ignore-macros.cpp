@@ -14,8 +14,8 @@ namespace macros {
 DECLARE(test);
 DEFINE(test);
 // CHECK-FIXES: {{^}}#define DECLARE(x) extern int x{{$}}
-// CHECK-FIXES: {{^}}#define DEFINE(x) extern int x; int x = 42{{$}}
-// CHECK-FIXES: {{^}}DECLARE(test);{{$}}
-// CHECK-FIXES: {{^}}DEFINE(test);{{$}}
+// CHECK-FIXES-NEXT: {{^}}#define DEFINE(x) extern int x; int x = 42{{$}}
+// CHECK-FIXES-NEXT: {{^}}DECLARE(test);{{$}}
+// CHECK-FIXES-NEXT: {{^}}DEFINE(test);{{$}}
 
 } // namespace macros

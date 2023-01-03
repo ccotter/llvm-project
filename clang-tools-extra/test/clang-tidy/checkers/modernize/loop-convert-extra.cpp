@@ -256,7 +256,7 @@ void refs_and_vals() {
   }
   // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (int & i : Other)
-  // CHECK-FIXES: i;
+  // CHECK-FIXES-NEXT: i;
 
   for (int I = 0, E = Dep.size(); I != E; ++I) {
     int Idx = Other.at(I);

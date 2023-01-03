@@ -495,8 +495,8 @@ void simple_conditional_assignment_statements(int i) {
   bool bb = false;
   // CHECK-MESSAGES: :[[@LINE-4]]:9: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: bool b;
-  // CHECK-FIXES: {{^  }}b = i > 10;{{$}}
-  // CHECK-FIXES: bool bb = false;
+  // CHECK-FIXES-NEXT: {{^  }}b = i > 10;{{$}}
+  // CHECK-FIXES-NEXT: bool bb = false;
 
   bool c;
   if (i > 20)
@@ -506,8 +506,8 @@ void simple_conditional_assignment_statements(int i) {
   bool c2 = false;
   // CHECK-MESSAGES: :[[@LINE-4]]:9: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: bool c;
-  // CHECK-FIXES: {{^  }}c = i <= 20;{{$}}
-  // CHECK-FIXES: bool c2 = false;
+  // CHECK-FIXES-NEXT: {{^  }}c = i <= 20;{{$}}
+  // CHECK-FIXES-NEXT: bool c2 = false;
 
   // Unchanged: different variables.
   bool b2;
@@ -547,8 +547,8 @@ void complex_conditional_assignment_statements(int i) {
   d = false;
   // CHECK-MESSAGES: :[[@LINE-5]]:9: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: bool d;
-  // CHECK-FIXES: {{^  }}d = i > 30;{{$}}
-  // CHECK-FIXES: d = false;
+  // CHECK-FIXES-NEXT: {{^  }}d = i > 30;{{$}}
+  // CHECK-FIXES-NEXT: d = false;
 
   bool e;
   if (i > 40) {
@@ -559,8 +559,8 @@ void complex_conditional_assignment_statements(int i) {
   e = false;
   // CHECK-MESSAGES: :[[@LINE-5]]:9: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: bool e;
-  // CHECK-FIXES: {{^  }}e = i <= 40;{{$}}
-  // CHECK-FIXES: e = false;
+  // CHECK-FIXES-NEXT: {{^  }}e = i <= 40;{{$}}
+  // CHECK-FIXES-NEXT: e = false;
 
   // Unchanged: no else statement.
   bool b3;
@@ -710,8 +710,8 @@ bool simple_if_return_return(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-3]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool simple_if_return_return(int i) {{{$}}
-// CHECK-FIXES: {{^  return i > 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^  return i > 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool simple_if_return_return_negated(int i) {
   if (i > 10)
@@ -720,8 +720,8 @@ bool simple_if_return_return_negated(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-3]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool simple_if_return_return_negated(int i) {{{$}}
-// CHECK-FIXES: {{^  return i <= 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^  return i <= 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool complex_if_return_return(int i) {
   if (i > 10) {
@@ -731,8 +731,8 @@ bool complex_if_return_return(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool complex_if_return_return(int i) {{{$}}
-// CHECK-FIXES: {{^  return i > 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^  return i > 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool complex_if_return_return_negated(int i) {
   if (i > 10) {
@@ -742,8 +742,8 @@ bool complex_if_return_return_negated(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool complex_if_return_return_negated(int i) {{{$}}
-// CHECK-FIXES: {{^  return i <= 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^  return i <= 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool if_implicit_bool_expr(int i) {
   if (i & 1) {
@@ -887,7 +887,7 @@ void explicit_conversion_assignment(X x) {
 }
 // CHECK-MESSAGES: :[[@LINE-5]]:9: warning: {{.*}} in conditional assignment
 // CHECK-FIXES: {{^  bool y;$}}
-// CHECK-FIXES: {{^}}  y = static_cast<bool>(x);{{$}}
+// CHECK-FIXES-NEXT: {{^}}  y = static_cast<bool>(x);{{$}}
 
 void ternary_integer_condition(int i) {
   bool b = i ? true : false;

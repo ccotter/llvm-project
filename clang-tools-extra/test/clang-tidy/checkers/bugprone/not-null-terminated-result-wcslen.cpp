@@ -102,7 +102,7 @@ void bad_wcsxfrm_2() {
   wcsxfrm(long_destination_array_name1, L"long_source_name", 16);
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: the result from calling 'wcsxfrm' is not null-terminated [bugprone-not-null-terminated-result]
   // CHECK-FIXES: wchar_t long_destination_array_name1[17];
-  // CHECK-FIXES: wcsxfrm(long_destination_array_name1, L"long_source_name", 17);
+  // CHECK-FIXES-NEXT: wcsxfrm(long_destination_array_name1, L"long_source_name", 17);
 }
 
 void good_wcsxfrm_2() {

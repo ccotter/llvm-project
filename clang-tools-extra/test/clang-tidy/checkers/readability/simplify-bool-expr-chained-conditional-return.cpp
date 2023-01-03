@@ -40,10 +40,10 @@ bool chained_simple_if_return(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-3]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool chained_simple_if_return(int i) {{{$}}
-// CHECK-FIXES: {{^}}  if (i < 5){{$}}
-// CHECK-FIXES: {{^    return true;$}}
-// CHECK-FIXES: {{^  return i > 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^}}  if (i < 5){{$}}
+// CHECK-FIXES-NEXT: {{^    return true;$}}
+// CHECK-FIXES-NEXT: {{^  return i > 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool chained_simple_if_return_negated(int i) {
   if (i < 5)
@@ -54,10 +54,10 @@ bool chained_simple_if_return_negated(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-3]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool chained_simple_if_return_negated(int i) {{{$}}
-// CHECK-FIXES: {{^}}  if (i < 5){{$}}
-// CHECK-FIXES: {{^    return false;$}}
-// CHECK-FIXES: {{^  return i <= 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^}}  if (i < 5){{$}}
+// CHECK-FIXES-NEXT: {{^    return false;$}}
+// CHECK-FIXES-NEXT: {{^  return i <= 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool complex_chained_if_return_return(int i) {
   if (i < 5) {
@@ -70,11 +70,11 @@ bool complex_chained_if_return_return(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool complex_chained_if_return_return(int i) {{{$}}
-// CHECK-FIXES: {{^}}  if (i < 5) {{{$}}
-// CHECK-FIXES: {{^}}    return true;{{$}}
-// CHECK-FIXES: {{^}}  }{{$}}
-// CHECK-FIXES: {{^  return i > 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^}}  if (i < 5) {{{$}}
+// CHECK-FIXES-NEXT: {{^}}    return true;{{$}}
+// CHECK-FIXES-NEXT: {{^}}  }{{$}}
+// CHECK-FIXES-NEXT: {{^  return i > 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 bool complex_chained_if_return_return_negated(int i) {
   if (i < 5) {
@@ -87,11 +87,11 @@ bool complex_chained_if_return_return_negated(int i) {
 }
 // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional return
 // CHECK-FIXES: {{^}}bool complex_chained_if_return_return_negated(int i) {{{$}}
-// CHECK-FIXES: {{^}}  if (i < 5) {{{$}}
-// CHECK-FIXES: {{^}}    return false;{{$}}
-// CHECK-FIXES: {{^}}  }{{$}}
-// CHECK-FIXES: {{^  return i <= 10;$}}
-// CHECK-FIXES: {{^}$}}
+// CHECK-FIXES-NEXT: {{^}}  if (i < 5) {{{$}}
+// CHECK-FIXES-NEXT: {{^}}    return false;{{$}}
+// CHECK-FIXES-NEXT: {{^}}  }{{$}}
+// CHECK-FIXES-NEXT: {{^  return i <= 10;$}}
+// CHECK-FIXES-NEXT: {{^}$}}
 
 
 bool PR57819(int x) {

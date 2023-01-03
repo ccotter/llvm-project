@@ -511,9 +511,9 @@ void testSpaces() {
               );
   // CHECK-MESSAGES: :[[@LINE-4]]:5: warning: use emplace_back
   // CHECK-FIXES: v.emplace_back(1, //arg1
-  // CHECK-FIXES:                2 // arg2
-  // CHECK-FIXES:                  // Something
-  // CHECK-FIXES:                );
+  // CHECK-FIXES-NEXT:                2 // arg2
+  // CHECK-FIXES-NEXT:                  // Something
+  // CHECK-FIXES-NEXT:                );
 
   v.push_back(    Something   (1, 2)    );
   // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: use emplace_back

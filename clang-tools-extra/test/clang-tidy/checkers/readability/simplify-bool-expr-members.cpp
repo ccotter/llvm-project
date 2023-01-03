@@ -204,7 +204,7 @@ void S::simple_conditional_assignment_statements() {
   bool bb = false;
   // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: {{^  }}m_b1 = m_i > 10;{{$}}
-  // CHECK-FIXES: bool bb = false;
+  // CHECK-FIXES-NEXT: bool bb = false;
 
   if (m_i > 20)
     m_b2 = false;
@@ -213,7 +213,7 @@ void S::simple_conditional_assignment_statements() {
   bool c2 = false;
   // CHECK-MESSAGES: :[[@LINE-4]]:12: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: {{^  }}m_b2 = m_i <= 20;{{$}}
-  // CHECK-FIXES: bool c2 = false;
+  // CHECK-FIXES-NEXT: bool c2 = false;
 
   // Unchanged: different variables.
   if (m_i > 12)
@@ -250,7 +250,7 @@ void S::complex_conditional_assignment_statements() {
   m_b1 = false;
   // CHECK-MESSAGES: :[[@LINE-5]]:12: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: {{^  }}m_b1 = m_i > 30;{{$}}
-  // CHECK-FIXES: m_b1 = false;
+  // CHECK-FIXES-NEXT: m_b1 = false;
 
   if (m_i > 40) {
     m_b2 = false;
@@ -260,7 +260,7 @@ void S::complex_conditional_assignment_statements() {
   m_b2 = false;
   // CHECK-MESSAGES: :[[@LINE-5]]:12: warning: {{.*}} in conditional assignment
   // CHECK-FIXES: {{^  }}m_b2 = m_i <= 40;{{$}}
-  // CHECK-FIXES: m_b2 = false;
+  // CHECK-FIXES-NEXT: m_b2 = false;
 }
 
 // Unchanged: chained return statements, but ChainedConditionalReturn not set.

@@ -431,8 +431,8 @@ class VeryComplex1 {
                    n5(something_int()), x4(something_double()),
                    x5(something_double()) {
     // CHECK-FIXES: VeryComplex1() : n2(something_int()), n1(something_int()), n3(something_int()), x2(something_double()), x1(something_double()), x3(something_double()),
-    // CHECK-FIXES:                  n4(something_int()), n5(something_int()), n6(something_int()), x4(something_double()),
-    // CHECK-FIXES:                  x5(something_double()), x6(something_double()) {
+    // CHECK-FIXES-NEXT:             n4(something_int()), n5(something_int()), n6(something_int()), x4(something_double()),
+    // CHECK-FIXES-NEXT:             x5(something_double()), x6(something_double()) {
 
 // FIXME: Order of elements on the constructor initializer list should match
 //        the order of the declaration of the fields. Thus the correct fixes
