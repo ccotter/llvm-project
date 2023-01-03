@@ -47,6 +47,8 @@ def write_file(file_name, text):
 
 def try_run(args, raise_error=True):
   try:
+    cmd = " ".join(args)
+    print(f"try_run {cmd}")
     process_output = \
       subprocess.check_output(args, stderr=subprocess.STDOUT).decode(errors='ignore')
   except subprocess.CalledProcessError as e:
@@ -66,6 +68,7 @@ class MessagePrefix:
 
   def check(self, file_check_suffix, input_text):
     self.prefix = self.label + file_check_suffix
+    #print(f"CHECK '{self.prefix}' --- {input_text}")
     self.has_message = self.prefix in input_text
     if self.has_message:
       self.prefixes.append(self.prefix)
@@ -184,6 +187,9 @@ class CheckRunner:
 
   def check_fixes(self):
     if self.has_check_fixes:
+      #fixes_file = self.temp_file_name + ".fixes"
+      #write_file(fixes_file, line_prepended)
+      try_run(['/Users/ccotter/git/llvm-project/clang-tools-extra/test/clang-tidy/check_fixes.py', self.temp_file_name, self.input_file_name])
       try_run(['FileCheck', '-input-file=' + self.temp_file_name, self.input_file_name,
               '-check-prefixes=' + ','.join(self.fixes.prefixes),
               '-strict-whitespace'])
