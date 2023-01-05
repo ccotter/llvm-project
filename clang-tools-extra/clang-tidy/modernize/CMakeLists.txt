@@ -28,6 +28,7 @@ add_clang_library(clangTidyModernizeModule
   UnaryStaticAssertCheck.cpp
   UseAutoCheck.cpp
   UseBoolLiteralsCheck.cpp
+  UseConstraintsCheck.cpp
   UseDefaultMemberInitCheck.cpp
   UseEmplaceCheck.cpp
   UseEqualsDefaultCheck.cpp

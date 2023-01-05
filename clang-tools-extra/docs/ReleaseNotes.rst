@@ -137,6 +137,11 @@ New checks
   Warns when `empty()` is used on a range and the result is ignored. Suggests `clear()`
   if it is an existing member function.
 
+- New :doc:`modernize-use-constraints
+  <clang-tidy/checks/modernize/use-constraints>` check.
+
+  FIXME: add release notes.
+
 New check aliases
 ^^^^^^^^^^^^^^^^^
 
