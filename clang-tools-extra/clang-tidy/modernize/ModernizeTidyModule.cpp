@@ -29,6 +29,7 @@
 #include "UnaryStaticAssertCheck.h"
 #include "UseAutoCheck.h"
 #include "UseBoolLiteralsCheck.h"
+#include "UseConceptsCheck.h"
 #include "UseDefaultMemberInitCheck.h"
 #include "UseEmplaceCheck.h"
 #include "UseEqualsDefaultCheck.h"
@@ -82,6 +83,8 @@ public:
     CheckFactories.registerCheck<UseAutoCheck>("modernize-use-auto");
     CheckFactories.registerCheck<UseBoolLiteralsCheck>(
         "modernize-use-bool-literals");
+    CheckFactories.registerCheck<UseConceptsCheck>(
+        "modernize-use-concepts");
     CheckFactories.registerCheck<UseDefaultMemberInitCheck>(
         "modernize-use-default-member-init");
     CheckFactories.registerCheck<UseEmplaceCheck>("modernize-use-emplace");
