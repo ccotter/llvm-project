@@ -9,6 +9,9 @@
 #include "UseConceptsCheck.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/Lex/Lexer.h"
+
+#include "../utils/LexerUtils.h"
 
 #include <optional>
 #include <tuple>
@@ -23,7 +26,7 @@ void UseConceptsCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(functionTemplateDecl(has(functionDecl(hasReturnTypeLoc(typeLoc().bind("return"))).bind("function"))), this);
 }
 
-std::optional<std::tuple<TemplateArgumentLoc, TemplateArgumentLoc>> checkIsEnableIf(TypeLoc TheType) {
+static std::optional<TemplateSpecializationTypeLoc> checkIsEnableIf(TypeLoc TheType) {
   llvm::errs() << "checkIsEnableIf name=(" << TheType.getType().getAsString() << ")\n";
   TheType.getTypePtr()->dump();
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
@@ -42,7 +45,7 @@ std::optional<std::tuple<TemplateArgumentLoc, TemplateArgumentLoc>> checkIsEnabl
     if (Specialization.getNumArgs() != 2) {
       return std::nullopt;
     }
-    return std::make_optional(std::make_tuple(Specialization.getArgLoc(0), Specialization.getArgLoc(1)));
+    return std::make_optional(Specialization);
 
     /*
     llvm::errs() << "type=" << Specialization->getTemplateName().getKind() << "\n";
@@ -60,8 +63,25 @@ std::optional<std::tuple<TemplateArgumentLoc, TemplateArgumentLoc>> checkIsEnabl
   return std::nullopt;
 }
 
-static SourceRange getArgRange(const TemplateArgumentLoc& Arg) {
-  return SourceRange(Arg.getBeginLoc(), End);
+static SourceRange getConditionRange(ASTContext& Context, const TemplateSpecializationTypeLoc& EnableIf) {
+  // TemplateArgumentLoc's SourceRange End is the location of the last token
+  // (per UnqualifiedId docs). E.g., in `enable_if<AAA && BBB>`, the End
+  // location will be the first 'B' in 'BBB'.
+  TemplateArgumentLoc NextArg = EnableIf.getArgLoc(1);
+  const LangOptions& LangOpts = Context.getLangOpts();
+  const SourceManager& SM = Context.getSourceManager();
+  return SourceRange(
+      EnableIf.getLAngleLoc().getLocWithOffset(1),
+      utils::lexer::findPreviousTokenKind(NextArg.getSourceRange().getBegin(), SM, LangOpts, tok::comma));
+}
+
+static SourceRange getTypeRange(ASTContext& Context, const TemplateSpecializationTypeLoc& EnableIf) {
+  TemplateArgumentLoc Arg = EnableIf.getArgLoc(1);
+  const LangOptions& LangOpts = Context.getLangOpts();
+  const SourceManager& SM = Context.getSourceManager();
+  return SourceRange(
+      utils::lexer::findPreviousTokenKind(Arg.getSourceRange().getBegin(), SM, LangOpts, tok::comma).getLocWithOffset(1),
+      EnableIf.getRAngleLoc());
 }
 
 void UseConceptsCheck::check(const MatchFinder::MatchResult &Result) {
@@ -73,30 +93,48 @@ void UseConceptsCheck::check(const MatchFinder::MatchResult &Result) {
 
   Function->dump();
 
-  auto& SM = Result.Context->getSourceManager();
+  ASTContext& Context = *Result.Context;
+  SourceManager& SM = Context.getSourceManager();
+  const LangOptions& LangOpts = Context.getLangOpts();
 
-  std::optional<std::tuple<TemplateArgumentLoc, TemplateArgumentLoc>> EnableIf = checkIsEnableIf(*ReturnType);
+  std::optional<TemplateSpecializationTypeLoc> EnableIf = checkIsEnableIf(*ReturnType);
   if (EnableIf) {
     llvm::errs() << "GOT IT\n";
-    TemplateArgumentLoc EnableCondition = std::get<0>(*EnableIf);
-    TemplateArgumentLoc  EnableType = std::get<1>(*EnableIf);
-    //EnableCondition.getArgument().dump();
+    TemplateArgumentLoc EnableCondition = EnableIf->getArgLoc(0);
+    TemplateArgumentLoc  EnableType = EnableIf->getArgLoc(1);
     llvm::errs() << "KIND=" << EnableType.getArgument().getKind() << "\n";
     EnableCondition.getSourceExpression()->dump();
 
-    // TemplateArgumentLoc's SourceRange End is the location of the last token
-    // (per UnqualifiedId docs). E.g., in `enable_if<AAA && BBB>`, the End
-    // location will be the first 'B' in 'BBB'.
-    llvm::errs() << "cond sr: " << EnableCondition.getSourceRange().printToString(SM) << "\n";
-    llvm::errs() << "type sr : " << EnableType.getSourceRange().printToString(SM) << "\n";
-    llvm::errs() << "type sr2: " << EnableType.getTypeSourceInfo()->getTypeLoc().getSourceRange().printToString(SM) << "\n";
-    llvm::errs() << "type endloc: " << EnableType.getTypeSourceInfo()->getTypeLoc().getEndLoc().printToString(SM) << "\n";
-  } else {
-    llvm::errs() << "NULL cond\n";
-  }
+    SourceRange ConditionRange = getConditionRange(Context, *EnableIf);
+    SourceRange TypeRange = getTypeRange(Context, *EnableIf);
+    llvm::errs() << "cond sr: " << ConditionRange.printToString(SM) << "\n";
+    llvm::errs() << "type sr : " << TypeRange.printToString(SM) << "\n";
 
-  //diag(MatchedDecl->getLocation(), "function %0 is insufficiently awesome")
-  //    << MatchedDecl;
+    llvm::errs() << "typeloc range=" << ReturnType->getSourceRange().printToString(SM) << "\n";
+
+    bool Invalid = false;
+    llvm::StringRef ConditionText = Lexer::getSourceText(CharSourceRange::getCharRange(ConditionRange), SM, LangOpts, &Invalid).trim();
+    assert(!Invalid);
+    llvm::StringRef TypeText = Lexer::getSourceText(CharSourceRange::getCharRange(TypeRange), SM, LangOpts, &Invalid).trim();
+    assert(!Invalid);
+
+    llvm::errs() << "REPLACE OBJ=/" << TypeText << "/\n";
+
+    SmallVector<const Expr*, 3> ExistingConstraints;
+    Function->getAssociatedConstraints(ExistingConstraints);
+    if (ExistingConstraints.size() > 0) {
+      // We don't yet support adding to existing constraints.
+      diag(ReturnType->getBeginLoc(), "use C++20 requires constraints instead of enable_if");
+      return;
+    }
+
+    const Stmt* Body = Function->getBody();
+    std::vector<FixItHint> FixIts;
+    FixIts.push_back(FixItHint::CreateReplacement(
+          CharSourceRange::getTokenRange(ReturnType->getSourceRange()), TypeText));
+    FixIts.push_back(FixItHint::CreateInsertion(Body->getBeginLoc(), "requires " + ConditionText.str() + " "));
+    diag(ReturnType->getBeginLoc(), "use C++20 requires constraints instead of enable_if") << FixIts;
+  }
 }
 
 } // namespace modernize
