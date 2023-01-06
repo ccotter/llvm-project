@@ -101,7 +101,7 @@ New checks
   <clang-tidy/checks/cppcoreguidelines/avoid-capture-this-with-capture-default>` check.
 
   Warns when lambda specify a capture default and capture ``this``. The check also
-  offers FixIts.
+  offers fix-its.
 
 New check aliases
 ^^^^^^^^^^^^^^^^^
