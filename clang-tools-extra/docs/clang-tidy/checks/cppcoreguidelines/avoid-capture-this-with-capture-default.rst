@@ -3,6 +3,9 @@
 cppcoreguidelines-avoid-capture-this-with-capture-default
 =========================================================
 
+Warns when lambda specify a capture default and capture ``this``. The check also
+offers fix-its.
+
 Default lambda captures in member functions can be misleading about
 whether data members are captured by value or reference. For example,
 specifying the default capture ``[=]`` will still capture data members
