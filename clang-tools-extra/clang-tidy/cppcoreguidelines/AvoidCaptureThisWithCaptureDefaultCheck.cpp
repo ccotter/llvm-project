@@ -82,7 +82,7 @@ void AvoidCaptureThisWithCaptureDefaultCheck::check(
     if (Lambda->getCaptureDefault() != LCD_None) {
       auto Diag = diag(
           Lambda->getCaptureDefaultLoc(),
-          "lambdas that capture this should not specify a capture default");
+          "lambdas that capture 'this' should not specify a capture default");
 
       std::string ReplacementText = createReplacementText(Lambda);
       SourceLocation DefaultCaptureEnd =
