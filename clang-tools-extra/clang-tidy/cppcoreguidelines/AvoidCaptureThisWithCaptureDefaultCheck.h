@@ -15,11 +15,11 @@ namespace clang {
 namespace tidy {
 namespace cppcoreguidelines {
 
-/// Default lambda captures in member functions can be misleading about
-/// whether capturing data member is by value or reference. For example,
+/// Capture defaults lambas defined in in member functions can be misleading
+/// about whether capturing data member is by value or reference. For example,
 /// [=] will capture local variables by value but member variables by
 /// reference. CppCoreGuideline F.54 suggests to always be explicit
-/// and never specify a default capture when also capturing this.
+/// and never specify a capture default when also capturing this.
 ///
 /// For the user-facing documentation see:
 /// http://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capture-this-with-capture-default.html
