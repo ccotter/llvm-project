@@ -1,4 +1,4 @@
-//===--- AvoidCaptureThisWithCaptureDefaultCheck.h - clang-tidy -*- C++ -*-===//
+//===--- AvoidCaptureDefaultWhenCapturingThisCheck.h - clang-tidy *- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTURETHISWITHCAPTUREDEFAULTCHECK_H
-#define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTURETHISWITHCAPTUREDEFAULTCHECK_H
+#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTUREDEFAULTWHENCAPTURINGTHISCHECK_H
+#define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTUREDEFAULTWHENCAPTURINGTHISCHECK_H
 
 #include "../ClangTidyCheck.h"
 
@@ -25,10 +25,10 @@ namespace cppcoreguidelines {
 /// and never specify a capture default when also capturing this.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capture-this-with-capture-default.html
-class AvoidCaptureThisWithCaptureDefaultCheck : public ClangTidyCheck {
+/// http://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/avoid-capture-default-when-capturing-this.html
+class AvoidCaptureDefaultWhenCapturingThisCheck : public ClangTidyCheck {
 public:
-  AvoidCaptureThisWithCaptureDefaultCheck(StringRef Name,
+  AvoidCaptureDefaultWhenCapturingThisCheck(StringRef Name,
                                           ClangTidyContext *Context)
       : ClangTidyCheck(Name, Context) {}
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
@@ -42,4 +42,4 @@ public:
 } // namespace tidy
 } // namespace clang
 
-#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTURETHISWITHCAPTUREDEFAULTCHECK_H
+#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_AVOIDCAPTUREDEFAULTWHENCAPTURINGTHISCHECK_H

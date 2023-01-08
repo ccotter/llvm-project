@@ -1,4 +1,4 @@
-//===--- AvoidCaptureThisWithCaptureDefaultCheck.cpp - clang-tidy ---------===//
+//===--- AvoidCaptureDefaultWhenCapturingThisCheck.cpp - clang-tidy ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AvoidCaptureThisWithCaptureDefaultCheck.h"
+#include "AvoidCaptureDefaultWhenCapturingThisCheck.h"
 #include "../utils/LexerUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -18,7 +18,7 @@ namespace clang {
 namespace tidy {
 namespace cppcoreguidelines {
 
-void AvoidCaptureThisWithCaptureDefaultCheck::registerMatchers(
+void AvoidCaptureDefaultWhenCapturingThisCheck::registerMatchers(
     MatchFinder *Finder) {
   Finder->addMatcher(lambdaExpr(hasAnyCapture(capturesThis())).bind("lambda"),
                      this);
@@ -72,7 +72,7 @@ static std::string createReplacementText(const LambdaExpr *Lambda) {
   return Replacement;
 }
 
-void AvoidCaptureThisWithCaptureDefaultCheck::check(
+void AvoidCaptureDefaultWhenCapturingThisCheck::check(
     const MatchFinder::MatchResult &Result) {
   if (const auto *Lambda = Result.Nodes.getNodeAs<LambdaExpr>("lambda")) {
     if (Lambda->getCaptureDefault() != LCD_None) {

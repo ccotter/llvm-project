@@ -1,6 +1,6 @@
-.. title:: clang-tidy - cppcoreguidelines-avoid-capture-this-with-capture-default
+.. title:: clang-tidy - cppcoreguidelines-avoid-capture-default-when-capturing-this
 
-cppcoreguidelines-avoid-capture-this-with-capture-default
+cppcoreguidelines-avoid-capture-default-when-capturing-this
 =========================================================
 
 Warns when lambda specify a capture default and capture ``this``. The check also
