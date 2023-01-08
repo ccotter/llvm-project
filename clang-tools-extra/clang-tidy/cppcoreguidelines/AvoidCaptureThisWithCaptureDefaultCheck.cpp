@@ -29,7 +29,7 @@ static SourceLocation findDefaultCaptureEnd(const LambdaExpr *Lambda,
   for (const LambdaCapture &Capture : Lambda->explicit_captures()) {
     if (Capture.isExplicit()) {
       if (Capture.getCaptureKind() == LCK_ByRef) {
-        SourceManager &SourceMgr = Context.getSourceManager();
+        const SourceManager &SourceMgr = Context.getSourceManager();
         SourceLocation AddressofLoc = utils::lexer::findPreviousTokenKind(
             Capture.getLocation(), SourceMgr, Context.getLangOpts(), tok::amp);
         return AddressofLoc;
