@@ -45,6 +45,9 @@ void UseConstraintsCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
+matchEnableIfSpecialization(TypeLoc TheType);
+
+static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization_impl(TypeLoc TheType) {
   llvm::errs() << "matchEnableIfSpecialization_impl name=(" << TheType.getType().getAsString()
                << ")\n";
@@ -106,13 +109,28 @@ matchEnableIfSpecialization_impl_t(TypeLoc TheType) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
+matchEnableIfSpecializationPointer_impl(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecializationPointer_impl name=(" << TheType.getType().getAsString()
+               << ")\n";
+  if (const auto Pointer = TheType.getAs<PointerTypeLoc>()) {
+    Pointer.getPointeeLoc().getTypePtr()->dump();
+    return matchEnableIfSpecialization(Pointer.getPointeeLoc());
+  }
+  return std::nullopt;
+}
+
+static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization(TypeLoc TheType) {
   std::optional<TemplateSpecializationTypeLoc> EnableIf;
   EnableIf = matchEnableIfSpecialization_impl(TheType);
   if (EnableIf) {
     return EnableIf;
   }
-  return matchEnableIfSpecialization_impl_t(TheType);
+  EnableIf = matchEnableIfSpecialization_impl_t(TheType);
+  if (EnableIf) {
+    return EnableIf;
+  }
+  return matchEnableIfSpecializationPointer_impl(TheType);
 }
 
 static std::tuple<std::optional<TemplateSpecializationTypeLoc>, const NonTypeTemplateParmDecl*>
@@ -266,9 +284,9 @@ void UseConstraintsCheck::handleTrailingTemplateType(const FunctionTemplateDecl*
 
   SourceRange RemovalRange;
   const TemplateParameterList* TemplateParams = FunctionTemplate->getTemplateParameters();
-  assert(TemplateParams->size() >= 1);
+  assert(TemplateParams && TemplateParams->size() >= 1);
   if (TemplateParams->size() == 1) {
-    assert(false); // TODO
+    RemovalRange = SourceRange(TemplateParams->getTemplateLoc(), TemplateParams->getRAngleLoc().getLocWithOffset(1));
   } else {
     RemovalRange = SourceRange(
       utils::lexer::findPreviousTokenKind(LastTemplateParam->getSourceRange().getBegin(),

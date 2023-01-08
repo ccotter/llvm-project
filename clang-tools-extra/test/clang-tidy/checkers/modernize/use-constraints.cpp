@@ -12,6 +12,9 @@ using enable_if_t = typename enable_if<B, T>::type;
 } // namespace std
 // NOLINTEND
 
+template <typename...>
+struct ConsumeVariadic;
+
 struct Obj {
 };
 
@@ -85,6 +88,12 @@ typename std::enable_if<T::some_value, Obj>::type decl_with_separate_def() {
   return Obj{};
 }
 // FIXME - Support definitions with separate decls
+
+template <typename T>
+std::enable_if_t<true, Obj> no_dependent_type(T) {
+  return Obj{};
+}
+// FIXME - Support non-dependent enable_ifs. Low priority though...
 
 
 ////////////////////////////////
@@ -259,5 +268,68 @@ void basic_many_template_params() {
 // CHECK-MESSAGES: :[[@LINE-3]]:61: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
 // CHECK-FIXES: {{^}}template <typename T, template <typename> class U, class V>{{$}}
 // CHECK-FIXES-NEXT: {{^}}void basic_many_template_params() requires (T::some_value) {{{$}}
+
+template <std::enable_if_t<true, int> = 0>
+void no_dependent_type() {
+}
+// FIXME - Support non-dependent enable_ifs. Low priority though...
+
+template <typename T>
+struct AClass {
+  template <std::enable_if_t<T::some_value, int> = 0>
+  void no_other_template_params() {
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:13: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+  // CHECK-FIXES: {{^}}  {{$}}
+  // CHECK-FIXES-NEXT: {{^}}  void no_other_template_params() requires (T::some_value) {{{$}}
+};
+
+template <typename T, std::enable_if_t<T::some_value, T>* = 0>
+void pointer_type() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:23: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void pointer_type() requires (T::some_value) {{{$}}
+
+template <typename T,
+          std::enable_if_t<T::some_value, T>* = nullptr>
+void param_on_newline() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:11: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void param_on_newline() requires (T::some_value) {{{$}}
+
+template <typename T,
+          typename U,
+          std::enable_if_t<
+            ConsumeVariadic<T,
+                            U>::value, T>* = nullptr>
+void param_split_on_two_lines() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:10: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T,{{$}}
+// CHECK-FIXES-NEXT: {{^}}          typename U>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void param_split_on_two_lines() requires (ConsumeVariadic<T,{{$}}
+
+
+////////////////////////////////
+// Negative tests
+////////////////////////////////
+
+template <typename T, std::enable_if_t<T::some_value, int> V = 0>
+void non_type_param_has_name() {
+}
+template <typename T, std::enable_if_t<T::some_value, int>>
+void non_type_param_has_no_default() {
+}
+template <typename T, std::enable_if_t<T::some_value, int> V>
+void non_type_param_has_name_and_no_default() {
+}
+template <typename T, std::enable_if_t<T::some_value, int>...>
+void non_type_variadic() {
+}
+template <typename T, std::enable_if_t<T::some_value, int> = 0, int = 0>
+void non_type_not_last() {
+}
 
 } // namespace enable_if_trailing_non_type_parameter
