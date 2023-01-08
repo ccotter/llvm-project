@@ -74,6 +74,16 @@ typename std::enable_if<T::some_value, Obj>::type decl_with_separate_def() {
 }
 // FIXME - Support definitions with separate decls
 
+template <typename T>
+std::enable_if<T::some_value, Obj> not_enable_if() {
+  return {};
+}
+
+template <typename T>
+typename std::enable_if<T::some_value, Obj> also_not_enable_if() {
+  return {};
+}
+
 
 ////////////////////////////////
 // Functions with specifier

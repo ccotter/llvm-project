@@ -50,9 +50,21 @@ matchEnableIfSpecialization(TypeLoc TheType) {
                << ")\n";
   TheType.getTypePtr()->dump();
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
+    llvm::errs() << "FOR DEPENDENT ID=" << Dep.getTypePtr()->getIdentifier()->getName() << "\n";
+    if (Dep.getTypePtr()->getIdentifier()->getName() != "type" || Dep.getTypePtr()->getKeyword() != ETK_Typename) {
+      return std::nullopt;
+    }
+    //Dep.getTypePtr()->dump();
+    //Dep.getTypePtr()->getQualifier()->dump();
+    //llvm::errs() << "\nkeyword=" << Dep.getTypePtr()->getKeyword() << "\n";
     return matchEnableIfSpecialization(Dep.getQualifierLoc().getTypeLoc());
   } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
-    return matchEnableIfSpecialization(Elaborated.getNamedTypeLoc());
+    return std::nullopt;
+    /*llvm::errs() << "for elab ID\n";
+    Elaborated.getNamedTypeLoc().getTypePtr()->dump();
+    llvm::errs() << "for elab ID2\n";
+    Elaborated.getInnerType()->dump();
+    return matchEnableIfSpecialization(Elaborated.getNamedTypeLoc());*/
   } else if (const auto Typedef = TheType.getAs<TypedefTypeLoc>()) {
     Typedef.getTypePtr()->getDecl()->dump();
   } else if (const auto Specialization =
@@ -72,6 +84,10 @@ matchEnableIfSpecialization(TypeLoc TheType) {
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchTrailingTemplateArg(const FunctionTemplateDecl* FunctionTemplate) {
+  // Match very specifically 'template <..., enable_if_type<Condition, Type> = Default>'
+  // where enable_if_type is 'enable_if' or 'enable_if_t'
+  // E.g., 'template <typename T, enable_if_t<is_same_v<T, bool>, int*> = nullptr>
+
   llvm::errs() << "matchTrailingTemplateArg\n";
   FunctionTemplate->dump();
   const TemplateParameterList* TemplateParams = FunctionTemplate->getTemplateParameters();
@@ -80,10 +96,16 @@ matchTrailingTemplateArg(const FunctionTemplateDecl* FunctionTemplate) {
   }
   const NamedDecl* LastParam = TemplateParams->getParam(TemplateParams->size()-1);
   if (const auto* LastTemplateParam = llvm::dyn_cast<NonTypeTemplateParmDecl>(LastParam)) {
-    llvm::errs() << "GOT NonTypeTemplateParmDecl\n";
+    llvm::errs() << "\nGOT NonTypeTemplateParmDecl hasDefaultArgument=" << LastTemplateParam->hasDefaultArgument() << " name=" << LastTemplateParam->getName() << "\n";
     LastTemplateParam->dump();
+
+    if (!LastTemplateParam->hasDefaultArgument() || !LastTemplateParam->getName().empty()) {
+      return std::nullopt;
+    }
+    llvm::errs() << "default expr=\n";
+    LastTemplateParam->getDefaultArgument()->dump();
+
     return matchEnableIfSpecialization(LastTemplateParam->getTypeSourceInfo()->getTypeLoc());
-    //matchEnableIfSpecialization(LastTemplateParam->getType());
   } else {
     llvm::errs() << "Something else\n";
     LastParam->dump();
