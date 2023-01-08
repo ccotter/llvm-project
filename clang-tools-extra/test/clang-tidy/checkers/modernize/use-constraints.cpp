@@ -15,6 +15,11 @@ using enable_if_t = typename enable_if<B, T>::type;
 struct Obj {
 };
 
+namespace enable_if_in_return_type {
+
+////////////////////////////////
+// Section 1: enable_if in return type of function
+////////////////////////////////
 
 ////////////////////////////////
 // General tests
@@ -101,7 +106,6 @@ template <typename T>
 typename std::enable_if_t<T::some_value, Obj>::type123 not_enable_if_t_again() {
   return {};
 }
-
 
 
 ////////////////////////////////
@@ -225,3 +229,35 @@ typename std::enable_if<T::some_value &&
 // CHECK-MESSAGES: :[[@LINE-4]]:1: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
 // CHECK-FIXES: {{^}}Obj condition_on_two_lines() requires (T::some_value &&{{$}}
 // CHECK-FIXES-NEXT: U::another_value) {{{$}}
+
+} // namespace enable_if_in_return_type
+
+
+namespace enable_if_trailing_non_type_parameter {
+
+////////////////////////////////
+// Section 2: enable_if as final template non-type parameter
+////////////////////////////////
+
+template <typename T, typename std::enable_if<T::some_value, int>::type = 0>
+void basic() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:23: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void basic() requires (T::some_value) {{{$}}
+
+template <typename T, std::enable_if_t<T::some_value, int> = 0>
+void basic_t() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:23: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void basic_t() requires (T::some_value) {{{$}}
+
+template <typename T, template <typename> class U, class V, std::enable_if_t<T::some_value, int> = 0>
+void basic_many_template_params() {
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:61: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}template <typename T, template <typename> class U, class V>{{$}}
+// CHECK-FIXES-NEXT: {{^}}void basic_many_template_params() requires (T::some_value) {{{$}}
+
+} // namespace enable_if_trailing_non_type_parameter

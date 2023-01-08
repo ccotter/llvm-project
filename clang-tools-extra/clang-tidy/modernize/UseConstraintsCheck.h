@@ -28,7 +28,7 @@ public:
 
 private:
   void handleReturnType(const FunctionDecl* Function, const TypeLoc& ReturnType, const TemplateSpecializationTypeLoc& EnableIf, ASTContext& Context);
-  void handleTrailingTemplateType(const FunctionDecl* Function, const TemplateSpecializationTypeLoc& EnableIf, ASTContext& Context);
+  void handleTrailingTemplateType(const FunctionTemplateDecl* FunctionTemplate, const FunctionDecl* Function, const NonTypeTemplateParmDecl* LastTemplateParam, const TemplateSpecializationTypeLoc& EnableIf, ASTContext& Context);
 };
 
 } // namespace modernize
