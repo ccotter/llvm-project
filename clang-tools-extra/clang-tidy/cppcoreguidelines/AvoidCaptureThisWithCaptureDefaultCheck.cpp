@@ -32,10 +32,6 @@ static SourceLocation findDefaultCaptureEnd(const LambdaExpr *Lambda,
         SourceManager &SourceMgr = Context.getSourceManager();
         SourceLocation AddressofLoc = utils::lexer::findPreviousTokenKind(
             Capture.getLocation(), SourceMgr, Context.getLangOpts(), tok::amp);
-        llvm::errs() << "FOR REF capture loc= "
-                     << Capture.getLocation().printToString(SourceMgr)
-                     << " addr=" << AddressofLoc.printToString(SourceMgr)
-                     << "\n";
         return AddressofLoc;
       } else {
         return Capture.getLocation();

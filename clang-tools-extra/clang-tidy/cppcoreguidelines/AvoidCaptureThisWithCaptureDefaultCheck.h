@@ -15,6 +15,9 @@ namespace clang {
 namespace tidy {
 namespace cppcoreguidelines {
 
+/// Warns when lambda specify a capture default and capture ``this``. The check also
+/// offers fix-its.
+///
 /// Capture defaults in lambas defined within member functions can be
 /// misleading about whether capturing data member is by value or reference.
 /// For example, [=] will capture local variables by value but member variables
