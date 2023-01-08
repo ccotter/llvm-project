@@ -28,6 +28,13 @@ typename std::enable_if<T::some_value, Obj>::type basic() {
 // CHECK-FIXES: {{^}}Obj basic() requires (T::some_value) {{{$}}
 
 template <typename T>
+std::enable_if_t<T::some_value, Obj> basic_t() {
+  return Obj{};
+}
+// CHECK-MESSAGES: :[[@LINE-3]]:1: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+// CHECK-FIXES: {{^}}Obj basic_t() requires (T::some_value) {{{$}}
+
+template <typename T>
 auto basic_trailing() -> typename std::enable_if<T::some_value, Obj>::type {
   return Obj{};
 }
@@ -74,15 +81,27 @@ typename std::enable_if<T::some_value, Obj>::type decl_with_separate_def() {
 }
 // FIXME - Support definitions with separate decls
 
+
+////////////////////////////////
+// Negative tests - incorrect uses of enable_if
+////////////////////////////////
 template <typename T>
 std::enable_if<T::some_value, Obj> not_enable_if() {
   return {};
 }
-
 template <typename T>
-typename std::enable_if<T::some_value, Obj> also_not_enable_if() {
+typename std::enable_if<T::some_value, Obj>::type123 not_enable_if_wrong_type() {
   return {};
 }
+template <typename T>
+typename std::enable_if_t<T::some_value, Obj>::type not_enable_if_t() {
+  return {};
+}
+template <typename T>
+typename std::enable_if_t<T::some_value, Obj>::type123 not_enable_if_t_again() {
+  return {};
+}
+
 
 
 ////////////////////////////////

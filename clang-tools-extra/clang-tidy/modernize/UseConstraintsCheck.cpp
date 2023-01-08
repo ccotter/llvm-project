@@ -45,41 +45,120 @@ void UseConstraintsCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
-matchEnableIfSpecialization(TypeLoc TheType) {
-  llvm::errs() << "matchEnableIfSpecialization name=(" << TheType.getType().getAsString()
+matchEnableIfSpecialization_impl(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization_impl name=(" << TheType.getType().getAsString()
                << ")\n";
   TheType.getTypePtr()->dump();
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
-    llvm::errs() << "FOR DEPENDENT ID=" << Dep.getTypePtr()->getIdentifier()->getName() << "\n";
+    llvm::errs() << "FOR DEPENDENT ID=" << Dep.getTypePtr()->getIdentifier()->getName() << " nested kind=" << Dep.getTypePtr()->getQualifier()->getKind() << "\n";
+    llvm::errs() << "\nnext1\n";
+    Dep.getTypePtr()->getQualifier()->dump();
+    llvm::errs() << "\nnext2\n";
+    Dep.getTypePtr()->getQualifier()->getAsType()->dump();
     if (Dep.getTypePtr()->getIdentifier()->getName() != "type" || Dep.getTypePtr()->getKeyword() != ETK_Typename) {
       return std::nullopt;
     }
-    //Dep.getTypePtr()->dump();
-    //Dep.getTypePtr()->getQualifier()->dump();
     //llvm::errs() << "\nkeyword=" << Dep.getTypePtr()->getKeyword() << "\n";
-    return matchEnableIfSpecialization(Dep.getQualifierLoc().getTypeLoc());
+    return matchEnableIfSpecialization_impl(Dep.getQualifierLoc().getTypeLoc());
   } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
     return std::nullopt;
-    /*llvm::errs() << "for elab ID\n";
-    Elaborated.getNamedTypeLoc().getTypePtr()->dump();
-    llvm::errs() << "for elab ID2\n";
-    Elaborated.getInnerType()->dump();
-    return matchEnableIfSpecialization(Elaborated.getNamedTypeLoc());*/
   } else if (const auto Typedef = TheType.getAs<TypedefTypeLoc>()) {
+    llvm::errs() << "HUH???\n";
     Typedef.getTypePtr()->getDecl()->dump();
   } else if (const auto Specialization =
                  TheType.getAs<TemplateSpecializationTypeLoc>()) {
     std::string Name = TheType.getType().getAsString();
-    if (Name.find("enable_if<") == std::string::npos &&
-        Name.find("enable_if_t<") == std::string::npos) {
+    llvm::errs() << "aliased=" << (Specialization.getTypePtr()->isTypeAlias()) << " name=" << Name << "\n";
+    if (Name.find("enable_if<") == std::string::npos) {
       return std::nullopt;
     }
     if (Specialization.getNumArgs() != 2) {
       return std::nullopt;
     }
+    llvm::errs() << "RETURN GOOD\n";
     return std::make_optional(Specialization);
   }
   return std::nullopt;
+}
+
+static std::optional<TemplateSpecializationTypeLoc>
+matchEnableIfSpecialization_t(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization_t name=(" << TheType.getType().getAsString()
+               << ")\n";
+  TheType.getTypePtr()->dump();
+  if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
+    return std::nullopt;
+    llvm::errs() << "FOR DEPENDENT ID=" << Dep.getTypePtr()->getIdentifier()->getName() << " nested kind=" << Dep.getTypePtr()->getQualifier()->getKind() << "\n";
+    llvm::errs() << "\nnext1\n";
+    Dep.getTypePtr()->getQualifier()->dump();
+    llvm::errs() << "\nnext2\n";
+    Dep.getTypePtr()->getQualifier()->getAsType()->dump();
+    if (Dep.getTypePtr()->getIdentifier()->getName() != "type" || Dep.getTypePtr()->getKeyword() != ETK_Typename) {
+      return std::nullopt;
+    }
+    //llvm::errs() << "\nkeyword=" << Dep.getTypePtr()->getKeyword() << "\n";
+    return matchEnableIfSpecialization_t(Dep.getQualifierLoc().getTypeLoc());
+  } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
+    /*
+    llvm::errs() << "for elab ID\n";
+    Elaborated.getTypePtr()->getQualifier()->dump(); // 'std::'
+    llvm::errs() << "\nfor elab ID2\n";
+    Elaborated.getTypePtr()->getNamedType()->dump();
+    llvm::errs() << "\nfor elab ID3\n";
+    Elaborated.getTypePtr()->desugar()->dump();
+    //Elaborated.getInnerType()->dump();
+
+    if (const auto Specialization = Elaborated.getNamedTypeLoc().getAs<TemplateSpecializationTypeLoc>()) {
+      std::string Name = TheType.getType().getAsString();
+      llvm::errs() << "inside1 Name=" << Name << "\n";
+      if (Name.find("enable_if_t<") == std::string::npos) {
+        return std::nullopt;
+      }
+      return matchEnableIfSpecialization_t(Elaborated.getNamedTypeLoc());
+    } else {
+      llvm::errs() << "oop222s\n";
+    }
+    return std::nullopt;
+    //return std::nullopt;
+    //*/
+    return matchEnableIfSpecialization_t(Elaborated.getNamedTypeLoc());
+  } else if (const auto Typedef = TheType.getAs<TypedefTypeLoc>()) {
+    llvm::errs() << "HUH???\n";
+    Typedef.getTypePtr()->getDecl()->dump();
+  } else if (const auto Specialization =
+                 TheType.getAs<TemplateSpecializationTypeLoc>()) {
+    std::string Name = TheType.getType().getAsString();
+    if (Name.find("enable_if_t<") == std::string::npos) {
+      return std::nullopt;
+    }
+    llvm::errs() << "aliased=" << (Specialization.getTypePtr()->isTypeAlias()) << "\n";
+    if (!Specialization.getTypePtr()->isTypeAlias()) {
+      return std::nullopt;
+    }
+    if (const auto* AliasedType = llvm::dyn_cast<DependentNameType>(Specialization.getTypePtr()->getAliasedType())) {
+      if (AliasedType->getIdentifier()->getName() != "type" || AliasedType->getKeyword() != ETK_Typename) {
+        return std::nullopt;
+      }
+    } else {
+      return std::nullopt;
+    }
+    if (Specialization.getNumArgs() != 2) {
+      return std::nullopt;
+    }
+    llvm::errs() << "RETURN GOOD\n";
+    return std::make_optional(Specialization);
+  }
+  return std::nullopt;
+}
+
+static std::optional<TemplateSpecializationTypeLoc>
+matchEnableIfSpecialization(TypeLoc TheType) {
+  std::optional<TemplateSpecializationTypeLoc> EnableIf;
+  EnableIf = matchEnableIfSpecialization_impl(TheType);
+  if (EnableIf) {
+    return EnableIf;
+  }
+  return matchEnableIfSpecialization_t(TheType);
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
@@ -229,8 +308,8 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   //   template <..., enable_if<Condition, Type> = Type{}>
   //   function();
 
-  std::optional<TemplateSpecializationTypeLoc> EnableIf =
-      matchEnableIfSpecialization(*ReturnType);
+  std::optional<TemplateSpecializationTypeLoc> EnableIf;
+  EnableIf = matchEnableIfSpecialization(*ReturnType);
   if (EnableIf.has_value()) {
     handleReturnType(Function, *ReturnType, *EnableIf, *Result.Context);
     return;
