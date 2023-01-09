@@ -29,6 +29,7 @@ add_clang_library(clangTidyModernizeModule
   UseAutoCheck.cpp
   UseBoolLiteralsCheck.cpp
   UseConstraintsCheck.cpp
+  all.cpp
   UseDefaultMemberInitCheck.cpp
   UseEmplaceCheck.cpp
   UseEqualsDefaultCheck.cpp

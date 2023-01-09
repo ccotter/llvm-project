@@ -317,7 +317,7 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   assert(Function);
   assert(ReturnType);
 
-  llvm::errs() << "\n\nType functionDecl name=" << Function->getName() << " at "
+  llvm::errs() << "\n\nType functionDecl name=" << (Function->getIdentifier() ? Function->getName() : "<unknown>") << " at "
                << Function->getSourceRange().printToString(Result.Context->getSourceManager()) << "\n";
 
   // Check for
