@@ -168,7 +168,6 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(complexType);
   REGISTER_MATCHER(compoundLiteralExpr);
   REGISTER_MATCHER(compoundStmt);
-  REGISTER_MATCHER(coroutineBodyStmt);
   REGISTER_MATCHER(coawaitExpr);
   REGISTER_MATCHER(conditionalOperator);
   REGISTER_MATCHER(constantArrayType);
@@ -176,6 +175,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(containsDeclaration);
   REGISTER_MATCHER(continueStmt);
   REGISTER_MATCHER(coreturnStmt);
+  REGISTER_MATCHER(coroutineBodyStmt);
   REGISTER_MATCHER(coyieldExpr);
   REGISTER_MATCHER(cudaKernelCallExpr);
   REGISTER_MATCHER(cxxBaseSpecifier);
