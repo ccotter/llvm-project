@@ -685,19 +685,15 @@ void non_coro_function() {
 }
 )cpp";
 
-  EXPECT_TRUE(matchesConditionally(CoReturnCode, 
-                                   coroutineBodyStmt(),
-                                   true, {"-std=c++20", "-I/"}, M));
-  EXPECT_TRUE(matchesConditionally(CoAwaitCode, 
-                                   coroutineBodyStmt(),
-                                   true, {"-std=c++20", "-I/"}, M));
-  EXPECT_TRUE(matchesConditionally(CoYieldCode, 
-                                   coroutineBodyStmt(),
-                                   true, {"-std=c++20", "-I/"}, M));
+  EXPECT_TRUE(matchesConditionally(CoReturnCode, coroutineBodyStmt(), true,
+                                   {"-std=c++20", "-I/"}, M));
+  EXPECT_TRUE(matchesConditionally(CoAwaitCode, coroutineBodyStmt(), true,
+                                   {"-std=c++20", "-I/"}, M));
+  EXPECT_TRUE(matchesConditionally(CoYieldCode, coroutineBodyStmt(), true,
+                                   {"-std=c++20", "-I/"}, M));
 
-  EXPECT_FALSE(matchesConditionally(NonCoroCode,
-                                   coroutineBodyStmt(),
-                                   true, {"-std=c++20", "-I/"}, M));
+  EXPECT_FALSE(matchesConditionally(NonCoroCode, coroutineBodyStmt(), true,
+                                    {"-std=c++20", "-I/"}, M));
 
   StringRef CoroWithDeclCode = R"cpp(
 #include <coro_header>
@@ -721,8 +717,8 @@ void coro() try {
 )cpp";
   EXPECT_TRUE(matchesConditionally(
       CoroWithTryCatchDeclCode,
-      coroutineBodyStmt(hasBody(cxxTryStmt(has(compoundStmt(
-          has(declStmt(containsDeclaration(0, varDecl(hasName("thevar")))))))))),
+      coroutineBodyStmt(hasBody(cxxTryStmt(has(compoundStmt(has(
+          declStmt(containsDeclaration(0, varDecl(hasName("thevar")))))))))),
       true, {"-std=c++20", "-I/"}, M));
 }
 

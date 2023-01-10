@@ -5495,13 +5495,11 @@ AST_MATCHER_P(ArraySubscriptExpr, hasBase,
 ///   matching '{}'
 ///   but does not match 'void f();'
 
-AST_POLYMORPHIC_MATCHER_P(hasBody,
-                          AST_POLYMORPHIC_SUPPORTED_TYPES(DoStmt, ForStmt,
-                                                          WhileStmt,
-                                                          CXXForRangeStmt,
-                                                          FunctionDecl,
-                                                          CoroutineBodyStmt),
-                          internal::Matcher<Stmt>, InnerMatcher) {
+AST_POLYMORPHIC_MATCHER_P(
+    hasBody,
+    AST_POLYMORPHIC_SUPPORTED_TYPES(DoStmt, ForStmt, WhileStmt, CXXForRangeStmt,
+                                    FunctionDecl, CoroutineBodyStmt),
+    internal::Matcher<Stmt>, InnerMatcher) {
   if (Finder->isTraversalIgnoringImplicitNodes() && isDefaultedHelper(&Node))
     return false;
   const Stmt *const Statement = internal::GetBodyMatcher<NodeType>::get(Node);
