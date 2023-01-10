@@ -173,6 +173,10 @@ Changes in existing checks
   The check now skips concept definitions since redundant expressions still make sense
   inside them.
 
+- Improved :doc:`modernize-loop-convert <clang-tidy/checks/modernize/loop-convert>`
+  to check for container functions ``begin``/``end`` etc on base classes of the container
+  type, instead of only as direct members of the container type itself.
+
 - Improved :doc:`modernize-use-emplace <clang-tidy/checks/modernize/use-emplace>`
   check.
 
@@ -215,10 +219,6 @@ Changes in existing checks
 - Support removing ``c_str`` calls from ``std::string_view`` constructor calls in
   :doc:`readability-redundant-string-cstr <clang-tidy/checks/readability/redundant-string-cstr>`
   check.
-
-- Improved :doc:`modernize-loop-convert <clang-tidy/checks/modernize/loop-convert>`
-  to check for container functions ``begin``/``end`` etc on base classes of the container
-  type, instead of only as direct members of the container type itself.
 
 Removed checks
 ^^^^^^^^^^^^^^
