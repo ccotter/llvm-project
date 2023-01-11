@@ -3,8 +3,7 @@
 cppcoreguidelines-avoid-capture-default-when-capturing-this
 ===========================================================
 
-Warns when lambda specify a capture default and capture ``this``. The check also
-offers fix-its.
+Warns when lambda specify a capture default and capture ``this``.
 
 Capture-defaults in member functions can be misleading about
 whether data members are captured by value or reference. For example,
@@ -16,11 +15,11 @@ Examples:
 .. code-block:: c++
 
       struct AClass {
-        int DataMember;
+        int member;
         void misleadingLogic() {
           int local = 0;
           member = 0;
-          auto f = [=]() {
+          auto f = [=]() mutable {
             local += 1;
             member += 1;
           };
@@ -31,7 +30,7 @@ Examples:
         void clearLogic() {
           int local = 0;
           member = 0;
-          auto f = [this, local]() {
+          auto f = [this, local]() mutable {
             local += 1;
             member += 1;
           };
