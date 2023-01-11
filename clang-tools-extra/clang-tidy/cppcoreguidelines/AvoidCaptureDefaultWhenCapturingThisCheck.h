@@ -1,4 +1,5 @@
-//===--- AvoidCaptureDefaultWhenCapturingThisCheck.h - clang-tidy *- C++ -*-===//
+//===--- AvoidCaptureDefaultWhenCapturingThisCheck.h - clang-tidy *- C++
+//-*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -15,8 +16,8 @@ namespace clang {
 namespace tidy {
 namespace cppcoreguidelines {
 
-/// Warns when lambda specify a capture default and capture ``this``. The check also
-/// offers fix-its.
+/// Warns when lambda specify a capture default and capture ``this``. The check
+/// also offers fix-its.
 ///
 /// Capture defaults in lambas defined within member functions can be
 /// misleading about whether capturing data member is by value or reference.
@@ -29,7 +30,7 @@ namespace cppcoreguidelines {
 class AvoidCaptureDefaultWhenCapturingThisCheck : public ClangTidyCheck {
 public:
   AvoidCaptureDefaultWhenCapturingThisCheck(StringRef Name,
-                                          ClangTidyContext *Context)
+                                            ClangTidyContext *Context)
       : ClangTidyCheck(Name, Context) {}
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
