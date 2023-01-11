@@ -15,39 +15,39 @@ struct Obj {
 
     auto explicit_this_capture_locals2 = [=, this]() { return (local+local2) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:43: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [local, local2, this]() { return (local+local2) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_locals2 = [local, local2, this]() { return (local+local2) > 10; };
 
     auto explicit_this_capture_local_ref = [=, this, &local]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [this, &local]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_local_ref = [this, &local]() { return (local+x) > 10; };
 
     auto explicit_this_capture_local_ref2 = [=, &local, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:46: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, this]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_local_ref2 = [&local, this]() { return (local+x) > 10; };
 
     auto explicit_this_capture_local_ref3 = [=, &local, this, &local2]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:46: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, this, &local2]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_local_ref3 = [&local, this, &local2]() { return (local+x) > 10; };
 
     auto explicit_this_capture_local_ref4 = [=, &local, &local2, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:46: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, &local2, this]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_local_ref4 = [&local, &local2, this]() { return (local+x) > 10; };
 
     auto explicit_this_capture_local_ref_extra_whitespace = [=, &  local, &local2, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:62: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&  local, &local2, this]() { return (local+x) > 10; }
+    // CHECK-FIXES: auto explicit_this_capture_local_ref_extra_whitespace = [&  local, &local2, this]() { return (local+x) > 10; };
 
     auto explicit_this_capture_local_ref_with_comment = [=, & /* byref */ local, &local2, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:58: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [& /* byref */ local, &local2, this]() { return (local+x) > 10; }
+    // CHECK-FIXES: auto explicit_this_capture_local_ref_with_comment = [& /* byref */ local, &local2, this]() { return (local+x) > 10; };
 
     auto implicit_this_capture = [=]() { return x > 10; };
-    // CHECK-MESSAGES: :[[@LINE-1]]:35: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [this]() { return x > 10; };
+    // CHECK-MESSAGES: :[[@LINE-1]]:35: warning: lambdas that implicitly capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
+    // CHECK-FIXES: auto implicit_this_capture = [this]() { return x > 10; };
 
     auto implicit_this_capture_local = [=]() { return (local+x) > 10; };
-    // CHECK-MESSAGES: :[[@LINE-1]]:41: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [local, this]() { return (local+x) > 10; };
+    // CHECK-MESSAGES: :[[@LINE-1]]:41: warning: lambdas that implicitly capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
+    // CHECK-FIXES: auto implicit_this_capture_local = [local, this]() { return (local+x) > 10; };
   }
 
   void lambdas_that_warn_default_capture_ref() {
@@ -56,23 +56,23 @@ struct Obj {
 
     auto ref_explicit_this_capture = [&, this]() { };
     // CHECK-MESSAGES: :[[@LINE-1]]:39: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [this]() { };
+    // CHECK-FIXES: auto ref_explicit_this_capture = [this]() { };
 
     auto ref_explicit_this_capture_local = [&, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, this]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto ref_explicit_this_capture_local = [&local, this]() { return (local+x) > 10; };
 
     auto ref_implicit_this_capture = [&]() { return x > 10; };
-    // CHECK-MESSAGES: :[[@LINE-1]]:39: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [this]() { return x > 10; };
+    // CHECK-MESSAGES: :[[@LINE-1]]:39: warning: lambdas that implicitly capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
+    // CHECK-FIXES: auto ref_implicit_this_capture = [this]() { return x > 10; };
 
     auto ref_implicit_this_capture_local = [&]() { return (local+x) > 10; };
-    // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, this]() { return (local+x) > 10; };
+    // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: lambdas that implicitly capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
+    // CHECK-FIXES: auto ref_implicit_this_capture_local = [&local, this]() { return (local+x) > 10; };
 
     auto ref_implicit_this_capture_locals = [&]() { return (local+local2+x) > 10; };
-    // CHECK-MESSAGES: :[[@LINE-1]]:46: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [&local, &local2, this]() { return (local+local2+x) > 10; };
+    // CHECK-MESSAGES: :[[@LINE-1]]:46: warning: lambdas that implicitly capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
+    // CHECK-FIXES: auto ref_implicit_this_capture_locals = [&local, &local2, this]() { return (local+local2+x) > 10; };
   }
 
   void lambdas_that_dont_warn() {

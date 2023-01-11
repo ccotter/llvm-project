@@ -13,6 +13,8 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
+
 using namespace clang::ast_matchers;
 
 namespace clang {
@@ -77,9 +79,13 @@ void AvoidCaptureDefaultWhenCapturingThisCheck::check(
     const MatchFinder::MatchResult &Result) {
   if (const auto *Lambda = Result.Nodes.getNodeAs<LambdaExpr>("lambda")) {
     if (Lambda->getCaptureDefault() != LCD_None) {
-      auto Diag = diag(
-          Lambda->getCaptureDefaultLoc(),
-          "lambdas that capture 'this' should not specify a capture default");
+      bool IsThisImplicitlyCaptured = std::any_of(
+          Lambda->implicit_capture_begin(), Lambda->implicit_capture_end(),
+          [](const LambdaCapture &Capture) { return Capture.capturesThis(); });
+      auto Diag = diag(Lambda->getCaptureDefaultLoc(),
+                       "lambdas that %select{|implicitly }0capture 'this' "
+                       "should not specify a capture default")
+                  << IsThisImplicitlyCaptured;
 
       std::string ReplacementText = createReplacementText(Lambda);
       SourceLocation DefaultCaptureEnd =
