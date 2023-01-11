@@ -4,7 +4,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_clang_library(clangTidyCppCoreGuidelinesModule
-  AvoidCaptureThisWithCaptureDefaultCheck.cpp
+  AvoidCaptureDefaultWhenCapturingThisCheck.cpp
   AvoidConstOrRefDataMembersCheck.cpp
   AvoidDoWhileCheck.cpp
   AvoidGotoCheck.cpp
