@@ -296,6 +296,9 @@ public:
   /// Dumps the node to the given output stream.
   void dump(llvm::raw_ostream &OS, const ASTContext &Context) const;
 
+  /// Dumps the node to \c llvm::errs().
+  void dump() const;
+
   /// For nodes which represent textual entities in the source code,
   /// return their SourceRange.  For all other nodes, return SourceRange().
   SourceRange getSourceRange() const;

@@ -213,6 +213,18 @@ void DynTypedNode::dump(llvm::raw_ostream &OS,
     OS << "Unable to dump values of type " << NodeKind.asStringRef() << "\n";
 }
 
+void DynTypedNode::dump() const {
+  if (const Decl *D = get<Decl>())
+    D->dump();
+  else if (const Stmt *S = get<Stmt>())
+    S->dump();
+  else if (const Type *T = get<Type>())
+    T->dump();
+  else
+    llvm::errs() << "Unable to dump values of type " << NodeKind.asStringRef()
+                 << "\n";
+}
+
 SourceRange DynTypedNode::getSourceRange() const {
   if (const CXXCtorInitializer *CCI = get<CXXCtorInitializer>())
     return CCI->getSourceRange();
