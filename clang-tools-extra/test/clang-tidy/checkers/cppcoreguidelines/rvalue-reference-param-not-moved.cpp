@@ -135,6 +135,11 @@ void forwarding_ref_forwarded(T&& t) {
   forwarding_ref(std::forward<T>(t));
 }
 
+template <typename... Ts>
+void type_pack(Ts&&... ts) {
+  forwarding_ref(std::forward<Ts>(ts)...);
+}
+
 void good1(Obj&& o) {
   Obj moved = std::move(o);
   moved.member();
@@ -204,6 +209,12 @@ void negative_lambda_checks() {
   Obj local;
   auto captures = [local]() {
   };
+}
+
+void useless_move(Obj&& o) {
+  // FIXME - The object is not actually moved from - this should probably be
+  // flagged by *some* check. Which one?
+  std::move(o);
 }
 
 struct DefinesMove {
