@@ -11,25 +11,11 @@ struct remove_reference {
 };
 
 template <typename _Tp>
-struct remove_reference<_Tp &> {
-  typedef _Tp type;
-};
-
-template <typename _Tp>
-struct remove_reference<_Tp &&> {
-  typedef _Tp type;
-};
-
-template <typename _Tp>
-constexpr typename std::remove_reference<_Tp>::type &&move(_Tp &&__t) noexcept {
-  return static_cast<typename remove_reference<_Tp>::type &&>(__t);
-}
+constexpr typename std::remove_reference<_Tp>::type &&move(_Tp &&__t) noexcept;
 
 template <typename _Tp>
 constexpr _Tp &&
-forward(typename remove_reference<_Tp>::type &__t) noexcept {
-  return static_cast<_Tp &&>(__t);
-}
+forward(typename remove_reference<_Tp>::type &__t) noexcept;
 
 }
 // NOLINTEND
@@ -224,6 +210,7 @@ struct DefinesMove {
     if (this != &rhs) {
       o = std::move(rhs.o);
     }
+    return *this;
   }
   Obj o;
 };
