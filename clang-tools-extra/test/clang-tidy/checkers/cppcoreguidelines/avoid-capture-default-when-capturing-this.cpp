@@ -7,11 +7,11 @@ struct Obj {
 
     auto explicit_this_capture = [=, this]() { };
     // CHECK-MESSAGES: :[[@LINE-1]]:35: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [this]() { };
+    // CHECK-FIXES: auto explicit_this_capture = [this]() { };
 
     auto explicit_this_capture_locals1 = [=, this]() { return (local+x) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:43: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
-    // CHECK-FIXES: [local, this]() { return (local+x) > 10; };
+    // CHECK-FIXES: auto explicit_this_capture_locals1 = [local, this]() { return (local+x) > 10; };
 
     auto explicit_this_capture_locals2 = [=, this]() { return (local+local2) > 10; };
     // CHECK-MESSAGES: :[[@LINE-1]]:43: warning: lambdas that capture 'this' should not specify a capture default [cppcoreguidelines-avoid-capture-default-when-capturing-this]
