@@ -203,6 +203,14 @@ void useless_move(Obj&& o) {
   std::move(o);
 }
 
+template <typename>
+class TemplatedClass;
+
+template <typename T>
+void unresolved_lookup(TemplatedClass<T>&& o) {
+  TemplatedClass<T> moved = std::move(o);
+}
+
 struct DefinesMove {
   DefinesMove(DefinesMove&& rhs) : o(std::move(rhs.o)) {
   }
