@@ -52,7 +52,15 @@ void UseConstraintsCheck::registerMatchers(MatchFinder *Finder) {
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization_impl_type(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization_impl_type name=("
+               << TheType.getType().getAsString() << ")\n";
+  TheType.getTypePtr()->dump();
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
+    llvm::errs() << "FOR DEPENDENT ID="
+                 << Dep.getTypePtr()->getIdentifier()->getName()
+                 << " nested kind="
+                 << Dep.getTypePtr()->getQualifier()->getKind() << "\n";
+    Dep.getTypePtr()->getQualifier()->getAsType()->dump();
     if (Dep.getTypePtr()->getIdentifier()->getName() != "type" ||
         Dep.getTypePtr()->getKeyword() != ETK_Typename) {
       return std::nullopt;
@@ -78,9 +86,13 @@ matchEnableIfSpecialization_impl_type(TypeLoc TheType) {
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization_impl_t(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization_impl_t name=("
+               << TheType.getType().getAsString() << ")\n";
+  TheType.getTypePtr()->dump();
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
     return std::nullopt;
   } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
+    llvm::errs() << "ELAB??\n";
     return matchEnableIfSpecialization_impl_t(Elaborated.getNamedTypeLoc());
   } else if (const auto Specialization =
                  TheType.getAs<TemplateSpecializationTypeLoc>()) {
@@ -111,6 +123,8 @@ matchEnableIfSpecialization_impl_t(TypeLoc TheType) {
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization_impl(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization_impl name=("
+               << TheType.getType().getAsString() << ")\n";
   std::optional<TemplateSpecializationTypeLoc> EnableIf;
   EnableIf = matchEnableIfSpecialization_impl_type(TheType);
   if (EnableIf) {
@@ -121,14 +135,20 @@ matchEnableIfSpecialization_impl(TypeLoc TheType) {
 
 static std::optional<EnableIfData>
 matchEnableIfSpecialization(TypeLoc TheType) {
+  llvm::errs() << "matchEnableIfSpecialization name=("
+               << TheType.getType().getAsString() << ")\n";
   if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>()) {
+    llvm::errs() << "First Qual\n";
   }
   if (const auto Pointer = TheType.getAs<PointerTypeLoc>()) {
+    llvm::errs() << "First Ptr\n";
     TheType = Pointer.getPointeeLoc();
   } else if (const auto Reference = TheType.getAs<ReferenceTypeLoc>()) {
+    llvm::errs() << "First Ref\n";
     TheType = Reference.getPointeeLoc();
   }
   if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>()) {
+    llvm::errs() << "Second Qual\n";
     TheType = Qualified.getUnqualifiedLoc();
   }
 
@@ -151,6 +171,8 @@ matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
   // Otherwise, match a trailing default type arg.
   // E.g., 'template <typename T, typename = enable_if_t<is_same_v<T, bool>>>'
 
+  llvm::errs() << "matchTrailingTemplateParam\n";
+  FunctionTemplate->dump();
   const TemplateParameterList *TemplateParams =
       FunctionTemplate->getTemplateParameters();
   if (TemplateParams->size() == 0) {
@@ -160,11 +182,17 @@ matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
       TemplateParams->getParam(TemplateParams->size() - 1);
   if (const auto *LastTemplateParam =
           llvm::dyn_cast<NonTypeTemplateParmDecl>(LastParam)) {
+    llvm::errs() << "\nGOT NonTypeTemplateParmDecl hasDefaultArgument="
+                 << LastTemplateParam->hasDefaultArgument()
+                 << " name=" << LastTemplateParam->getName() << "\n";
+    LastTemplateParam->dump();
 
     if (!LastTemplateParam->hasDefaultArgument() ||
         !LastTemplateParam->getName().empty()) {
       return {};
     }
+    llvm::errs() << "default expr=\n";
+    LastTemplateParam->getDefaultArgument()->dump();
 
     return std::make_tuple(
         matchEnableIfSpecialization(
@@ -172,6 +200,10 @@ matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
         LastTemplateParam);
   } else if (const auto *LastTemplateParam =
                  llvm::dyn_cast<TemplateTypeParmDecl>(LastParam)) {
+    llvm::errs() << "GOT TemplateTypeParmDecl hasDefault="
+                 << LastTemplateParam->hasDefaultArgument() << " hasname="
+                 << (LastTemplateParam->getIdentifier() != nullptr) << "\n";
+    LastTemplateParam->dump();
     if (LastTemplateParam->hasDefaultArgument() &&
         LastTemplateParam->getIdentifier() == nullptr) {
       return std::make_tuple(
@@ -359,9 +391,12 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
                                                const TypeLoc &ReturnType,
                                                const EnableIfData &EnableIf,
                                                ASTContext &Context) {
+  SourceManager &SM = Context.getSourceManager();
+
   TemplateArgumentLoc EnableCondition = EnableIf.Loc.getArgLoc(0);
 
   SourceRange ConditionRange = getConditionRange(Context, EnableIf.Loc);
+  llvm::errs() << "cond sr: " << ConditionRange.printToString(SM) << "\n";
 
   std::optional<std::string> ConditionText = getConditionText(
       EnableCondition.getSourceExpression(), ConditionRange, Context);
