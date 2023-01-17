@@ -72,8 +72,8 @@ public:
 
   /// Deallocate space for a sequence of objects without constructing them.
   template <typename T>
-  std::enable_if_t<!std::is_same<std::remove_cv_t<T>, void>::value, void>
-  Deallocate(T *Ptr, size_t Num = 1) {
+  void
+  Deallocate(T *Ptr, size_t Num = 1) requires (!std::is_same<std::remove_cv_t<T>, void>::value) {
     Deallocate(static_cast<const void *>(Ptr), Num * sizeof(T), alignof(T));
   }
 };

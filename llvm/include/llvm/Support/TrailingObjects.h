@@ -309,10 +309,9 @@ public:
   /// used in the class; they are supplied here redundantly only so
   /// that it's clear what the counts are counting in callers.
   template <typename... Tys>
-  static constexpr std::enable_if_t<
-      std::is_same<Foo<TrailingTys...>, Foo<Tys...>>::value, size_t>
+  static constexpr size_t
   additionalSizeToAlloc(typename trailing_objects_internal::ExtractSecondType<
-                        TrailingTys, size_t>::type... Counts) {
+                        TrailingTys, size_t>::type... Counts) requires std::is_same<Foo<TrailingTys...>, Foo<Tys...>>::value {
     return ParentType::additionalSizeToAllocImpl(0, Counts...);
   }
 
@@ -321,10 +320,9 @@ public:
   /// additionalSizeToAlloc, except it *does* include the size of the base
   /// object.
   template <typename... Tys>
-  static constexpr std::enable_if_t<
-      std::is_same<Foo<TrailingTys...>, Foo<Tys...>>::value, size_t>
+  static constexpr size_t
   totalSizeToAlloc(typename trailing_objects_internal::ExtractSecondType<
-                   TrailingTys, size_t>::type... Counts) {
+                   TrailingTys, size_t>::type... Counts) requires std::is_same<Foo<TrailingTys...>, Foo<Tys...>>::value {
     return sizeof(BaseTy) + ParentType::additionalSizeToAllocImpl(0, Counts...);
   }
 

@@ -877,9 +877,8 @@ public:
   APFloat(const fltSemantics &Semantics) : U(Semantics) {}
   APFloat(const fltSemantics &Semantics, StringRef S);
   APFloat(const fltSemantics &Semantics, integerPart I) : U(Semantics, I) {}
-  template <typename T,
-            typename = std::enable_if_t<std::is_floating_point<T>::value>>
-  APFloat(const fltSemantics &Semantics, T V) = delete;
+  template <typename T>
+  APFloat(const fltSemantics &Semantics, T V) requires std::is_floating_point<T>::value = delete;
   // TODO: Remove this constructor. This isn't faster than the first one.
   APFloat(const fltSemantics &Semantics, uninitializedTag)
       : U(Semantics, uninitialized) {}

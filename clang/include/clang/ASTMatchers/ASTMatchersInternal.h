@@ -163,21 +163,18 @@ inline QualType getUnderlyingType(const CXXBaseSpecifier &Node) {
 }
 
 /// Unifies obtaining a `TypeSourceInfo` from different node types.
-template <typename T,
-          std::enable_if_t<TypeListContainsSuperOf<
+template <typename T>
+inline TypeSourceInfo *GetTypeSourceInfo(const T &Node) requires TypeListContainsSuperOf<
               TypeList<CXXBaseSpecifier, CXXCtorInitializer,
                        CXXTemporaryObjectExpr, CXXUnresolvedConstructExpr,
                        CompoundLiteralExpr, DeclaratorDecl, ObjCPropertyDecl,
                        TemplateArgumentLoc, TypedefNameDecl>,
-              T>::value> * = nullptr>
-inline TypeSourceInfo *GetTypeSourceInfo(const T &Node) {
+              T>::value {
   return Node.getTypeSourceInfo();
 }
-template <typename T,
-          std::enable_if_t<TypeListContainsSuperOf<
-              TypeList<CXXFunctionalCastExpr, ExplicitCastExpr>, T>::value> * =
-              nullptr>
-inline TypeSourceInfo *GetTypeSourceInfo(const T &Node) {
+template <typename T>
+inline TypeSourceInfo *GetTypeSourceInfo(const T &Node) requires TypeListContainsSuperOf<
+              TypeList<CXXFunctionalCastExpr, ExplicitCastExpr>, T>::value {
   return Node.getTypeInfoAsWritten();
 }
 inline TypeSourceInfo *GetTypeSourceInfo(const BlockDecl &Node) {
@@ -872,9 +869,8 @@ IteratorT matchesFirstInPointerRange(const MatcherT &Matcher, IteratorT Start,
   return End;
 }
 
-template <typename T, std::enable_if_t<!std::is_base_of<FunctionDecl, T>::value>
-                          * = nullptr>
-inline bool isDefaultedHelper(const T *) {
+template <typename T>
+inline bool isDefaultedHelper(const T *) requires (!std::is_base_of<FunctionDecl, T>::value) {
   return false;
 }
 inline bool isDefaultedHelper(const FunctionDecl *FD) {

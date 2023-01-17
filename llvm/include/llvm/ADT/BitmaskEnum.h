@@ -98,43 +98,43 @@ constexpr unsigned bitWidth(uint64_t Value) {
   return Value ? 1 + bitWidth(Value >> 1) : 0;
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-constexpr E operator~(E Val) {
+template <typename E>
+constexpr E operator~(E Val) requires is_bitmask_enum<E>::value {
   return static_cast<E>(~Underlying(Val) & Mask<E>());
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-constexpr E operator|(E LHS, E RHS) {
+template <typename E>
+constexpr E operator|(E LHS, E RHS) requires is_bitmask_enum<E>::value {
   return static_cast<E>(Underlying(LHS) | Underlying(RHS));
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-constexpr E operator&(E LHS, E RHS) {
+template <typename E>
+constexpr E operator&(E LHS, E RHS) requires is_bitmask_enum<E>::value {
   return static_cast<E>(Underlying(LHS) & Underlying(RHS));
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-constexpr E operator^(E LHS, E RHS) {
+template <typename E>
+constexpr E operator^(E LHS, E RHS) requires is_bitmask_enum<E>::value {
   return static_cast<E>(Underlying(LHS) ^ Underlying(RHS));
 }
 
 // |=, &=, and ^= return a reference to LHS, to match the behavior of the
 // operators on builtin types.
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-E &operator|=(E &LHS, E RHS) {
+template <typename E>
+E &operator|=(E &LHS, E RHS) requires is_bitmask_enum<E>::value {
   LHS = LHS | RHS;
   return LHS;
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-E &operator&=(E &LHS, E RHS) {
+template <typename E>
+E &operator&=(E &LHS, E RHS) requires is_bitmask_enum<E>::value {
   LHS = LHS & RHS;
   return LHS;
 }
 
-template <typename E, typename = std::enable_if_t<is_bitmask_enum<E>::value>>
-E &operator^=(E &LHS, E RHS) {
+template <typename E>
+E &operator^=(E &LHS, E RHS) requires is_bitmask_enum<E>::value {
   LHS = LHS ^ RHS;
   return LHS;
 }

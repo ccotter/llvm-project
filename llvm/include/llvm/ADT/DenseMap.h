@@ -1225,11 +1225,10 @@ public:
   // Converting ctor from non-const iterators to const iterators. SFINAE'd out
   // for const iterator destinations so it doesn't end up as a user defined copy
   // constructor.
-  template <bool IsConstSrc,
-            typename = std::enable_if_t<!IsConstSrc && IsConst>>
+  template <bool IsConstSrc>
   DenseMapIterator(
       const DenseMapIterator<KeyT, ValueT, KeyInfoT, Bucket, IsConstSrc> &I)
-      : DebugEpochBase::HandleBase(I), Ptr(I.Ptr), End(I.End) {}
+      requires (!IsConstSrc && IsConst) : DebugEpochBase::HandleBase(I), Ptr(I.Ptr), End(I.End) {}
 
   reference operator*() const {
     assert(isHandleInSync() && "invalid iterator access!");

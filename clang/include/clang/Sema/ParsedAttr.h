@@ -1185,20 +1185,18 @@ inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
 /// DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB, SourceRange R).
 /// We use SFINAE to disable any conversion and remove any ambiguity.
 template <
-    typename ACI,
-    std::enable_if_t<std::is_same<ACI, AttributeCommonInfo>::value, int> = 0>
+    typename ACI>
 inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
-                                             const ACI &CI) {
+                                             const ACI &CI) requires std::is_same<ACI, AttributeCommonInfo>::value {
   DB.AddTaggedVal(reinterpret_cast<uint64_t>(CI.getAttrName()),
                   DiagnosticsEngine::ak_identifierinfo);
   return DB;
 }
 
 template <
-    typename ACI,
-    std::enable_if_t<std::is_same<ACI, AttributeCommonInfo>::value, int> = 0>
+    typename ACI>
 inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
-                                             const ACI *CI) {
+                                             const ACI *CI) requires std::is_same<ACI, AttributeCommonInfo>::value {
   DB.AddTaggedVal(reinterpret_cast<uint64_t>(CI->getAttrName()),
                   DiagnosticsEngine::ak_identifierinfo);
   return DB;

@@ -536,16 +536,16 @@ template <class V, class M> struct IsValidReference {
 /// As an analogue to \a isa(), check whether \c MD has an \a Value inside of
 /// type \c X.
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, bool>
-hasa(Y &&MD) {
+inline bool
+hasa(Y &&MD) requires detail::IsValidPointer<X, Y>::value {
   assert(MD && "Null pointer sent into hasa");
   if (auto *V = dyn_cast<ConstantAsMetadata>(MD))
     return isa<X>(V->getValue());
   return false;
 }
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidReference<X, Y &>::value, bool>
-hasa(Y &MD) {
+inline bool
+hasa(Y &MD) requires detail::IsValidReference<X, Y &>::value {
   return hasa(&MD);
 }
 
@@ -553,13 +553,13 @@ hasa(Y &MD) {
 ///
 /// As an analogue to \a cast(), extract the \a Value subclass \c X from \c MD.
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
-extract(Y &&MD) {
+inline X *
+extract(Y &&MD) requires detail::IsValidPointer<X, Y>::value {
   return cast<X>(cast<ConstantAsMetadata>(MD)->getValue());
 }
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidReference<X, Y &>::value, X *>
-extract(Y &MD) {
+inline X *
+extract(Y &MD) requires detail::IsValidReference<X, Y &>::value {
   return extract(&MD);
 }
 
@@ -568,8 +568,8 @@ extract(Y &MD) {
 /// As an analogue to \a cast_or_null(), extract the \a Value subclass \c X
 /// from \c MD, allowing \c MD to be null.
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
-extract_or_null(Y &&MD) {
+inline X *
+extract_or_null(Y &&MD) requires detail::IsValidPointer<X, Y>::value {
   if (auto *V = cast_or_null<ConstantAsMetadata>(MD))
     return cast<X>(V->getValue());
   return nullptr;
@@ -581,8 +581,8 @@ extract_or_null(Y &&MD) {
 /// from \c MD, return null if \c MD doesn't contain a \a Value or if the \a
 /// Value it does contain is of the wrong subclass.
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
-dyn_extract(Y &&MD) {
+inline X *
+dyn_extract(Y &&MD) requires detail::IsValidPointer<X, Y>::value {
   if (auto *V = dyn_cast<ConstantAsMetadata>(MD))
     return dyn_cast<X>(V->getValue());
   return nullptr;
@@ -594,8 +594,8 @@ dyn_extract(Y &&MD) {
 /// from \c MD, return null if \c MD doesn't contain a \a Value or if the \a
 /// Value it does contain is of the wrong subclass, allowing \c MD to be null.
 template <class X, class Y>
-inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
-dyn_extract_or_null(Y &&MD) {
+inline X *
+dyn_extract_or_null(Y &&MD) requires detail::IsValidPointer<X, Y>::value {
   if (auto *V = dyn_cast_or_null<ConstantAsMetadata>(MD))
     return dyn_cast<X>(V->getValue());
   return nullptr;
@@ -1151,8 +1151,8 @@ public:
   /// Try to create a uniqued version of \c N -- in place, if possible -- and
   /// return it.  If \c N cannot be uniqued, return a distinct node instead.
   template <class T>
-  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
-  replaceWithPermanent(std::unique_ptr<T, TempMDNodeDeleter> N) {
+  static T *
+  replaceWithPermanent(std::unique_ptr<T, TempMDNodeDeleter> N) requires std::is_base_of<MDNode, T>::value {
     return cast<T>(N.release()->replaceWithPermanentImpl());
   }
 
@@ -1163,8 +1163,8 @@ public:
   ///
   /// \pre N does not self-reference.
   template <class T>
-  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
-  replaceWithUniqued(std::unique_ptr<T, TempMDNodeDeleter> N) {
+  static T *
+  replaceWithUniqued(std::unique_ptr<T, TempMDNodeDeleter> N) requires std::is_base_of<MDNode, T>::value {
     return cast<T>(N.release()->replaceWithUniquedImpl());
   }
 
@@ -1173,8 +1173,8 @@ public:
   /// Create a distinct version of \c N -- in place, if possible -- and return
   /// it.  Takes ownership of the temporary node.
   template <class T>
-  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
-  replaceWithDistinct(std::unique_ptr<T, TempMDNodeDeleter> N) {
+  static T *
+  replaceWithDistinct(std::unique_ptr<T, TempMDNodeDeleter> N) requires std::is_base_of<MDNode, T>::value {
     return cast<T>(N.release()->replaceWithDistinctImpl());
   }
 

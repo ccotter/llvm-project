@@ -27,16 +27,15 @@ template <
     typename To, typename From,
     typename = std::enable_if_t<sizeof(To) == sizeof(From)>,
     typename = std::enable_if_t<std::is_trivially_constructible<To>::value>,
-    typename = std::enable_if_t<std::is_trivially_copyable<To>::value>,
-    typename = std::enable_if_t<std::is_trivially_copyable<From>::value>>
-inline To bit_cast(const From &from) noexcept {
+    typename = std::enable_if_t<std::is_trivially_copyable<To>::value>>
+inline To bit_cast(const From &from) noexcept requires std::is_trivially_copyable<From>::value {
   To to;
   std::memcpy(&to, &from, sizeof(To));
   return to;
 }
 
-template <typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-constexpr inline bool has_single_bit(T Value) noexcept {
+template <typename T>
+constexpr inline bool has_single_bit(T Value) noexcept requires (std::is_unsigned_v<T>) {
   return (Value != 0) && ((Value & (Value - 1)) == 0);
 }
 
@@ -74,8 +73,8 @@ template <typename T> struct PopulationCounter<T, 8> {
 /// Count the number of set bits in a value.
 /// Ex. popcount(0xF000F000) = 8
 /// Returns 0 if the word is zero.
-template <typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
-inline int popcount(T Value) noexcept {
+template <typename T>
+inline int popcount(T Value) noexcept requires (std::is_unsigned_v<T>) {
   return detail::PopulationCounter<T, sizeof(T)>::count(Value);
 }
 

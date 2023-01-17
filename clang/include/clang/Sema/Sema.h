@@ -1719,9 +1719,8 @@ public:
     // It is necessary to limit this to rvalue reference to avoid calling this
     // function with a bitfield lvalue argument since non-const reference to
     // bitfield is not allowed.
-    template <typename T,
-              typename = std::enable_if_t<!std::is_lvalue_reference<T>::value>>
-    const ImmediateDiagBuilder &operator<<(T &&V) const {
+    template <typename T>
+    const ImmediateDiagBuilder &operator<<(T &&V) const requires (!std::is_lvalue_reference<T>::value) {
       const DiagnosticBuilder &BaseDiag = *this;
       BaseDiag << std::move(V);
       return *this;
@@ -1793,9 +1792,8 @@ public:
     // It is necessary to limit this to rvalue reference to avoid calling this
     // function with a bitfield lvalue argument since non-const reference to
     // bitfield is not allowed.
-    template <typename T,
-              typename = std::enable_if_t<!std::is_lvalue_reference<T>::value>>
-    const SemaDiagnosticBuilder &operator<<(T &&V) const {
+    template <typename T>
+    const SemaDiagnosticBuilder &operator<<(T &&V) const requires (!std::is_lvalue_reference<T>::value) {
       if (ImmediateDiag)
         *ImmediateDiag << std::move(V);
       else if (PartialDiagId)
@@ -3414,9 +3412,8 @@ public:
   /// Check ODR hashes for C/ObjC when merging types from modules.
   /// Differently from C++, actually parse the body and reject in case
   /// of a mismatch.
-  template <typename T,
-            typename = std::enable_if_t<std::is_base_of<NamedDecl, T>::value>>
-  bool ActOnDuplicateODRHashDefinition(T *Duplicate, T *Previous) {
+  template <typename T>
+  bool ActOnDuplicateODRHashDefinition(T *Duplicate, T *Previous) requires std::is_base_of<NamedDecl, T>::value {
     if (Duplicate->getODRHash() != Previous->getODRHash())
       return false;
 

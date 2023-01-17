@@ -79,16 +79,14 @@ class Pass;
   PassName::registerOptions();
 
 template <
-    class PassName,
-    std::enable_if_t<std::is_default_constructible<PassName>{}, bool> = true>
-Pass *callDefaultCtor() {
+    class PassName>
+Pass *callDefaultCtor() requires (std::is_default_constructible<PassName>{}) {
   return new PassName();
 }
 
 template <
-    class PassName,
-    std::enable_if_t<!std::is_default_constructible<PassName>{}, bool> = true>
-Pass *callDefaultCtor() {
+    class PassName>
+Pass *callDefaultCtor() requires (!std::is_default_constructible<PassName>{}) {
   // Some codegen passes should only be testable via
   // `llc -{start|stop}-{before|after}=<passname>`, not via `opt -<passname>`.
   report_fatal_error("target-specific codegen-only pass");

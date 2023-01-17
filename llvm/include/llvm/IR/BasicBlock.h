@@ -345,11 +345,9 @@ public:
     phi_iterator_impl() = default;
 
     // Allow conversion between instantiations where valid.
-    template <typename PHINodeU, typename BBIteratorU,
-              typename = std::enable_if_t<
-                  std::is_convertible<PHINodeU *, PHINodeT *>::value>>
+    template <typename PHINodeU, typename BBIteratorU>
     phi_iterator_impl(const phi_iterator_impl<PHINodeU, BBIteratorU> &Arg)
-        : PN(Arg.PN) {}
+        requires std::is_convertible<PHINodeU *, PHINodeT *>::value : PN(Arg.PN) {}
 
     bool operator==(const phi_iterator_impl &Arg) const { return PN == Arg.PN; }
 

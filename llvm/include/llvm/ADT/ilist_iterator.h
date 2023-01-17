@@ -95,8 +95,8 @@ public:
   // This is templated so that we can allow assigning to a const iterator from
   // a nonconst iterator...
   template <bool RHSIsConst>
-  std::enable_if_t<IsConst || !RHSIsConst, ilist_iterator &>
-  operator=(const ilist_iterator<OptionsT, IsReverse, RHSIsConst> &RHS) {
+  ilist_iterator &
+  operator=(const ilist_iterator<OptionsT, IsReverse, RHSIsConst> &RHS) requires (IsConst || !RHSIsConst) {
     NodePtr = RHS.NodePtr;
     return *this;
   }

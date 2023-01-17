@@ -253,15 +253,13 @@ public:
     return *this;
   }
 
-  template <typename... Pn,
-            std::enable_if_t<std::is_invocable_v<T, Pn...>, int> = 0>
-  decltype(auto) operator()(Pn &&...Params) {
+  template <typename... Pn>
+  decltype(auto) operator()(Pn &&...Params) requires (std::is_invocable_v<T, Pn...>) {
     return (*Obj)(std::forward<Pn>(Params)...);
   }
 
-  template <typename... Pn,
-            std::enable_if_t<std::is_invocable_v<T const, Pn...>, int> = 0>
-  decltype(auto) operator()(Pn &&...Params) const {
+  template <typename... Pn>
+  decltype(auto) operator()(Pn &&...Params) const requires (std::is_invocable_v<T const, Pn...>) {
     return (*Obj)(std::forward<Pn>(Params)...);
   }
 
@@ -302,16 +300,11 @@ public:
   // Disable this constructor for references to 'Callable' so we don't violate
   // the rule of 0.
   template < // clang-format off
-    typename FnPtrOrRef,
-    std::enable_if_t<
-      !std::is_same_v<remove_cvref_t<FnPtrOrRef>, Callable>, int
-    > = 0
-  > // clang-format on
-  Callable(FnPtrOrRef &&F) : Func(convertIn(F)) {}
+    typename FnPtrOrRef> // clang-format on
+  Callable(FnPtrOrRef &&F) requires (!std::is_same_v<remove_cvref_t<FnPtrOrRef>, Callable>) : Func(convertIn(F)) {}
 
-  template <typename... Pn,
-            std::enable_if_t<std::is_invocable_v<T, Pn...>, int> = 0>
-  decltype(auto) operator()(Pn &&...Params) const {
+  template <typename... Pn>
+  decltype(auto) operator()(Pn &&...Params) const requires (std::is_invocable_v<T, Pn...>) {
     return Func(std::forward<Pn>(Params)...);
   }
 
@@ -1360,9 +1353,9 @@ public:
   }
 
   /// Allow conversion to any type accepting an iterator_range.
-  template <typename RangeT, typename = std::enable_if_t<std::is_constructible<
-                                 RangeT, iterator_range<iterator>>::value>>
-  operator RangeT() const {
+  template <typename RangeT>
+  operator RangeT() const requires std::is_constructible<
+                                 RangeT, iterator_range<iterator>>::value {
     return RangeT(iterator_range<iterator>(*this));
   }
 
@@ -2051,12 +2044,10 @@ void replace(Container &Cont, typename Container::iterator ContIt,
 ///              [&] { os << ", "; });
 /// \endcode
 template <typename ForwardIterator, typename UnaryFunctor,
-          typename NullaryFunctor,
-          typename = std::enable_if_t<
-              !std::is_constructible<StringRef, UnaryFunctor>::value &&
-              !std::is_constructible<StringRef, NullaryFunctor>::value>>
+          typename NullaryFunctor>
 inline void interleave(ForwardIterator begin, ForwardIterator end,
-                       UnaryFunctor each_fn, NullaryFunctor between_fn) {
+                       UnaryFunctor each_fn, NullaryFunctor between_fn) requires (!std::is_constructible<StringRef, UnaryFunctor>::value &&
+              !std::is_constructible<StringRef, NullaryFunctor>::value) {
   if (begin == end)
     return;
   each_fn(*begin);
@@ -2067,12 +2058,10 @@ inline void interleave(ForwardIterator begin, ForwardIterator end,
   }
 }
 
-template <typename Container, typename UnaryFunctor, typename NullaryFunctor,
-          typename = std::enable_if_t<
-              !std::is_constructible<StringRef, UnaryFunctor>::value &&
-              !std::is_constructible<StringRef, NullaryFunctor>::value>>
+template <typename Container, typename UnaryFunctor, typename NullaryFunctor>
 inline void interleave(const Container &c, UnaryFunctor each_fn,
-                       NullaryFunctor between_fn) {
+                       NullaryFunctor between_fn) requires (!std::is_constructible<StringRef, UnaryFunctor>::value &&
+              !std::is_constructible<StringRef, NullaryFunctor>::value) {
   interleave(c.begin(), c.end(), each_fn, between_fn);
 }
 

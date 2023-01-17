@@ -125,9 +125,8 @@ template <typename T, typename U> bool canTypeFitValue(const U Value) {
 // - its internal representation overflows.
 struct CheckedInt {
   // Integral constructor, asserts if Value cannot be represented as intmax_t.
-  template <typename Integral,
-            std::enable_if_t<std::is_integral<Integral>::value, bool> = 0>
-  static CheckedInt from(Integral FromValue) {
+  template <typename Integral>
+  static CheckedInt from(Integral FromValue) requires std::is_integral<Integral>::value {
     if (!canTypeFitValue<intmax_t>(FromValue))
       assertOutOfBounds();
     CheckedInt Result;
@@ -136,9 +135,8 @@ struct CheckedInt {
   }
 
   // Enum constructor, asserts if Value cannot be represented as intmax_t.
-  template <typename Enum,
-            std::enable_if_t<std::is_enum<Enum>::value, bool> = 0>
-  static CheckedInt from(Enum FromValue) {
+  template <typename Enum>
+  static CheckedInt from(Enum FromValue) requires std::is_enum<Enum>::value {
     using type = std::underlying_type_t<Enum>;
     return from<type>(static_cast<type>(FromValue));
   }
@@ -162,9 +160,8 @@ struct CheckedInt {
   }
 
   // Convert to integral, asserts if Value cannot be represented as Integral.
-  template <typename Integral,
-            std::enable_if_t<std::is_integral<Integral>::value, bool> = 0>
-  Integral to() const {
+  template <typename Integral>
+  Integral to() const requires std::is_integral<Integral>::value {
     if (!canTypeFitValue<Integral>(Value))
       assertOutOfBounds();
     return static_cast<Integral>(Value);
@@ -172,9 +169,8 @@ struct CheckedInt {
 
   // Convert to enum, asserts if Value cannot be represented as Enum's
   // underlying type.
-  template <typename Enum,
-            std::enable_if_t<std::is_enum<Enum>::value, bool> = 0>
-  Enum to() const {
+  template <typename Enum>
+  Enum to() const requires std::is_enum<Enum>::value {
     using type = std::underlying_type_t<Enum>;
     return Enum(to<type>());
   }
@@ -300,9 +296,9 @@ private:
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX] for
 /// forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX] for reverse
 /// iteration).
-template <typename T, typename = std::enable_if_t<std::is_integral<T>::value &&
-                                                  !std::is_enum<T>::value>>
-auto seq(T Begin, T End) {
+template <typename T>
+auto seq(T Begin, T End) requires (std::is_integral<T>::value &&
+                                                  !std::is_enum<T>::value) {
   return iota_range<T>(Begin, End, false);
 }
 
@@ -310,9 +306,9 @@ auto seq(T Begin, T End) {
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX - 1]
 /// for forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX - 1] for reverse
 /// iteration).
-template <typename T, typename = std::enable_if_t<std::is_integral<T>::value &&
-                                                  !std::is_enum<T>::value>>
-auto seq_inclusive(T Begin, T End) {
+template <typename T>
+auto seq_inclusive(T Begin, T End) requires (std::is_integral<T>::value &&
+                                                  !std::is_enum<T>::value) {
   return iota_range<T>(Begin, End, true);
 }
 
@@ -322,9 +318,8 @@ auto seq_inclusive(T Begin, T End) {
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX] for
 /// forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX] for reverse
 /// iteration).
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum<EnumT>::value>>
-auto enum_seq(EnumT Begin, EnumT End) {
+template <typename EnumT>
+auto enum_seq(EnumT Begin, EnumT End) requires std::is_enum<EnumT>::value {
   static_assert(enum_iteration_traits<EnumT>::is_iterable,
                 "Enum type is not marked as iterable.");
   return iota_range<EnumT>(Begin, End, false);
@@ -337,9 +332,8 @@ auto enum_seq(EnumT Begin, EnumT End) {
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX] for
 /// forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX] for reverse
 /// iteration).
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum<EnumT>::value>>
-auto enum_seq(EnumT Begin, EnumT End, force_iteration_on_noniterable_enum_t) {
+template <typename EnumT>
+auto enum_seq(EnumT Begin, EnumT End, force_iteration_on_noniterable_enum_t) requires std::is_enum<EnumT>::value {
   return iota_range<EnumT>(Begin, End, false);
 }
 
@@ -349,9 +343,8 @@ auto enum_seq(EnumT Begin, EnumT End, force_iteration_on_noniterable_enum_t) {
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX - 1]
 /// for forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX - 1] for reverse
 /// iteration).
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum<EnumT>::value>>
-auto enum_seq_inclusive(EnumT Begin, EnumT End) {
+template <typename EnumT>
+auto enum_seq_inclusive(EnumT Begin, EnumT End) requires std::is_enum<EnumT>::value {
   static_assert(enum_iteration_traits<EnumT>::is_iterable,
                 "Enum type is not marked as iterable.");
   return iota_range<EnumT>(Begin, End, true);
@@ -364,10 +357,9 @@ auto enum_seq_inclusive(EnumT Begin, EnumT End) {
 /// Note: Begin and End values have to be within [INTMAX_MIN, INTMAX_MAX - 1]
 /// for forward iteration (resp. [INTMAX_MIN + 1, INTMAX_MAX - 1] for reverse
 /// iteration).
-template <typename EnumT,
-          typename = std::enable_if_t<std::is_enum<EnumT>::value>>
+template <typename EnumT>
 auto enum_seq_inclusive(EnumT Begin, EnumT End,
-                        force_iteration_on_noniterable_enum_t) {
+                        force_iteration_on_noniterable_enum_t) requires std::is_enum<EnumT>::value {
   return iota_range<EnumT>(Begin, End, true);
 }
 

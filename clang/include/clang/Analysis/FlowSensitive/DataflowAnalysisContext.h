@@ -71,8 +71,8 @@ public:
   ///
   ///  `Loc` must not be null.
   template <typename T>
-  std::enable_if_t<std::is_base_of<StorageLocation, T>::value, T &>
-  takeOwnership(std::unique_ptr<T> Loc) {
+  T &
+  takeOwnership(std::unique_ptr<T> Loc) requires std::is_base_of<StorageLocation, T>::value {
     assert(Loc != nullptr);
     Locs.push_back(std::move(Loc));
     return *cast<T>(Locs.back().get());
@@ -84,8 +84,8 @@ public:
   ///
   ///  `Val` must not be null.
   template <typename T>
-  std::enable_if_t<std::is_base_of<Value, T>::value, T &>
-  takeOwnership(std::unique_ptr<T> Val) {
+  T &
+  takeOwnership(std::unique_ptr<T> Val) requires std::is_base_of<Value, T>::value {
     assert(Val != nullptr);
     Vals.push_back(std::move(Val));
     return *cast<T>(Vals.back().get());

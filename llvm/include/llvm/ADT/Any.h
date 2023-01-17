@@ -68,9 +68,8 @@ public:
   // When T is Any or T is not copy-constructible we need to explicitly disable
   // the forwarding constructor so that the copy constructor gets selected
   // instead.
-  template <typename T,
-            std::enable_if_t<
-                std::conjunction<
+  template <typename T>
+  Any(T &&Value) requires std::conjunction<
                     std::negation<std::is_same<std::decay_t<T>, Any>>,
                     // We also disable this overload when an `Any` object can be
                     // converted to the parameter type because in that case,
@@ -83,9 +82,7 @@ public:
                     // adopting it to work-around usage of `Any` with types that
                     // need to be implicitly convertible from an `Any`.
                     std::negation<std::is_convertible<Any, std::decay_t<T>>>,
-                    std::is_copy_constructible<std::decay_t<T>>>::value,
-                int> = 0>
-  Any(T &&Value) {
+                    std::is_copy_constructible<std::decay_t<T>>>::value {
     Storage =
         std::make_unique<StorageImpl<std::decay_t<T>>>(std::forward<T>(Value));
   }

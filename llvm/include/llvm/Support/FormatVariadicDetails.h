@@ -128,21 +128,20 @@ struct uses_missing_provider
 };
 
 template <typename T>
-std::enable_if_t<uses_format_member<T>::value, T>
-build_format_adapter(T &&Item) {
+T
+build_format_adapter(T &&Item) requires uses_format_member<T>::value {
   return std::forward<T>(Item);
 }
 
 template <typename T>
-std::enable_if_t<uses_format_provider<T>::value, provider_format_adapter<T>>
-build_format_adapter(T &&Item) {
+provider_format_adapter<T>
+build_format_adapter(T &&Item) requires uses_format_provider<T>::value {
   return provider_format_adapter<T>(std::forward<T>(Item));
 }
 
 template <typename T>
-std::enable_if_t<uses_stream_operator<T>::value,
-                 stream_operator_format_adapter<T>>
-build_format_adapter(T &&Item) {
+stream_operator_format_adapter<T>
+build_format_adapter(T &&Item) requires uses_stream_operator<T>::value {
   // If the caller passed an Error by value, then stream_operator_format_adapter
   // would be responsible for consuming it.
   // Make the caller opt into this by calling fmt_consume().
@@ -153,8 +152,8 @@ build_format_adapter(T &&Item) {
 }
 
 template <typename T>
-std::enable_if_t<uses_missing_provider<T>::value, missing_format_adapter<T>>
-build_format_adapter(T &&) {
+missing_format_adapter<T>
+build_format_adapter(T &&) requires uses_missing_provider<T>::value {
   return missing_format_adapter<T>();
 }
 }

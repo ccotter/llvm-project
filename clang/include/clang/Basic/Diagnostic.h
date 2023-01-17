@@ -1346,9 +1346,8 @@ public:
   // It is necessary to limit this to rvalue reference to avoid calling this
   // function with a bitfield lvalue argument since non-const reference to
   // bitfield is not allowed.
-  template <typename T,
-            typename = std::enable_if_t<!std::is_lvalue_reference<T>::value>>
-  const DiagnosticBuilder &operator<<(T &&V) const {
+  template <typename T>
+  const DiagnosticBuilder &operator<<(T &&V) const requires (!std::is_lvalue_reference<T>::value) {
     assert(isActive() && "Clients must not add to cleared diagnostic!");
     const StreamingDiagnostic &DB = *this;
     DB << std::move(V);
@@ -1419,9 +1418,8 @@ inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
 // We use enable_if here to prevent that this overload is selected for
 // pointers or other arguments that are implicitly convertible to bool.
 template <typename T>
-inline std::enable_if_t<std::is_same<T, bool>::value,
-                        const StreamingDiagnostic &>
-operator<<(const StreamingDiagnostic &DB, T I) {
+inline const StreamingDiagnostic &
+operator<<(const StreamingDiagnostic &DB, T I) requires std::is_same<T, bool>::value {
   DB.AddTaggedVal(I, DiagnosticsEngine::ak_sint);
   return DB;
 }
@@ -1462,10 +1460,8 @@ inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
 // other arguments that derive from DeclContext (e.g., RecordDecls) will not
 // match.
 template <typename T>
-inline std::enable_if_t<
-    std::is_same<std::remove_const_t<T>, DeclContext>::value,
-    const StreamingDiagnostic &>
-operator<<(const StreamingDiagnostic &DB, T *DC) {
+inline const StreamingDiagnostic &
+operator<<(const StreamingDiagnostic &DB, T *DC) requires std::is_same<std::remove_const_t<T>, DeclContext>::value {
   DB.AddTaggedVal(reinterpret_cast<intptr_t>(DC),
                   DiagnosticsEngine::ak_declcontext);
   return DB;

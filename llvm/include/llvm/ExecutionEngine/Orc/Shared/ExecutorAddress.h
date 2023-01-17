@@ -85,8 +85,8 @@ public:
   /// Cast this ExecutorAddr to a pointer of the given type.
   /// Warning: This should only be used when JITing in-process.
   template <typename T, typename WrapFn = defaultWrap<std::remove_pointer_t<T>>>
-  std::enable_if_t<std::is_pointer<T>::value, T>
-  toPtr(WrapFn &&Wrap = WrapFn()) const {
+  T
+  toPtr(WrapFn &&Wrap = WrapFn()) const requires std::is_pointer<T>::value {
     uintptr_t IntPtr = static_cast<uintptr_t>(Addr);
     assert(IntPtr == Addr && "ExecutorAddr value out of range for uintptr_t");
     return Wrap(reinterpret_cast<T>(IntPtr));
@@ -95,8 +95,8 @@ public:
   /// Cast this ExecutorAddr to a pointer of the given function type.
   /// Warning: This should only be used when JITing in-process.
   template <typename T, typename WrapFn = defaultWrap<T>>
-  std::enable_if_t<std::is_function<T>::value, T *>
-  toPtr(WrapFn &&Wrap = WrapFn()) const {
+  T *
+  toPtr(WrapFn &&Wrap = WrapFn()) const requires std::is_function<T>::value {
     uintptr_t IntPtr = static_cast<uintptr_t>(Addr);
     assert(IntPtr == Addr && "ExecutorAddr value out of range for uintptr_t");
     return Wrap(reinterpret_cast<T *>(IntPtr));

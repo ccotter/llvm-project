@@ -162,8 +162,8 @@ protected:
 
     // Add Function Pass
     template <typename PassT>
-    std::enable_if_t<is_detected<is_function_pass_t, PassT>::value>
-    operator()(PassT &&Pass) {
+    void
+    operator()(PassT &&Pass) requires is_detected<is_function_pass_t, PassT>::value {
       if (AddingFunctionPasses && !*AddingFunctionPasses)
         AddingFunctionPasses = true;
       FPM.addPass(std::forward<PassT>(Pass));
@@ -171,9 +171,9 @@ protected:
 
     // Add Module Pass
     template <typename PassT>
-    std::enable_if_t<is_detected<is_module_pass_t, PassT>::value &&
-                     !is_detected<is_function_pass_t, PassT>::value>
-    operator()(PassT &&Pass) {
+    void
+    operator()(PassT &&Pass) requires (is_detected<is_module_pass_t, PassT>::value &&
+                     !is_detected<is_function_pass_t, PassT>::value) {
       assert((!AddingFunctionPasses || !*AddingFunctionPasses) &&
              "could not add module pass after adding function pass");
       MPM.addPass(std::forward<PassT>(Pass));

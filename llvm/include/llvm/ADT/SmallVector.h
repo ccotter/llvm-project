@@ -208,10 +208,8 @@ protected:
     this->assertSafeToReferenceAfterResize(To - 1, 0);
   }
   template <
-      class ItTy,
-      std::enable_if_t<!std::is_same<std::remove_const_t<ItTy>, T *>::value,
-                       bool> = false>
-  void assertSafeToReferenceAfterClear(ItTy, ItTy) {}
+      class ItTy>
+  void assertSafeToReferenceAfterClear(ItTy, ItTy) requires (!std::is_same<std::remove_const_t<ItTy>, T *>::value) {}
 
   /// Check whether any part of the range will be invalidated by growing.
   void assertSafeToAddRange(const T *From, const T *To) {
@@ -221,10 +219,8 @@ protected:
     this->assertSafeToAdd(To - 1, To - From);
   }
   template <
-      class ItTy,
-      std::enable_if_t<!std::is_same<std::remove_const_t<ItTy>, T *>::value,
-                       bool> = false>
-  void assertSafeToAddRange(ItTy, ItTy) {}
+      class ItTy>
+  void assertSafeToAddRange(ItTy, ItTy) requires (!std::is_same<std::remove_const_t<ItTy>, T *>::value) {}
 
   /// Reserve enough space to add one element, and return the updated element
   /// pointer in case it was a reference to the storage.
@@ -1226,9 +1222,8 @@ public:
     this->append(IL);
   }
 
-  template <typename U,
-            typename = std::enable_if_t<std::is_convertible<U, T>::value>>
-  explicit SmallVector(ArrayRef<U> A) : SmallVectorImpl<T>(N) {
+  template <typename U>
+  explicit SmallVector(ArrayRef<U> A) requires std::is_convertible<U, T>::value : SmallVectorImpl<T>(N) {
     this->append(A.begin(), A.end());
   }
 

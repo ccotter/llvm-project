@@ -289,10 +289,9 @@ public:
   /// If Body returns true then the element just passed in is removed from the
   /// set. If Body returns false then the element is retained.
   template <typename BodyFn>
-  auto forEachWithRemoval(BodyFn &&Body) -> std::enable_if_t<
-      std::is_same<decltype(Body(std::declval<const SymbolStringPtr &>(),
+  auto forEachWithRemoval(BodyFn &&Body) -> void requires std::is_same<decltype(Body(std::declval<const SymbolStringPtr &>(),
                                  std::declval<SymbolLookupFlags>())),
-                   bool>::value> {
+                   bool>::value {
     UnderlyingVector::size_type I = 0;
     while (I != Symbols.size()) {
       const auto &Name = Symbols[I].first;
@@ -311,11 +310,9 @@ public:
   /// returns true then the element just passed in is removed from the set. If
   /// Body returns false then the element is retained.
   template <typename BodyFn>
-  auto forEachWithRemoval(BodyFn &&Body) -> std::enable_if_t<
-      std::is_same<decltype(Body(std::declval<const SymbolStringPtr &>(),
+  auto forEachWithRemoval(BodyFn &&Body) -> Error requires std::is_same<decltype(Body(std::declval<const SymbolStringPtr &>(),
                                  std::declval<SymbolLookupFlags>())),
-                   Expected<bool>>::value,
-      Error> {
+                   Expected<bool>>::value {
     UnderlyingVector::size_type I = 0;
     while (I != Symbols.size()) {
       const auto &Name = Symbols[I].first;

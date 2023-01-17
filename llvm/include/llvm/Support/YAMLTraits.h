@@ -896,8 +896,8 @@ public:
   }
 
   template <typename T, typename Context>
-  std::enable_if_t<has_SequenceTraits<T>::value, void>
-  mapOptionalWithContext(const char *Key, T &Val, Context &Ctx) {
+  void
+  mapOptionalWithContext(const char *Key, T &Val, Context &Ctx) requires has_SequenceTraits<T>::value {
     // omit key/value instead of outputting empty sequence
     if (this->canElideEmptySequence() && !(Val.begin() != Val.end()))
       return;
@@ -912,8 +912,8 @@ public:
   }
 
   template <typename T, typename Context>
-  std::enable_if_t<!has_SequenceTraits<T>::value, void>
-  mapOptionalWithContext(const char *Key, T &Val, Context &Ctx) {
+  void
+  mapOptionalWithContext(const char *Key, T &Val, Context &Ctx) requires (!has_SequenceTraits<T>::value) {
     this->processKey(Key, Val, false, Ctx);
   }
 
@@ -977,16 +977,16 @@ template <typename T> void doMapping(IO &io, T &Val, EmptyContext &Ctx) {
 } // end namespace detail
 
 template <typename T>
-std::enable_if_t<has_ScalarEnumerationTraits<T>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires has_ScalarEnumerationTraits<T>::value {
   io.beginEnumScalar();
   ScalarEnumerationTraits<T>::enumeration(io, Val);
   io.endEnumScalar();
 }
 
 template <typename T>
-std::enable_if_t<has_ScalarBitSetTraits<T>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires has_ScalarBitSetTraits<T>::value {
   bool DoClear;
   if ( io.beginBitSetScalar(DoClear) ) {
     if ( DoClear )
@@ -997,8 +997,8 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
 }
 
 template <typename T>
-std::enable_if_t<has_ScalarTraits<T>::value, void> yamlize(IO &io, T &Val, bool,
-                                                           EmptyContext &Ctx) {
+void yamlize(IO &io, T &Val, bool,
+                                                           EmptyContext &Ctx) requires has_ScalarTraits<T>::value {
   if ( io.outputting() ) {
     SmallString<128> Storage;
     raw_svector_ostream Buffer(Storage);
@@ -1017,8 +1017,8 @@ std::enable_if_t<has_ScalarTraits<T>::value, void> yamlize(IO &io, T &Val, bool,
 }
 
 template <typename T>
-std::enable_if_t<has_BlockScalarTraits<T>::value, void>
-yamlize(IO &YamlIO, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &YamlIO, T &Val, bool, EmptyContext &Ctx) requires has_BlockScalarTraits<T>::value {
   if (YamlIO.outputting()) {
     std::string Storage;
     raw_string_ostream Buffer(Storage);
@@ -1036,8 +1036,8 @@ yamlize(IO &YamlIO, T &Val, bool, EmptyContext &Ctx) {
 }
 
 template <typename T>
-std::enable_if_t<has_TaggedScalarTraits<T>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires has_TaggedScalarTraits<T>::value {
   if (io.outputting()) {
     std::string ScalarStorage, TagStorage;
     raw_string_ostream ScalarBuffer(ScalarStorage), TagBuffer(TagStorage);
@@ -1061,8 +1061,8 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
 }
 
 template <typename T, typename Context>
-std::enable_if_t<validatedMappingTraits<T, Context>::value, void>
-yamlize(IO &io, T &Val, bool, Context &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, Context &Ctx) requires validatedMappingTraits<T, Context>::value {
   if (has_FlowTraits<MappingTraits<T>>::value)
     io.beginFlowMapping();
   else
@@ -1087,14 +1087,14 @@ yamlize(IO &io, T &Val, bool, Context &Ctx) {
 }
 
 template <typename T, typename Context>
-std::enable_if_t<!has_MappingEnumInputTraits<T, Context>::value, bool>
-yamlizeMappingEnumInput(IO &io, T &Val) {
+bool
+yamlizeMappingEnumInput(IO &io, T &Val) requires (!has_MappingEnumInputTraits<T, Context>::value) {
   return false;
 }
 
 template <typename T, typename Context>
-std::enable_if_t<has_MappingEnumInputTraits<T, Context>::value, bool>
-yamlizeMappingEnumInput(IO &io, T &Val) {
+bool
+yamlizeMappingEnumInput(IO &io, T &Val) requires has_MappingEnumInputTraits<T, Context>::value {
   if (io.outputting())
     return false;
 
@@ -1106,8 +1106,8 @@ yamlizeMappingEnumInput(IO &io, T &Val) {
 }
 
 template <typename T, typename Context>
-std::enable_if_t<unvalidatedMappingTraits<T, Context>::value, void>
-yamlize(IO &io, T &Val, bool, Context &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, Context &Ctx) requires unvalidatedMappingTraits<T, Context>::value {
   if (yamlizeMappingEnumInput<T, Context>(io, Val))
     return;
   if (has_FlowTraits<MappingTraits<T>>::value) {
@@ -1122,8 +1122,8 @@ yamlize(IO &io, T &Val, bool, Context &Ctx) {
 }
 
 template <typename T>
-std::enable_if_t<has_CustomMappingTraits<T>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires has_CustomMappingTraits<T>::value {
   if ( io.outputting() ) {
     io.beginMapping();
     CustomMappingTraits<T>::output(io, Val);
@@ -1137,8 +1137,8 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
 }
 
 template <typename T>
-std::enable_if_t<has_PolymorphicTraits<T>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires has_PolymorphicTraits<T>::value {
   switch (io.outputting() ? PolymorphicTraits<T>::getKind(Val)
                           : io.getNodeKind()) {
   case NodeKind::Scalar:
@@ -1151,14 +1151,14 @@ yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
 }
 
 template <typename T>
-std::enable_if_t<missingTraits<T, EmptyContext>::value, void>
-yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) {
+void
+yamlize(IO &io, T &Val, bool, EmptyContext &Ctx) requires missingTraits<T, EmptyContext>::value {
   char missing_yaml_trait_for_type[sizeof(MissingTrait<T>)];
 }
 
 template <typename T, typename Context>
-std::enable_if_t<has_SequenceTraits<T>::value, void>
-yamlize(IO &io, T &Seq, bool, Context &Ctx) {
+void
+yamlize(IO &io, T &Seq, bool, Context &Ctx) requires has_SequenceTraits<T>::value {
   if ( has_FlowTraits< SequenceTraits<T>>::value ) {
     unsigned incnt = io.beginFlowSequence();
     unsigned count = io.outputting() ? SequenceTraits<T>::size(io, Seq) : incnt;
@@ -1770,8 +1770,8 @@ template <> struct ScalarTraits<VersionTuple> {
 
 // Define non-member operator>> so that Input can stream in a document list.
 template <typename T>
-inline std::enable_if_t<has_DocumentListTraits<T>::value, Input &>
-operator>>(Input &yin, T &docList) {
+inline Input &
+operator>>(Input &yin, T &docList) requires has_DocumentListTraits<T>::value {
   int i = 0;
   EmptyContext Ctx;
   while ( yin.setCurrentDocument() ) {
@@ -1786,8 +1786,8 @@ operator>>(Input &yin, T &docList) {
 
 // Define non-member operator>> so that Input can stream in a map as a document.
 template <typename T>
-inline std::enable_if_t<has_MappingTraits<T, EmptyContext>::value, Input &>
-operator>>(Input &yin, T &docMap) {
+inline Input &
+operator>>(Input &yin, T &docMap) requires has_MappingTraits<T, EmptyContext>::value {
   EmptyContext Ctx;
   yin.setCurrentDocument();
   yamlize(yin, docMap, true, Ctx);
@@ -1797,8 +1797,8 @@ operator>>(Input &yin, T &docMap) {
 // Define non-member operator>> so that Input can stream in a sequence as
 // a document.
 template <typename T>
-inline std::enable_if_t<has_SequenceTraits<T>::value, Input &>
-operator>>(Input &yin, T &docSeq) {
+inline Input &
+operator>>(Input &yin, T &docSeq) requires has_SequenceTraits<T>::value {
   EmptyContext Ctx;
   if (yin.setCurrentDocument())
     yamlize(yin, docSeq, true, Ctx);
@@ -1807,8 +1807,8 @@ operator>>(Input &yin, T &docSeq) {
 
 // Define non-member operator>> so that Input can stream in a block scalar.
 template <typename T>
-inline std::enable_if_t<has_BlockScalarTraits<T>::value, Input &>
-operator>>(Input &In, T &Val) {
+inline Input &
+operator>>(Input &In, T &Val) requires has_BlockScalarTraits<T>::value {
   EmptyContext Ctx;
   if (In.setCurrentDocument())
     yamlize(In, Val, true, Ctx);
@@ -1817,8 +1817,8 @@ operator>>(Input &In, T &Val) {
 
 // Define non-member operator>> so that Input can stream in a string map.
 template <typename T>
-inline std::enable_if_t<has_CustomMappingTraits<T>::value, Input &>
-operator>>(Input &In, T &Val) {
+inline Input &
+operator>>(Input &In, T &Val) requires has_CustomMappingTraits<T>::value {
   EmptyContext Ctx;
   if (In.setCurrentDocument())
     yamlize(In, Val, true, Ctx);
@@ -1827,8 +1827,8 @@ operator>>(Input &In, T &Val) {
 
 // Define non-member operator>> so that Input can stream in a polymorphic type.
 template <typename T>
-inline std::enable_if_t<has_PolymorphicTraits<T>::value, Input &>
-operator>>(Input &In, T &Val) {
+inline Input &
+operator>>(Input &In, T &Val) requires has_PolymorphicTraits<T>::value {
   EmptyContext Ctx;
   if (In.setCurrentDocument())
     yamlize(In, Val, true, Ctx);
@@ -1837,16 +1837,16 @@ operator>>(Input &In, T &Val) {
 
 // Provide better error message about types missing a trait specialization
 template <typename T>
-inline std::enable_if_t<missingTraits<T, EmptyContext>::value, Input &>
-operator>>(Input &yin, T &docSeq) {
+inline Input &
+operator>>(Input &yin, T &docSeq) requires missingTraits<T, EmptyContext>::value {
   char missing_yaml_trait_for_type[sizeof(MissingTrait<T>)];
   return yin;
 }
 
 // Define non-member operator<< so that Output can stream out document list.
 template <typename T>
-inline std::enable_if_t<has_DocumentListTraits<T>::value, Output &>
-operator<<(Output &yout, T &docList) {
+inline Output &
+operator<<(Output &yout, T &docList) requires has_DocumentListTraits<T>::value {
   EmptyContext Ctx;
   yout.beginDocuments();
   const size_t count = DocumentListTraits<T>::size(yout, docList);
@@ -1863,8 +1863,8 @@ operator<<(Output &yout, T &docList) {
 
 // Define non-member operator<< so that Output can stream out a map.
 template <typename T>
-inline std::enable_if_t<has_MappingTraits<T, EmptyContext>::value, Output &>
-operator<<(Output &yout, T &map) {
+inline Output &
+operator<<(Output &yout, T &map) requires has_MappingTraits<T, EmptyContext>::value {
   EmptyContext Ctx;
   yout.beginDocuments();
   if ( yout.preflightDocument(0) ) {
@@ -1877,8 +1877,8 @@ operator<<(Output &yout, T &map) {
 
 // Define non-member operator<< so that Output can stream out a sequence.
 template <typename T>
-inline std::enable_if_t<has_SequenceTraits<T>::value, Output &>
-operator<<(Output &yout, T &seq) {
+inline Output &
+operator<<(Output &yout, T &seq) requires has_SequenceTraits<T>::value {
   EmptyContext Ctx;
   yout.beginDocuments();
   if ( yout.preflightDocument(0) ) {
@@ -1891,8 +1891,8 @@ operator<<(Output &yout, T &seq) {
 
 // Define non-member operator<< so that Output can stream out a block scalar.
 template <typename T>
-inline std::enable_if_t<has_BlockScalarTraits<T>::value, Output &>
-operator<<(Output &Out, T &Val) {
+inline Output &
+operator<<(Output &Out, T &Val) requires has_BlockScalarTraits<T>::value {
   EmptyContext Ctx;
   Out.beginDocuments();
   if (Out.preflightDocument(0)) {
@@ -1905,8 +1905,8 @@ operator<<(Output &Out, T &Val) {
 
 // Define non-member operator<< so that Output can stream out a string map.
 template <typename T>
-inline std::enable_if_t<has_CustomMappingTraits<T>::value, Output &>
-operator<<(Output &Out, T &Val) {
+inline Output &
+operator<<(Output &Out, T &Val) requires has_CustomMappingTraits<T>::value {
   EmptyContext Ctx;
   Out.beginDocuments();
   if (Out.preflightDocument(0)) {
@@ -1920,8 +1920,8 @@ operator<<(Output &Out, T &Val) {
 // Define non-member operator<< so that Output can stream out a polymorphic
 // type.
 template <typename T>
-inline std::enable_if_t<has_PolymorphicTraits<T>::value, Output &>
-operator<<(Output &Out, T &Val) {
+inline Output &
+operator<<(Output &Out, T &Val) requires has_PolymorphicTraits<T>::value {
   EmptyContext Ctx;
   Out.beginDocuments();
   if (Out.preflightDocument(0)) {
@@ -1937,8 +1937,8 @@ operator<<(Output &Out, T &Val) {
 
 // Provide better error message about types missing a trait specialization
 template <typename T>
-inline std::enable_if_t<missingTraits<T, EmptyContext>::value, Output &>
-operator<<(Output &yout, T &seq) {
+inline Output &
+operator<<(Output &yout, T &seq) requires missingTraits<T, EmptyContext>::value {
   char missing_yaml_trait_for_type[sizeof(MissingTrait<T>)];
   return yout;
 }

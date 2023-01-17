@@ -260,10 +260,9 @@ private:
 };
 
 template <class T, class E>
-std::enable_if_t<std::is_error_code_enum<E>::value ||
-                     std::is_error_condition_enum<E>::value,
-                 bool>
-operator==(const ErrorOr<T> &Err, E Code) {
+bool
+operator==(const ErrorOr<T> &Err, E Code) requires (std::is_error_code_enum<E>::value ||
+                     std::is_error_condition_enum<E>::value) {
   return Err.getError() == Code;
 }
 

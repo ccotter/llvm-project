@@ -368,16 +368,16 @@ template <typename T, typename U> struct is_hashable_data<std::pair<T, U> >
 /// Helper to get the hashable data representation for a type.
 /// This variant is enabled when the type itself can be used.
 template <typename T>
-std::enable_if_t<is_hashable_data<T>::value, T>
-get_hashable_data(const T &value) {
+T
+get_hashable_data(const T &value) requires is_hashable_data<T>::value {
   return value;
 }
 /// Helper to get the hashable data representation for a type.
 /// This variant is enabled when we must first call hash_value and use the
 /// result as our data.
 template <typename T>
-std::enable_if_t<!is_hashable_data<T>::value, size_t>
-get_hashable_data(const T &value) {
+size_t
+get_hashable_data(const T &value) requires (!is_hashable_data<T>::value) {
   using ::llvm::hash_value;
   return hash_value(value);
 }
@@ -450,8 +450,8 @@ hash_code hash_combine_range_impl(InputIteratorT first, InputIteratorT last) {
 /// are stored in contiguous memory, this routine avoids copying each value
 /// and directly reads from the underlying memory.
 template <typename ValueT>
-std::enable_if_t<is_hashable_data<ValueT>::value, hash_code>
-hash_combine_range_impl(ValueT *first, ValueT *last) {
+hash_code
+hash_combine_range_impl(ValueT *first, ValueT *last) requires is_hashable_data<ValueT>::value {
   const uint64_t seed = get_execution_seed();
   const char *s_begin = reinterpret_cast<const char *>(first);
   const char *s_end = reinterpret_cast<const char *>(last);

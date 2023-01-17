@@ -261,16 +261,16 @@ namespace llvm {
     /// The declaration here is extra complicated so that "arrayRef = {}"
     /// continues to select the move assignment operator.
     template <typename U>
-    std::enable_if_t<std::is_same<U, T>::value, ArrayRef<T>> &
-    operator=(U &&Temporary) = delete;
+    ArrayRef<T> &
+    operator=(U &&Temporary) requires std::is_same<U, T>::value = delete;
 
     /// Disallow accidental assignment from a temporary.
     ///
     /// The declaration here is extra complicated so that "arrayRef = {}"
     /// continues to select the move assignment operator.
     template <typename U>
-    std::enable_if_t<std::is_same<U, T>::value, ArrayRef<T>> &
-    operator=(std::initializer_list<U>) = delete;
+    ArrayRef<T> &
+    operator=(std::initializer_list<U>) requires std::is_same<U, T>::value = delete;
 
     /// @}
     /// @name Expensive Operations

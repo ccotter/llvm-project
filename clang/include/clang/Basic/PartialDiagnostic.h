@@ -64,9 +64,8 @@ public:
   // It is necessary to limit this to rvalue reference to avoid calling this
   // function with a bitfield lvalue argument since non-const reference to
   // bitfield is not allowed.
-  template <typename T,
-            typename = std::enable_if_t<!std::is_lvalue_reference<T>::value>>
-  const PartialDiagnostic &operator<<(T &&V) const {
+  template <typename T>
+  const PartialDiagnostic &operator<<(T &&V) const requires (!std::is_lvalue_reference<T>::value) {
     const StreamingDiagnostic &DB = *this;
     DB << std::move(V);
     return *this;

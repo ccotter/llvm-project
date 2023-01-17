@@ -540,8 +540,8 @@ public:
 
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<!std::is_same<PassT, PassManager>::value>
-      addPass(PassT &&Pass) {
+      void
+      addPass(PassT &&Pass) requires (!std::is_same<PassT, PassManager>::value) {
     using PassModelT =
         detail::PassModel<IRUnitT, PassT, PreservedAnalyses, AnalysisManagerT,
                           ExtraArgTs...>;
@@ -558,8 +558,8 @@ public:
   /// happen with nested pass managers of the same type.
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<std::is_same<PassT, PassManager>::value>
-      addPass(PassT &&Pass) {
+      void
+      addPass(PassT &&Pass) requires std::is_same<PassT, PassManager>::value {
     for (auto &P : Pass.Passes)
       Passes.push_back(std::move(P));
   }

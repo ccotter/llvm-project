@@ -348,9 +348,8 @@ public:
   // Integers (except boolean and uint64_t).
   // Must be non-narrowing convertible to int64_t.
   template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>,
-            typename = std::enable_if_t<!std::is_same<T, bool>::value>,
-            typename = std::enable_if_t<!std::is_same<T, uint64_t>::value>>
-  Value(T I) : Type(T_Integer) {
+            typename = std::enable_if_t<!std::is_same<T, bool>::value>>
+  Value(T I) requires (!std::is_same<T, uint64_t>::value) : Type(T_Integer) {
     create<int64_t>(int64_t{I});
   }
   // Floating point. Must be non-narrowing convertible to double.

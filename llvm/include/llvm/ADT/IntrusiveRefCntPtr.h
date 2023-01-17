@@ -176,15 +176,13 @@ public:
   IntrusiveRefCntPtr(const IntrusiveRefCntPtr &S) : Obj(S.Obj) { retain(); }
   IntrusiveRefCntPtr(IntrusiveRefCntPtr &&S) : Obj(S.Obj) { S.Obj = nullptr; }
 
-  template <class X,
-            std::enable_if_t<std::is_convertible<X *, T *>::value, bool> = true>
-  IntrusiveRefCntPtr(IntrusiveRefCntPtr<X> S) : Obj(S.get()) {
+  template <class X>
+  IntrusiveRefCntPtr(IntrusiveRefCntPtr<X> S) requires std::is_convertible<X *, T *>::value : Obj(S.get()) {
     S.Obj = nullptr;
   }
 
-  template <class X,
-            std::enable_if_t<std::is_convertible<X *, T *>::value, bool> = true>
-  IntrusiveRefCntPtr(std::unique_ptr<X> S) : Obj(S.release()) {
+  template <class X>
+  IntrusiveRefCntPtr(std::unique_ptr<X> S) requires std::is_convertible<X *, T *>::value : Obj(S.release()) {
     retain();
   }
 

@@ -104,9 +104,8 @@ public:
 
   /// Implement hashing for hashable data types, e.g. integral or enum values.
   template <typename T>
-  std::enable_if_t<hashbuilder_detail::IsHashableData<T>::value,
-                   HashBuilderImpl &>
-  add(T Value) {
+  HashBuilderImpl &
+  add(T Value) requires hashbuilder_detail::IsHashableData<T>::value {
     return adjustForEndiannessAndAdd(Value);
   }
 
@@ -251,10 +250,9 @@ public:
   /// };
   /// ```
   template <typename T>
-  std::enable_if_t<is_detected<HasAddHashT, T>::value &&
-                       !hashbuilder_detail::IsHashableData<T>::value,
-                   HashBuilderImpl &>
-  add(const T &Value) {
+  HashBuilderImpl &
+  add(const T &Value) requires (is_detected<HasAddHashT, T>::value &&
+                       !hashbuilder_detail::IsHashableData<T>::value) {
     addHash(*this, Value);
     return *this;
   }
@@ -281,8 +279,8 @@ public:
   /// add(Arg2)
   /// ```
   template <typename T, typename... Ts>
-  std::enable_if_t<(sizeof...(Ts) >= 1), HashBuilderImpl &>
-  add(const T &FirstArg, const Ts &...Args) {
+  HashBuilderImpl &
+  add(const T &FirstArg, const Ts &...Args) requires (sizeof...(Ts) >= 1) {
     add(FirstArg);
     add(Args...);
     return *this;
@@ -316,8 +314,8 @@ public:
       std::declval<T &>(), support::endianness::little));
   /// Adjust `Value` for the target endianness and add it to the hash.
   template <typename T>
-  std::enable_if_t<is_detected<HasByteSwapT, T>::value, HashBuilderImpl &>
-  adjustForEndiannessAndAdd(const T &Value) {
+  HashBuilderImpl &
+  adjustForEndiannessAndAdd(const T &Value) requires is_detected<HasByteSwapT, T>::value {
     T SwappedValue = support::endian::byte_swap(Value, Endianness);
     this->update(ArrayRef(reinterpret_cast<const uint8_t *>(&SwappedValue),
                           sizeof(SwappedValue)));
@@ -344,10 +342,9 @@ private:
   }
 
   template <typename T>
-  std::enable_if_t<hashbuilder_detail::IsHashableData<T>::value &&
-                       Endianness == support::endian::system_endianness(),
-                   HashBuilderImpl &>
-  addRangeElementsImpl(T *First, T *Last, std::forward_iterator_tag) {
+  HashBuilderImpl &
+  addRangeElementsImpl(T *First, T *Last, std::forward_iterator_tag) requires (hashbuilder_detail::IsHashableData<T>::value &&
+                       Endianness == support::endian::system_endianness()) {
     this->update(ArrayRef(reinterpret_cast<const uint8_t *>(First),
                           (Last - First) * sizeof(T)));
     return *this;
@@ -428,10 +425,8 @@ using HashCodeHashBuilder = HashBuilder<hashbuilder_detail::HashCodeHasher,
 /// Provide a default implementation of `hash_value` when `addHash(const T &)`
 /// is supported.
 template <typename T>
-std::enable_if_t<
-    is_detected<hashbuilder_detail::HashCodeHashBuilder::HasAddHashT, T>::value,
-    hash_code>
-hash_value(const T &Value) {
+hash_code
+hash_value(const T &Value) requires is_detected<hashbuilder_detail::HashCodeHashBuilder::HasAddHashT, T>::value {
   hashbuilder_detail::HashCodeHashBuilder HBuilder;
   HBuilder.add(Value);
   return HBuilder.getHasher().Code;

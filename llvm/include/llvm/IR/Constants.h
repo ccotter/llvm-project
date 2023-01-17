@@ -452,8 +452,8 @@ public:
   static Constant *get(StructType *T, ArrayRef<Constant *> V);
 
   template <typename... Csts>
-  static std::enable_if_t<are_base_of<Constant, Csts...>::value, Constant *>
-  get(StructType *T, Csts *...Vs) {
+  static Constant *
+  get(StructType *T, Csts *...Vs) requires are_base_of<Constant, Csts...>::value {
     return get(T, ArrayRef<Constant *>({Vs...}));
   }
 

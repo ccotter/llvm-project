@@ -103,8 +103,8 @@ public:
   /// passes in the pass manager later.
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<is_detected<HasRunOnLoopT, PassT>::value>
-      addPass(PassT &&Pass) {
+      void
+      addPass(PassT &&Pass) requires is_detected<HasRunOnLoopT, PassT>::value {
     using LoopPassModelT =
         detail::PassModel<Loop, PassT, PreservedAnalyses, LoopAnalysisManager,
                           LoopStandardAnalysisResults &, LPMUpdater &>;
@@ -117,8 +117,8 @@ public:
 
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<!is_detected<HasRunOnLoopT, PassT>::value>
-      addPass(PassT &&Pass) {
+      void
+      addPass(PassT &&Pass) requires (!is_detected<HasRunOnLoopT, PassT>::value) {
     using LoopNestPassModelT =
         detail::PassModel<LoopNest, PassT, PreservedAnalyses,
                           LoopAnalysisManager, LoopStandardAnalysisResults &,
@@ -135,8 +135,8 @@ public:
   // detection of `HasRunOnLoopT`.
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<is_detected<HasRunOnLoopT, PassT>::value>
-      addPass(RepeatedPass<PassT> &&Pass) {
+      void
+      addPass(RepeatedPass<PassT> &&Pass) requires is_detected<HasRunOnLoopT, PassT>::value {
     using RepeatedLoopPassModelT =
         detail::PassModel<Loop, RepeatedPass<PassT>, PreservedAnalyses,
                           LoopAnalysisManager, LoopStandardAnalysisResults &,
@@ -150,8 +150,8 @@ public:
 
   template <typename PassT>
   LLVM_ATTRIBUTE_MINSIZE
-      std::enable_if_t<!is_detected<HasRunOnLoopT, PassT>::value>
-      addPass(RepeatedPass<PassT> &&Pass) {
+      void
+      addPass(RepeatedPass<PassT> &&Pass) requires (!is_detected<HasRunOnLoopT, PassT>::value) {
     using RepeatedLoopNestPassModelT =
         detail::PassModel<LoopNest, RepeatedPass<PassT>, PreservedAnalyses,
                           LoopAnalysisManager, LoopStandardAnalysisResults &,
@@ -476,11 +476,10 @@ private:
 ///
 /// If \p Pass is a loop pass, the returned adaptor will be in loop mode.
 template <typename LoopPassT>
-inline std::enable_if_t<is_detected<HasRunOnLoopT, LoopPassT>::value,
-                        FunctionToLoopPassAdaptor>
+inline FunctionToLoopPassAdaptor
 createFunctionToLoopPassAdaptor(LoopPassT &&Pass, bool UseMemorySSA = false,
                                 bool UseBlockFrequencyInfo = false,
-                                bool UseBranchProbabilityInfo = false) {
+                                bool UseBranchProbabilityInfo = false) requires is_detected<HasRunOnLoopT, LoopPassT>::value {
   using PassModelT =
       detail::PassModel<Loop, LoopPassT, PreservedAnalyses, LoopAnalysisManager,
                         LoopStandardAnalysisResults &, LPMUpdater &>;
@@ -495,11 +494,10 @@ createFunctionToLoopPassAdaptor(LoopPassT &&Pass, bool UseMemorySSA = false,
 /// If \p Pass is a loop-nest pass, \p Pass will first be wrapped into a
 /// \c LoopPassManager and the returned adaptor will be in loop-nest mode.
 template <typename LoopNestPassT>
-inline std::enable_if_t<!is_detected<HasRunOnLoopT, LoopNestPassT>::value,
-                        FunctionToLoopPassAdaptor>
+inline FunctionToLoopPassAdaptor
 createFunctionToLoopPassAdaptor(LoopNestPassT &&Pass, bool UseMemorySSA = false,
                                 bool UseBlockFrequencyInfo = false,
-                                bool UseBranchProbabilityInfo = false) {
+                                bool UseBranchProbabilityInfo = false) requires (!is_detected<HasRunOnLoopT, LoopNestPassT>::value) {
   LoopPassManager LPM;
   LPM.addPass(std::forward<LoopNestPassT>(Pass));
   using PassModelT =

@@ -242,8 +242,8 @@ public:
                             StringRef Name, bool isPacked = false);
   static StructType *create(LLVMContext &Context, ArrayRef<Type *> Elements);
   template <class... Tys>
-  static std::enable_if_t<are_base_of<Type, Tys...>::value, StructType *>
-  create(StringRef Name, Type *elt1, Tys *... elts) {
+  static StructType *
+  create(StringRef Name, Type *elt1, Tys *... elts) requires are_base_of<Type, Tys...>::value {
     assert(elt1 && "Cannot create a struct type with no elements with this");
     return create(ArrayRef<Type *>({elt1, elts...}), Name);
   }
@@ -259,8 +259,8 @@ public:
   /// specifying the elements as arguments. Note that this method always returns
   /// a non-packed struct, and requires at least one element type.
   template <class... Tys>
-  static std::enable_if_t<are_base_of<Type, Tys...>::value, StructType *>
-  get(Type *elt1, Tys *... elts) {
+  static StructType *
+  get(Type *elt1, Tys *... elts) requires are_base_of<Type, Tys...>::value {
     assert(elt1 && "Cannot create a struct type with no elements with this");
     LLVMContext &Ctx = elt1->getContext();
     return StructType::get(Ctx, ArrayRef<Type *>({elt1, elts...}));
@@ -302,8 +302,8 @@ public:
   void setBody(ArrayRef<Type*> Elements, bool isPacked = false);
 
   template <typename... Tys>
-  std::enable_if_t<are_base_of<Type, Tys...>::value, void>
-  setBody(Type *elt1, Tys *... elts) {
+  void
+  setBody(Type *elt1, Tys *... elts) requires are_base_of<Type, Tys...>::value {
     assert(elt1 && "Cannot create a struct type with no elements with this");
     setBody(ArrayRef<Type *>({elt1, elts...}));
   }

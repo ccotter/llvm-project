@@ -152,10 +152,8 @@ public:
 
   // Implicit conversion to ArrayRef<U> if EltTy* implicitly converts to U*.
   template <
-      typename U,
-      std::enable_if_t<std::is_convertible<ArrayRef<EltTy>, ArrayRef<U>>::value,
-                       bool> = false>
-  operator ArrayRef<U>() const {
+      typename U>
+  operator ArrayRef<U>() const requires std::is_convertible<ArrayRef<EltTy>, ArrayRef<U>>::value {
     return operator ArrayRef<EltTy>();
   }
 

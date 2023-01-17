@@ -732,7 +732,7 @@ inline int64_t SignExtend64(uint64_t X, unsigned B) {
 /// Subtract two unsigned integers, X and Y, of type T and return the absolute
 /// value of the result.
 template <typename T>
-std::enable_if_t<std::is_unsigned<T>::value, T> AbsoluteDifference(T X, T Y) {
+T AbsoluteDifference(T X, T Y) requires std::is_unsigned<T>::value {
   return X > Y ? (X - Y) : (Y - X);
 }
 
@@ -740,8 +740,8 @@ std::enable_if_t<std::is_unsigned<T>::value, T> AbsoluteDifference(T X, T Y) {
 /// maximum representable value of T on overflow.  ResultOverflowed indicates if
 /// the result is larger than the maximum representable value of type T.
 template <typename T>
-std::enable_if_t<std::is_unsigned<T>::value, T>
-SaturatingAdd(T X, T Y, bool *ResultOverflowed = nullptr) {
+T
+SaturatingAdd(T X, T Y, bool *ResultOverflowed = nullptr) requires std::is_unsigned<T>::value {
   bool Dummy;
   bool &Overflowed = ResultOverflowed ? *ResultOverflowed : Dummy;
   // Hacker's Delight, p. 29
@@ -756,8 +756,8 @@ SaturatingAdd(T X, T Y, bool *ResultOverflowed = nullptr) {
 /// Add multiple unsigned integers of type T.  Clamp the result to the
 /// maximum representable value of T on overflow.
 template <class T, class... Ts>
-std::enable_if_t<std::is_unsigned_v<T>, T> SaturatingAdd(T X, T Y, T Z,
-                                                         Ts... Args) {
+T SaturatingAdd(T X, T Y, T Z,
+                                                         Ts... Args) requires (std::is_unsigned_v<T>) {
   bool Overflowed = false;
   T XY = SaturatingAdd(X, Y, &Overflowed);
   if (Overflowed)
@@ -769,8 +769,8 @@ std::enable_if_t<std::is_unsigned_v<T>, T> SaturatingAdd(T X, T Y, T Z,
 /// maximum representable value of T on overflow.  ResultOverflowed indicates if
 /// the result is larger than the maximum representable value of type T.
 template <typename T>
-std::enable_if_t<std::is_unsigned<T>::value, T>
-SaturatingMultiply(T X, T Y, bool *ResultOverflowed = nullptr) {
+T
+SaturatingMultiply(T X, T Y, bool *ResultOverflowed = nullptr) requires std::is_unsigned<T>::value {
   bool Dummy;
   bool &Overflowed = ResultOverflowed ? *ResultOverflowed : Dummy;
 
@@ -815,8 +815,8 @@ SaturatingMultiply(T X, T Y, bool *ResultOverflowed = nullptr) {
 /// overflow. ResultOverflowed indicates if the result is larger than the
 /// maximum representable value of type T.
 template <typename T>
-std::enable_if_t<std::is_unsigned<T>::value, T>
-SaturatingMultiplyAdd(T X, T Y, T A, bool *ResultOverflowed = nullptr) {
+T
+SaturatingMultiplyAdd(T X, T Y, T A, bool *ResultOverflowed = nullptr) requires std::is_unsigned<T>::value {
   bool Dummy;
   bool &Overflowed = ResultOverflowed ? *ResultOverflowed : Dummy;
 
@@ -834,7 +834,7 @@ extern const float huge_valf;
 /// Add two signed integers, computing the two's complement truncated result,
 /// returning true if overflow occurred.
 template <typename T>
-std::enable_if_t<std::is_signed<T>::value, T> AddOverflow(T X, T Y, T &Result) {
+T AddOverflow(T X, T Y, T &Result) requires std::is_signed<T>::value {
 #if __has_builtin(__builtin_add_overflow)
   return __builtin_add_overflow(X, Y, &Result);
 #else
@@ -860,7 +860,7 @@ std::enable_if_t<std::is_signed<T>::value, T> AddOverflow(T X, T Y, T &Result) {
 /// Subtract two signed integers, computing the two's complement truncated
 /// result, returning true if an overflow ocurred.
 template <typename T>
-std::enable_if_t<std::is_signed<T>::value, T> SubOverflow(T X, T Y, T &Result) {
+T SubOverflow(T X, T Y, T &Result) requires std::is_signed<T>::value {
 #if __has_builtin(__builtin_sub_overflow)
   return __builtin_sub_overflow(X, Y, &Result);
 #else
@@ -886,7 +886,7 @@ std::enable_if_t<std::is_signed<T>::value, T> SubOverflow(T X, T Y, T &Result) {
 /// Multiply two signed integers, computing the two's complement truncated
 /// result, returning true if an overflow ocurred.
 template <typename T>
-std::enable_if_t<std::is_signed<T>::value, T> MulOverflow(T X, T Y, T &Result) {
+T MulOverflow(T X, T Y, T &Result) requires std::is_signed<T>::value {
   // Perform the unsigned multiplication on absolute values.
   using U = std::make_unsigned_t<T>;
   const U UX = X < 0 ? (0 - static_cast<U>(X)) : static_cast<U>(X);

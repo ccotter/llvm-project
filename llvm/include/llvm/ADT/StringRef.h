@@ -237,8 +237,8 @@ namespace llvm {
     /// The declaration here is extra complicated so that `stringRef = {}`
     /// and `stringRef = "abc"` continue to select the move assignment operator.
     template <typename T>
-    std::enable_if_t<std::is_same<T, std::string>::value, StringRef> &
-    operator=(T &&Str) = delete;
+    StringRef &
+    operator=(T &&Str) requires std::is_same<T, std::string>::value = delete;
 
     /// @}
     /// @name Type Conversions

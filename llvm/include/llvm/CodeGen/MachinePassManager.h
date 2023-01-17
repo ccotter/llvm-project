@@ -169,12 +169,12 @@ private:
       std::declval<MachineFunctionAnalysisManager &>()));
 
   template <typename PassT>
-  std::enable_if_t<!is_detected<has_init_t, PassT>::value>
-  addDoInitialization(PassConceptT *Pass) {}
+  void
+  addDoInitialization(PassConceptT *Pass) requires (!is_detected<has_init_t, PassT>::value) {}
 
   template <typename PassT>
-  std::enable_if_t<is_detected<has_init_t, PassT>::value>
-  addDoInitialization(PassConceptT *Pass) {
+  void
+  addDoInitialization(PassConceptT *Pass) requires is_detected<has_init_t, PassT>::value {
     using PassModelT =
         detail::PassModel<MachineFunction, PassT, PreservedAnalyses,
                           MachineFunctionAnalysisManager>;
@@ -191,12 +191,12 @@ private:
       std::declval<MachineFunctionAnalysisManager &>()));
 
   template <typename PassT>
-  std::enable_if_t<!is_detected<has_fini_t, PassT>::value>
-  addDoFinalization(PassConceptT *Pass) {}
+  void
+  addDoFinalization(PassConceptT *Pass) requires (!is_detected<has_fini_t, PassT>::value) {}
 
   template <typename PassT>
-  std::enable_if_t<is_detected<has_fini_t, PassT>::value>
-  addDoFinalization(PassConceptT *Pass) {
+  void
+  addDoFinalization(PassConceptT *Pass) requires is_detected<has_fini_t, PassT>::value {
     using PassModelT =
         detail::PassModel<MachineFunction, PassT, PreservedAnalyses,
                           MachineFunctionAnalysisManager>;
@@ -218,12 +218,12 @@ private:
       std::declval<MachineFunctionAnalysisManager &>()));
 
   template <typename PassT>
-  std::enable_if_t<!is_detected<is_machine_module_pass_t, PassT>::value>
-  addRunOnModule(PassConceptT *Pass) {}
+  void
+  addRunOnModule(PassConceptT *Pass) requires (!is_detected<is_machine_module_pass_t, PassT>::value) {}
 
   template <typename PassT>
-  std::enable_if_t<is_detected<is_machine_module_pass_t, PassT>::value>
-  addRunOnModule(PassConceptT *Pass) {
+  void
+  addRunOnModule(PassConceptT *Pass) requires is_detected<is_machine_module_pass_t, PassT>::value {
     static_assert(is_detected<is_machine_function_pass_t, PassT>::value,
                   "machine module pass needs to define machine function pass "
                   "api. sorry.");
