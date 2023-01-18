@@ -134,6 +134,7 @@ class dependent {
   void constFoo() const;
 };
 
+template<typename ElemType>
 unsigned size(const dependent<ElemType>&);
 template<typename ElemType>
 unsigned length(const dependent<ElemType>&);
