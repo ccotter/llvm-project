@@ -123,7 +123,16 @@ void forwarding_ref_forwarded(T&& t) {
 
 template <typename... Ts>
 void type_pack(Ts&&... ts) {
-  forwarding_ref(std::forward<Ts>(ts)...);
+  (forwarding_ref(std::forward<Ts>(ts)), ...);
+}
+
+void call_forwarding_functions() {
+  Obj o;
+
+  forwarding_ref(Obj{});
+  type_pack(Obj{});
+  type_pack(Obj{}, o);
+  type_pack(Obj{}, Obj{});
 }
 
 void good1(Obj&& o) {

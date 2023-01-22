@@ -14,9 +14,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace cppcoreguidelines {
+namespace clang::tidy::cppcoreguidelines {
 
 void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
   auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
@@ -25,6 +23,8 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
           parmVarDecl(
               equalsBoundNode("param"),
+              unless(
+                  hasType(qualType(references(substTemplateTypeParmType())))),
               unless(hasType(
                   qualType(references(templateTypeParmType(
                                hasDeclaration(templateTypeParmDecl()))),
@@ -141,6 +141,4 @@ void RvalueReferenceParamNotMovedCheck::check(
   }
 }
 
-} // namespace cppcoreguidelines
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::cppcoreguidelines
