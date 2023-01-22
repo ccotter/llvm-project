@@ -18,9 +18,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace modernize {
+namespace clang::tidy::modernize {
 
 struct EnableIfData {
   TemplateSpecializationTypeLoc Loc;
@@ -493,6 +491,4 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace modernize
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::modernize
