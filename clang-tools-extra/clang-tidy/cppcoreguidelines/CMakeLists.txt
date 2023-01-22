@@ -9,6 +9,7 @@ add_clang_library(clangTidyCppCoreGuidelinesModule
   AvoidGotoCheck.cpp
   AvoidNonConstGlobalVariablesCheck.cpp
   AvoidReferenceCoroutineParametersCheck.cpp
+  AvoidReturningConstCheck.cpp
   CppCoreGuidelinesTidyModule.cpp
   InitVariablesCheck.cpp
   InterfacesGlobalInitCheck.cpp

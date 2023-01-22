@@ -183,6 +183,7 @@ Clang-Tidy Checks
    `cppcoreguidelines-avoid-goto <cppcoreguidelines/avoid-goto.html>`_,
    `cppcoreguidelines-avoid-non-const-global-variables <cppcoreguidelines/avoid-non-const-global-variables.html>`_,
    `cppcoreguidelines-avoid-reference-coroutine-parameters <cppcoreguidelines/avoid-reference-coroutine-parameters.html>`_,
+   `cppcoreguidelines-avoid-returning-const <cppcoreguidelines/avoid-returning-const.html>`_, "Yes"
    `cppcoreguidelines-init-variables <cppcoreguidelines/init-variables.html>`_, "Yes"
    `cppcoreguidelines-interfaces-global-init <cppcoreguidelines/interfaces-global-init.html>`_,
    `cppcoreguidelines-macro-usage <cppcoreguidelines/macro-usage.html>`_,

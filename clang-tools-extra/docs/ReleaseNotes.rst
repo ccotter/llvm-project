@@ -130,6 +130,11 @@ New checks
 
   Warns on coroutines that accept reference parameters.
 
+- New :doc:`cppcoreguidelines-avoid-returning-const
+  <clang-tidy/checks/cppcoreguidelines/avoid-returning-const>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`misc-use-anonymous-namespace
   <clang-tidy/checks/misc/use-anonymous-namespace>` check.
 
