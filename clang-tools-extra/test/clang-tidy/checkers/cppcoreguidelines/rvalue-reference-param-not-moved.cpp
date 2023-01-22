@@ -109,8 +109,6 @@ void misc_lambda_checks() {
   // CHECK-MESSAGES: :[[@LINE-3]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 }
 
-// Negative tests - below functions do not violate the guideline
-
 template <typename T>
 void forwarding_ref(T&& t) {
   t.member();
@@ -135,20 +133,48 @@ void call_forwarding_functions() {
   type_pack(Obj{}, Obj{});
 }
 
-void good1(Obj&& o) {
+void moves_parameter(Obj&& o) {
   Obj moved = std::move(o);
-  moved.member();
 }
 
-void good2(Obj& o) {
+void moves_parameter_extra_parens(Obj&& o) {
+  Obj moved = std::move((o));
+}
+
+template <typename T1, typename T2>
+struct mypair {
+  T1 first;
+  T2 second;
+};
+
+void moves_member_of_parameter(mypair<Obj, Obj>&& pair) {
+  Obj a = std::move(pair.first);
+  Obj b = std::move(pair.second);
+}
+
+template <typename T>
+struct myoptional {
+  T& operator*() &;
+  T&& operator*() &&;
+};
+
+void moves_optional_deref(myoptional<Obj>&& opt) {
+  Obj other = std::move(*opt);
+}
+
+void moves_optional_deref_alternate(myoptional<Obj>&& opt) {
+  Obj other = *std::move(opt);
+}
+
+void pass_by_lvalue_reference(Obj& o) {
   o.member();
 }
 
-void good3(Obj o) {
+void pass_by_value(Obj o) {
   o.member();
 }
 
-void good4(const Obj& o) {
+void pass_by_const_lvalue_reference(const Obj& o) {
   o.member();
 }
 
