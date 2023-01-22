@@ -16,9 +16,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace cppcoreguidelines {
+namespace clang::tidy::cppcoreguidelines {
 
 void AvoidCaptureDefaultWhenCapturingThisCheck::registerMatchers(
     MatchFinder *Finder) {
@@ -97,6 +95,4 @@ void AvoidCaptureDefaultWhenCapturingThisCheck::check(
   }
 }
 
-} // namespace cppcoreguidelines
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::cppcoreguidelines
