@@ -92,12 +92,13 @@ void RvalueReferenceParamNotMovedCheck::check(
   const auto *ContainingFunc =
       Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
 
+  StatementMatcher RefToParam = declRefExpr(to(equalsNode(Param))).bind("ref");
   StatementMatcher MoveCallMatcher =
       callExpr(anyOf(callee(functionDecl(hasName("::std::move"))),
                      callee(unresolvedLookupExpr(hasAnyDeclaration(namedDecl(
                          hasUnderlyingDecl(hasName("::std::move"))))))),
                argumentCountIs(1),
-               hasArgument(0, declRefExpr(to(equalsNode(Param))).bind("ref")));
+               hasArgument(0, anyOf(RefToParam, hasDescendant(RefToParam))));
 
   DynTypedNode ContainingNode;
 
