@@ -1,4 +1,4 @@
-// RUN: %check_clang_tidy -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t
+// RUN: %check_clang_tidy -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
@@ -196,6 +196,20 @@ void negative_lambda_checks() {
   auto captures = [local]() {
   };
 }
+
+struct AClass {
+  void member_with_lambda_no_move(Obj&& o) {
+    // CHECK-MESSAGES: :[[@LINE-1]]:35: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+    auto captures_this = [=, this]() {
+      Obj other = std::move(o);
+    };
+  }
+  void member_with_lambda_that_moves(Obj&& o) {
+    auto captures_this = [&, this]() {
+      Obj other = std::move(o);
+    };
+  }
+};
 
 void useless_move(Obj&& o) {
   // FIXME - The object is not actually moved from - this should probably be

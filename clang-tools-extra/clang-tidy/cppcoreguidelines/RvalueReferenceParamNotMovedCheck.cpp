@@ -63,8 +63,8 @@ static bool isValueCapturedByAnyLambda(ASTContext &Context,
       bool ParamIsValueCaptured =
           std::find_if(Lambda->capture_begin(), Lambda->capture_end(),
                        [&](const LambdaCapture &Capture) {
-                         return Capture.getCapturedVar() == Param &&
-                                Capture.capturesVariable() &&
+                         return Capture.capturesVariable() &&
+                                Capture.getCapturedVar() == Param &&
                                 Capture.getCaptureKind() == LCK_ByCopy;
                        }) != Lambda->capture_end();
       if (ParamIsValueCaptured) {
