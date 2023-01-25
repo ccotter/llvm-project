@@ -1,4 +1,5 @@
-// RUN: %check_clang_tidy -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
@@ -103,10 +104,12 @@ void misc_lambda_checks() {
   };
   // CHECK-MESSAGES: :[[@LINE-3]]:31: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 
+#if __cplusplus >= 201402L
   auto never_moves_with_auto_param = [](Obj&& o1, auto& v) {
     Obj other{o1};
   };
-  // CHECK-MESSAGES: :[[@LINE-3]]:47: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES-CXX14: :[[@LINE-3]]:47: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+#endif
 }
 
 template <typename T>
@@ -194,11 +197,13 @@ void lambda_captures_parameter_as_reference_nested(Obj&& o) {
   };
 }
 
+#if __cplusplus >= 201402L
 void lambda_captures_parameter_generalized(Obj&& o) {
   auto f = [o = std::move(o)]() {
     consumes_object(std::move(o));
   };
 }
+#endif
 
 void negative_lambda_checks() {
   auto never_moves_nested = [](Obj&& o1) {
@@ -207,6 +212,7 @@ void negative_lambda_checks() {
     };
   };
 
+#if __cplusplus >= 201402L
   auto auto_lvalue_ref_param = [](auto& o1) {
     Obj other{o1};
   };
@@ -215,12 +221,13 @@ void negative_lambda_checks() {
     Obj other{o1};
   };
 
-  auto does_move = [](Obj&& o1) {
-    Obj other{std::move(o1)};
-  };
-
   auto does_move_auto_rvalue_ref_param = [](auto&& o1) {
     Obj other{std::forward(o1)};
+  };
+#endif
+
+  auto does_move = [](Obj&& o1) {
+    Obj other{std::move(o1)};
   };
 
   auto not_rvalue_ref = [](Obj& o1) {
