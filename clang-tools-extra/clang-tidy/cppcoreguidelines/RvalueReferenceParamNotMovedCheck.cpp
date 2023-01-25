@@ -18,6 +18,13 @@ namespace clang::tidy::cppcoreguidelines {
 
 void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
   auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
+
+  internal::Matcher<QualType> ReferenceTypeOrAnything =
+      anyOf(qualType(references(templateTypeParmType(hasDeclaration(
+                         templateTypeParmDecl().bind("template-type")))),
+                     unless(references(qualType(isConstQualified())))),
+            anything());
+
   Finder->addMatcher(
       parmVarDecl(allOf(
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
@@ -25,10 +32,7 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
               equalsBoundNode("param"),
               unless(
                   hasType(qualType(references(substTemplateTypeParmType())))),
-              unless(hasType(
-                  qualType(references(templateTypeParmType(
-                               hasDeclaration(templateTypeParmDecl()))),
-                           unless(references(qualType(isConstQualified())))))),
+              hasType(ReferenceTypeOrAnything),
               anyOf(hasAncestor(compoundStmt(hasParent(
                         lambdaExpr(has(cxxRecordDecl(has(cxxMethodDecl(
                                        ToParam, hasName("operator()"))))))
@@ -92,6 +96,24 @@ void RvalueReferenceParamNotMovedCheck::check(
   const auto *ContainingFunc =
       Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
 
+  const auto *TemplateType =
+      Result.Nodes.getNodeAs<TemplateTypeParmDecl>("template-type");
+  if (TemplateType) {
+    const auto *FuncForParam = dyn_cast<FunctionDecl>(Param->getDeclContext());
+    if (!FuncForParam) {
+      return;
+    }
+    if (const FunctionTemplateDecl *FuncTemplate =
+            FuncForParam->getDescribedFunctionTemplate()) {
+      const TemplateParameterList *Params =
+          FuncTemplate->getTemplateParameters();
+      if (llvm::is_contained(*Params, TemplateType)) {
+        // Ignore forwarding reference
+        return;
+      }
+    }
+  }
+
   StatementMatcher RefToParam = declRefExpr(to(equalsNode(Param))).bind("ref");
   StatementMatcher MoveCallMatcher =
       callExpr(anyOf(callee(functionDecl(hasName("::std::move"))),
@@ -137,7 +159,7 @@ void RvalueReferenceParamNotMovedCheck::check(
   }
 
   if (MoveExprs == 0) {
-    diag(Param->getBeginLoc(), "rvalue reference parameter is never moved from "
+    diag(Param->getLocation(), "rvalue reference parameter is never moved from "
                                "inside the function body");
   }
 }
