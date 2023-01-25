@@ -10,8 +10,6 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
-#include <queue>
-
 using namespace clang::ast_matchers;
 
 namespace clang::tidy::cppcoreguidelines {
@@ -51,36 +49,25 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 static bool isValueCapturedByAnyLambda(ASTContext &Context,
-                                       DynTypedNode ContainingNode,
-                                       const Expr *StartingExpr,
-                                       const Decl *Param) {
-  std::queue<DynTypedNode> ToVisit;
-  ToVisit.push(DynTypedNode::create(*StartingExpr));
-  while (!ToVisit.empty()) {
-    DynTypedNode At = ToVisit.front();
-    ToVisit.pop();
-
-    if (At == ContainingNode) {
-      return false;
-    }
-    if (const auto *Lambda = At.get<LambdaExpr>()) {
-      bool ParamIsValueCaptured =
-          std::find_if(Lambda->capture_begin(), Lambda->capture_end(),
-                       [&](const LambdaCapture &Capture) {
-                         return Capture.capturesVariable() &&
-                                Capture.getCapturedVar() == Param &&
-                                Capture.getCaptureKind() == LCK_ByCopy;
-                       }) != Lambda->capture_end();
-      if (ParamIsValueCaptured) {
-        return true;
-      }
-    }
-
-    DynTypedNodeList Parents = Context.getParents(At);
-    std::for_each(Parents.begin(), Parents.end(),
-                  [&](const DynTypedNode &Node) { ToVisit.push(Node); });
-    if (Parents.empty()) {
-      return false;
+                                       const FunctionDecl *Function,
+                                       const DeclRefExpr *MoveTarget,
+                                       const ParmVarDecl *Param) {
+  SmallVector<BoundNodes, 3> Matches =
+      match(lambdaExpr(hasAncestor(equalsNode(Function)),
+                       hasDescendant(declRefExpr(equalsNode(MoveTarget))))
+                .bind("lambda"),
+            Context);
+  for (const BoundNodes &Match : Matches) {
+    const auto *Lambda = Match.getNodeAs<LambdaExpr>("lambda");
+    bool ParamIsValueCaptured =
+        std::find_if(Lambda->capture_begin(), Lambda->capture_end(),
+                     [&](const LambdaCapture &Capture) {
+                       return Capture.capturesVariable() &&
+                              Capture.getCapturedVar() == Param &&
+                              Capture.getCaptureKind() == LCK_ByCopy;
+                     }) != Lambda->capture_end();
+    if (ParamIsValueCaptured) {
+      return true;
     }
   }
   return false;
@@ -95,16 +82,21 @@ void RvalueReferenceParamNotMovedCheck::check(
       Result.Nodes.getNodeAs<FunctionDecl>("containing-ctor");
   const auto *ContainingFunc =
       Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
-
   const auto *TemplateType =
       Result.Nodes.getNodeAs<TemplateTypeParmDecl>("template-type");
+
+  if (!Param) {
+    return;
+  }
+
+  const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
+  if (!Function) {
+    return;
+  }
+
   if (TemplateType) {
-    const auto *FuncForParam = dyn_cast<FunctionDecl>(Param->getDeclContext());
-    if (!FuncForParam) {
-      return;
-    }
     if (const FunctionTemplateDecl *FuncTemplate =
-            FuncForParam->getDescribedFunctionTemplate()) {
+            Function->getDescribedFunctionTemplate()) {
       const TemplateParameterList *Params =
           FuncTemplate->getTemplateParameters();
       if (llvm::is_contained(*Params, TemplateType)) {
@@ -122,43 +114,38 @@ void RvalueReferenceParamNotMovedCheck::check(
                argumentCountIs(1),
                hasArgument(0, anyOf(RefToParam, hasDescendant(RefToParam))));
 
-  DynTypedNode ContainingNode;
-
   SmallVector<BoundNodes, 1> Matches;
   if (ContainingLambda) {
     if (!ContainingLambda->getBody())
       return;
-    ContainingNode = DynTypedNode::create(*ContainingLambda);
     Matches = match(findAll(MoveCallMatcher), *ContainingLambda->getBody(),
                     *Result.Context);
   } else if (ContainingCtor) {
-    ContainingNode = DynTypedNode::create(*ContainingCtor);
     Matches = match(findAll(cxxConstructorDecl(hasDescendant(MoveCallMatcher))),
                     *ContainingCtor, *Result.Context);
   } else if (ContainingFunc) {
     if (!ContainingFunc->getBody())
       return;
-    ContainingNode = DynTypedNode::create(*ContainingFunc);
     Matches = match(findAll(MoveCallMatcher), *ContainingFunc->getBody(),
                     *Result.Context);
   } else {
     return;
   }
 
-  int MoveExprs = Matches.size();
+  int MoveExprsCount = Matches.size();
   for (const BoundNodes &Match : Matches) {
     // The DeclRefExprs of non-initializer value captured variables refer to
     // the original variable declaration in the AST. In such cases, we exclude
     // those DeclRefExprs since they are not actually moving the original
     // variable.
-    if (isValueCapturedByAnyLambda(*Result.Context, ContainingNode,
+    if (isValueCapturedByAnyLambda(*Result.Context, Function,
                                    Match.getNodeAs<DeclRefExpr>("ref"),
                                    Param)) {
-      --MoveExprs;
+      --MoveExprsCount;
     }
   }
 
-  if (MoveExprs == 0) {
+  if (MoveExprsCount == 0) {
     diag(Param->getLocation(), "rvalue reference parameter is never moved from "
                                "inside the function body");
   }
