@@ -11,9 +11,7 @@
 
 #include "../ClangTidyCheck.h"
 
-namespace clang {
-namespace tidy {
-namespace cppcoreguidelines {
+namespace clang::tidy::cppcoreguidelines {
 
 /// Warns when an rvalue reference function parameter is never moved within
 /// the function body. This check implements CppCoreGuideline F.18.
@@ -31,8 +29,6 @@ public:
   }
 };
 
-} // namespace cppcoreguidelines
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::cppcoreguidelines
 
 #endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CPPCOREGUIDELINES_RVALUEREFERENCEPARAMNOTMOVEDCHECK_H

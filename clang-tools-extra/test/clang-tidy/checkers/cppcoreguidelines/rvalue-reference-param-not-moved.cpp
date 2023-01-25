@@ -32,45 +32,45 @@ struct Obj {
 void consumes_object(Obj);
 
 void never_moves_param(Obj&& o) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:24: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:30: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   o.member();
 }
 
 void copies_object(Obj&& o) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:26: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj copy = o;
 }
 
 template <typename T>
 void never_moves_param_template(Obj&& o, T t) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:33: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:39: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   o.member();
 }
 
 void never_moves_params(Obj&& o1, Obj&& o2) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:25: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-  // CHECK-MESSAGES: :[[@LINE-2]]:35: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:31: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-2]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 }
 
 void never_moves_some_params(Obj&& o1, Obj&& o2) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:30: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:36: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 
   Obj other{std::move(o2)};
 }
 
 void never_moves_mixed(Obj o1, Obj&& o2) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:32: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:38: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 }
 
 void lambda_captures_parameter_as_value(Obj&& o) {
   auto f = [o]() {
     consumes_object(std::move(o));
   };
-  // CHECK-MESSAGES: :[[@LINE-4]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-4]]:47: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 }
 
 void lambda_captures_parameter_as_value_nested(Obj&& o) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:48: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-1]]:54: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   auto f = [&o]() {
     auto f_nested = [o]() {
       consumes_object(std::move(o));
@@ -101,12 +101,12 @@ void misc_lambda_checks() {
   auto never_moves = [](Obj&& o1) {
     Obj other{o1};
   };
-  // CHECK-MESSAGES: :[[@LINE-3]]:25: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-3]]:31: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 
   auto never_moves_with_auto_param = [](Obj&& o1, auto& v) {
     Obj other{o1};
   };
-  // CHECK-MESSAGES: :[[@LINE-3]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES: :[[@LINE-3]]:47: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 }
 
 template <typename T>
@@ -228,13 +228,12 @@ void negative_lambda_checks() {
   };
 
   Obj local;
-  auto captures = [local]() {
-  };
+  auto captures = [local]() { };
 }
 
 struct AClass {
   void member_with_lambda_no_move(Obj&& o) {
-    // CHECK-MESSAGES: :[[@LINE-1]]:35: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+    // CHECK-MESSAGES: :[[@LINE-1]]:41: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
     auto captures_this = [=, this]() {
       Obj other = std::move(o);
     };
@@ -261,8 +260,7 @@ void unresolved_lookup(TemplatedClass<T>&& o) {
 }
 
 struct DefinesMove {
-  DefinesMove(DefinesMove&& rhs) : o(std::move(rhs.o)) {
-  }
+  DefinesMove(DefinesMove&& rhs) : o(std::move(rhs.o)) { }
   DefinesMove& operator=(DefinesMove&& rhs) {
     if (this != &rhs) {
       o = std::move(rhs.o);
@@ -276,4 +274,13 @@ struct AnotherObj {
   AnotherObj(Obj&& o) : o(std::move(o)) {}
   AnotherObj(Obj&& o, int) { o = std::move(o); }
   Obj o;
+};
+
+template <class T>
+struct AClassTemplate {
+  void moves(T&& t) {
+    T other = std::move(t);
+  }
+  void never_moves(T&& t) {}
+  // CHECK-MESSAGES: :[[@LINE-1]]:24: warning: rvalue reference parameter is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 };
