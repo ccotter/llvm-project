@@ -148,6 +148,14 @@ void RvalueReferenceParamNotMovedCheck::check(
   if (MoveExprsCount == 0) {
     diag(Param->getLocation(), "rvalue reference parameter is never moved from "
                                "inside the function body");
+
+    if (const auto* T = Param->getType().getTypePtr()) {
+      if (const auto* R = T->getPointeeCXXRecordDecl()) {
+        if (R->hasMoveConstructor() || R->hasMoveAssignment()) {
+          diag(R->getLocation(), "record with move ctor", DiagnosticIDs::Note);
+        }
+      }
+    }
   }
 }
 
