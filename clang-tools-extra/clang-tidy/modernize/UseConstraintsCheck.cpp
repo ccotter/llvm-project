@@ -455,15 +455,24 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   }
 
   // Check for
-  //   template <...>
-  //   enable_if<Condition, ReturnType> function();
   //
-  //   template <..., enable_if<Condition, Type> = Type{}>
-  //   function();
+  //   Case 1. Return type of function
   //
-  //   template <..., typename = enable_if<Condition, void>>
-  //   function();
+  //     template <...>
+  //     enable_if<Condition, ReturnType> function();
+  //
+  //   Case 2. Trailing template parameter
+  //
+  //     template <..., enable_if<Condition, Type> = Type{}>
+  //     type function();
+  //
+  //     or
+  //
+  //     template <..., typename = enable_if<Condition, void>>
+  //     type function();
+  //
 
+  // Case 1. Return type of function
   std::optional<EnableIfData> EnableIf;
   EnableIf = matchEnableIfSpecialization(*ReturnType);
   if (EnableIf.has_value()) {
@@ -474,6 +483,8 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
         << FixIts;
     return;
   }
+
+  // Case 2. Trailing template parameter
   const Decl *LastTemplateParam = nullptr;
   std::tie(EnableIf, LastTemplateParam) =
       matchTrailingTemplateParam(FunctionTemplate);
