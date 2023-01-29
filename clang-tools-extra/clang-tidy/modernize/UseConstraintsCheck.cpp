@@ -107,7 +107,7 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
-matchEnableIfSpecialization_impl(TypeLoc TheType) {
+matchEnableIfSpecializationImpl(TypeLoc TheType) {
   std::optional<TemplateSpecializationTypeLoc> EnableIf;
   EnableIf = matchEnableIfSpecializationImplTypename(TheType);
   if (EnableIf) {
@@ -118,8 +118,6 @@ matchEnableIfSpecialization_impl(TypeLoc TheType) {
 
 static std::optional<EnableIfData>
 matchEnableIfSpecialization(TypeLoc TheType) {
-  if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>()) {
-  }
   if (const auto Pointer = TheType.getAs<PointerTypeLoc>()) {
     TheType = Pointer.getPointeeLoc();
   } else if (const auto Reference = TheType.getAs<ReferenceTypeLoc>()) {
@@ -130,7 +128,7 @@ matchEnableIfSpecialization(TypeLoc TheType) {
   }
 
   std::optional<TemplateSpecializationTypeLoc> EnableIf =
-      matchEnableIfSpecialization_impl(TheType);
+      matchEnableIfSpecializationImpl(TheType);
   if (EnableIf) {
     return std::make_optional(EnableIfData{std::move(*EnableIf), TheType});
   } else {
