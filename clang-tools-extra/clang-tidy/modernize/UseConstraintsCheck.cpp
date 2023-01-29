@@ -49,18 +49,17 @@ void UseConstraintsCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
-matchEnableIfSpecialization_impl_type(TypeLoc TheType) {
+matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
     if (Dep.getTypePtr()->getIdentifier()->getName() != "type" ||
         Dep.getTypePtr()->getKeyword() != ETK_Typename) {
       return std::nullopt;
     }
-    return matchEnableIfSpecialization_impl_type(
-        Dep.getQualifierLoc().getTypeLoc());
-  } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
-    return std::nullopt;
-  } else if (const auto Specialization =
-                 TheType.getAs<TemplateSpecializationTypeLoc>()) {
+    TheType = Dep.getQualifierLoc().getTypeLoc();
+  }
+
+  if (const auto Specialization =
+          TheType.getAs<TemplateSpecializationTypeLoc>()) {
     std::string Name = TheType.getType().getAsString();
     if (Name.find("enable_if<") == std::string::npos) {
       return std::nullopt;
@@ -75,13 +74,13 @@ matchEnableIfSpecialization_impl_type(TypeLoc TheType) {
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
-matchEnableIfSpecialization_impl_t(TypeLoc TheType) {
-  if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
-    return std::nullopt;
-  } else if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
-    return matchEnableIfSpecialization_impl_t(Elaborated.getNamedTypeLoc());
-  } else if (const auto Specialization =
-                 TheType.getAs<TemplateSpecializationTypeLoc>()) {
+matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
+  if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
+    TheType = Elaborated.getNamedTypeLoc();
+  }
+
+  if (const auto Specialization =
+          TheType.getAs<TemplateSpecializationTypeLoc>()) {
     std::string Name = TheType.getType().getAsString();
     if (Name.find("enable_if_t<") == std::string::npos) {
       return std::nullopt;
@@ -110,11 +109,11 @@ matchEnableIfSpecialization_impl_t(TypeLoc TheType) {
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecialization_impl(TypeLoc TheType) {
   std::optional<TemplateSpecializationTypeLoc> EnableIf;
-  EnableIf = matchEnableIfSpecialization_impl_type(TheType);
+  EnableIf = matchEnableIfSpecializationImplTypename(TheType);
   if (EnableIf) {
     return EnableIf;
   }
-  return matchEnableIfSpecialization_impl_t(TheType);
+  return matchEnableIfSpecializationImplTrait(TheType);
 }
 
 static std::optional<EnableIfData>
