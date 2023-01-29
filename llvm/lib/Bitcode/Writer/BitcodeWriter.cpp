@@ -3371,7 +3371,9 @@ void ModuleBitcodeWriter::writeUseList(UseListOrder &&Order) {
   else
     Code = bitc::USELIST_CODE_DEFAULT;
 
-  SmallVector<uint64_t, 64> Record(Order.Shuffle.begin(), Order.Shuffle.end());
+  SmallVector<uint64_t, 64> Record(
+      std::make_move_iterator(Order.Shuffle.begin()),
+      std::make_move_iterator(Order.Shuffle.end()));
   Record.push_back(VE.getValueID(Order.V));
   Stream.EmitRecord(Code, Record);
 }
