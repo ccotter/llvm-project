@@ -4012,16 +4012,28 @@ static const Decl *getCanonicalParmVarDecl(const Decl *D) {
 
 llvm::PointerUnion<Decl *, LocalInstantiationScope::DeclArgumentPack *> *
 LocalInstantiationScope::findInstantiationOf(const Decl *D) {
+  llvm::errs() << "findInstantiationOf\n";
+  D->dump();
   D = getCanonicalParmVarDecl(D);
+  D->dump();
   for (LocalInstantiationScope *Current = this; Current;
        Current = Current->Outer) {
+
+    llvm::errs() << "Next loop\n";
 
     // Check if we found something within this scope.
     const Decl *CheckD = D;
     do {
       LocalDeclsMap::iterator Found = Current->LocalDecls.find(CheckD);
-      if (Found != Current->LocalDecls.end())
+      if (Found != Current->LocalDecls.end()) {
+        if (Found->second.is<Decl*>()) {
+          llvm::errs() << "Found it1\n";
+          Found->second.get<Decl*>()->dump();
+        } else {
+          llvm::errs() << "Found it2\n";
+        }
         return &Found->second;
+      }
 
       // If this is a tag declaration, it's possible that we need to look for
       // a previous declaration.

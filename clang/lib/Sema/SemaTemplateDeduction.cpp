@@ -3547,19 +3547,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
       *this, Sema::ExpressionEvaluationContext::Unevaluated);
   SFINAETrap Trap(*this);
 
-  llvm::errs() << __LINE__ << ":" __FILE__ << " before0 check constraints\n";
-
-  llvm::errs() << "Dump FunctionTemplate\n";
-  FunctionTemplate->dump();
-  llvm::errs() << "Dump FunctionTemplate->getTemplatedDecl()\n";
-  FunctionTemplate->getTemplatedDecl()->dump();
-  if (FunctionTemplate->getTemplatedDecl()->getPrimaryTemplate()) {
-    llvm::errs() << "Dump FunctionTemplate->getTemplatedDecl()\n";
-    FunctionTemplate->getTemplatedDecl()->getPrimaryTemplate()->dump();
-  } else {
-    llvm::errs() << "NO primary template\n";
-  }
-
   // Enter a new template instantiation context while we instantiate the
   // actual function declaration.
   SmallVector<TemplateArgument, 4> DeducedArgs(Deduced.begin(), Deduced.end());
@@ -3579,7 +3566,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
           *this, FunctionTemplate, /*IsDeduced*/ true, Deduced, Info,
           SugaredBuilder, CanonicalBuilder, CurrentInstantiationScope,
           NumExplicitlySpecified, PartialOverloading)) {
-    llvm::errs() << __LINE__ << " RESULT=" << Result << "\n";
     return Result;
   }
 
@@ -3592,34 +3578,17 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
   //   P with a type that was non-dependent before substitution of any
   //   explicitly-specified template arguments, if the corresponding argument
   //   A cannot be implicitly converted to P, deduction fails.
-  //if (CheckNonDependent())
-  //  return TDK_NonDependentConversionFailure;
+  if(!getenv("NEWCODE")) {
+    if (CheckNonDependent())
+      return TDK_NonDependentConversionFailure;
+  }
 
+  if (getenv("NEWCODE")) {
   if (!PartialOverloading ||
       (CanonicalBuilder.size() ==
        FunctionTemplate->getTemplateParameters()->size())) {
 
-    if (getenv("NEWCODE")) {
     FunctionDecl* Decl = FunctionTemplate->getTemplatedDecl();
-
-    if (0) { // Substitute template args into function including its type.
-             // This is buggy - this should not be done before constraint checking (CWG2369).
-      TemplateArgumentList *CanonicalDeducedArgumentList =
-        TemplateArgumentList::CreateCopy(Context, CanonicalBuilder);
-      DeclContext *Owner = FunctionTemplate->getDeclContext();
-      if (FunctionTemplate->getFriendObjectKind())
-        Owner = FunctionTemplate->getLexicalDeclContext();
-      MultiLevelTemplateArgumentList SubstArgs(
-          FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
-          /*Final=*/false);
-      const auto* Specialization = cast_or_null<FunctionDecl>(
-          SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
-      llvm::errs() << "Created Specialization\n";
-      Specialization->dump();
-    }
-
-    Sema::ContextRAII savedContext(*this, Decl);
-    LocalInstantiationScope Scope(*this);
 
     TemplateArgumentList *SugaredDeducedArgumentList =
         TemplateArgumentList::CreateCopy(Context, SugaredBuilder);
@@ -3627,33 +3596,40 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         TemplateArgumentList::CreateCopy(Context, CanonicalBuilder);
     Info.reset(SugaredDeducedArgumentList, CanonicalDeducedArgumentList);
 
-    llvm::errs() << "newcode Do call to get MLTAL\n";
-    Decl->dump();
     MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
                                        /*Final=*/false);
-    llvm::errs() << "Template Args1\n";
-    std::for_each(CanonicalBuilder.begin(), CanonicalBuilder.end(), [](auto&& A) {
-        A.dump();
-        llvm::errs() << "\n";
-      });
-    llvm::errs() << "Template Args done\n";
-    llvm::errs() << "Template Args2\n";
-    std::for_each(CanonicalDeducedArgumentList->asArray().begin(), CanonicalDeducedArgumentList->asArray().end(), [](auto&& A) {
-        A.dump();
-        llvm::errs() << "\n";
-      });
-    llvm::errs() << "Template Args2 done\n";
-    llvm::errs() << "Finish MLTAL TemplateArgs\n";
+
+    ContextRAII SavedContext(*this, FunctionTemplate->getTemplatedDecl());
+
+    SmallVector<QualType, 8> ParamTypes;
+    ExtParameterInfoBuilder ExtParamInfos;
+    //const auto *Proto = Function->getType()->castAs<FunctionProtoType>();
+    bool V0 = SubstParmTypes(Decl->getLocation(), Decl->parameters(),
+                             /*Proto->getExtParameterInfosOrNull()*/nullptr, MLTAL, ParamTypes,
+                             /*params=*/nullptr, ExtParamInfos);
+    llvm::errs() << "V0=" << V0 << "\n";
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
-    llvm::errs() << __LINE__ << " BEGIN print on demand calculated constraints\n";
-    std::for_each(AssociatedConstraints.begin(), AssociatedConstraints.end(), [](const Expr* E) {
+
+    llvm::errs() << "Before MLTAL\n";
+    FunctionTemplate->dump();
+    Decl->dump();
+    llvm::errs() << "Constraints:\n";
+    std::for_each(AssociatedConstraints.begin(), AssociatedConstraints.end(), [](const auto* E) {
         E->dump();
-        });
-    llvm::errs() << __LINE__ << " END\n";
-    llvm::errs() << "MLTAL has=true"
-      " mlzx=" << MLTAL.getNumSubstitutedLevels() << " sz=" << CanonicalBuilder.size() << " constraints=" << AssociatedConstraints.size() << "\n";
+    });
+    llvm::errs() << "CanonicalBuilder:\n";
+    std::for_each(CanonicalBuilder.begin(), CanonicalBuilder.end(), [](auto E) {
+        E.dump();
+        llvm::errs() << "\n";
+    });
+    llvm::errs() << "CanonicalDeducedArgumentList:\n";
+    std::for_each(CanonicalDeducedArgumentList->asArray().begin(), CanonicalDeducedArgumentList->asArray().end(), [](auto E) {
+        E.dump();
+        llvm::errs() << "\n";
+    });
+
     llvm::SmallVector<Expr *, 1> Converted;
     bool V = CheckConstraintSatisfaction(
         FunctionTemplate,
@@ -3662,22 +3638,20 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         MLTAL,
         Info.getLocation(),
         Info.AssociatedConstraintsSatisfaction);
-    llvm::errs() << "Dump Converted\n";
-    std::for_each(Converted.begin(), Converted.end(), [](Expr* E) {
-        E->dump();
-      });
-    llvm::errs() << "Constraints OK="<<V<<" Converted=" << Converted.size() << "\n";
+    //llvm::errs() << "Dump Converted\n";
+    //std::for_each(Converted.begin(), Converted.end(), [](Expr* E) {
+    //    E->dump();
+    //  });
+    //llvm::errs() << "Constraints OK="<<V<<" Converted=" << Converted.size() << "\n";
 
     if (V) return TDK_MiscellaneousDeductionFailure;
 
     if (!Info.AssociatedConstraintsSatisfaction.IsSatisfied) {
-      llvm::errs() << "next lvl2\n";
       Info.reset(Info.takeSugared(),
           TemplateArgumentList::CreateCopy(Context, CanonicalBuilder));
       return TDK_ConstraintsNotSatisfied;
     }
-    }
-
+  }
   }
 
   // Form the template argument list from the deduced template arguments.
@@ -3695,19 +3669,16 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
   MultiLevelTemplateArgumentList SubstArgs(
       FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
       /*Final=*/false);
-  llvm::errs() << "Create SubstDecl for\n";
-  FunctionTemplate->getTemplatedDecl()->dump();
   Specialization = cast_or_null<FunctionDecl>(
       SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
-  if (!Specialization || Specialization->isInvalidDecl()) {
-    llvm::errs() << __LINE__ << " RESULT=" << TDK_SubstitutionFailure << "\n";
-    if (Specialization) {
-      Specialization->dump();
-    } else {
-      llvm::errs() << "Specialization=null\n";
-    }
+  if (!Specialization || Specialization->isInvalidDecl())
     return TDK_SubstitutionFailure;
-  }
+
+  llvm::errs() << "Made Specialization\n";
+  Specialization->dump();
+  llvm::errs() << "From\n";
+  FunctionTemplate->dump();
+  FunctionTemplate->getTemplatedDecl()->dump();
 
   assert(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
          FunctionTemplate->getCanonicalDecl());
@@ -3726,11 +3697,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     Specialization->setInvalidDecl(true);
     return TDK_SubstitutionFailure;
   }
-
-  llvm::errs() << __LINE__ << ":" __FILE__ << " before check constraints\n";
-
-  llvm::errs() << "Dump Specialization\n";
-  Specialization->dump();
 
   // C++2a [temp.deduct]p5
   //   [...] When all template arguments have been deduced [...] all uses of
@@ -3754,8 +3720,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
       return TDK_ConstraintsNotSatisfied;
     }
   }
-
-  llvm::errs() << __LINE__ << ":" __FILE__ << " after check constraints\n";
 
   if (OriginalCallArgs) {
     // C++ [temp.deduct.call]p4:

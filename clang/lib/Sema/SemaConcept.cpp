@@ -337,16 +337,8 @@ static ExprResult calculateConstraintSatisfaction(
 
           // We do not want error diagnostics escaping here.
           Sema::SFINAETrap Trap(S);
-          llvm::errs() << __LINE__ << " do SubstConstraintExpr\n";
-          AtomicExpr->dump();
           SubstitutedExpression =
               S.SubstConstraintExpr(const_cast<Expr *>(AtomicExpr), MLTAL);
-          llvm::errs() << __LINE__ << " do AFTER SubstConstraintExpr\n";
-          if (SubstitutedExpression.isInvalid()) {
-            llvm::errs() << "Subst INVALID\n";
-          } else {
-            SubstitutedExpression.get()->dump();
-          }
 
           if (SubstitutedExpression.isInvalid() || Trap.hasErrorOccurred()) {
             // C++2a [temp.constr.atomic]p1
@@ -409,11 +401,9 @@ static bool CheckConstraintSatisfaction(
     llvm::SmallVectorImpl<Expr *> &Converted,
     const MultiLevelTemplateArgumentList &TemplateArgsLists,
     SourceRange TemplateIDRange, ConstraintSatisfaction &Satisfaction) {
-  llvm::errs() << __LINE__ << " BEGIN print passed in constraints\n";
-  std::for_each(ConstraintExprs.begin(), ConstraintExprs.end(), [](const Expr* E) {
-      E->dump();
-    });
-  llvm::errs() << __LINE__ << " END\n";
+  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
+  if (Template) Template->dump();
+
   if (ConstraintExprs.empty()) {
     Satisfaction.IsSatisfied = true;
     return false;
@@ -429,7 +419,6 @@ static bool CheckConstraintSatisfaction(
       TemplateArgsLists.getNumSubstitutedLevels() > 0
           ? TemplateArgsLists.getOutermost()
           : ArrayRef<TemplateArgument> {};
-  llvm::errs() << "MLTAL (" << TemplateArgsLists.getNumSubstitutedLevels() << ") size=" << TemplateArgs.size() << "\n";
   Sema::InstantiatingTemplate Inst(S, TemplateIDRange.getBegin(),
       Sema::InstantiatingTemplate::ConstraintsCheck{},
       const_cast<NamedDecl *>(Template), TemplateArgs, TemplateIDRange);
@@ -437,16 +426,12 @@ static bool CheckConstraintSatisfaction(
     return true;
 
   for (const Expr *ConstraintExpr : ConstraintExprs) {
-    llvm::errs() << __FILE__ << ":" << __LINE__ << " calc expr\n";
-    ConstraintExpr->dump();
     ExprResult Res = calculateConstraintSatisfaction(
         S, Template, TemplateIDRange.getBegin(), TemplateArgsLists,
         ConstraintExpr, Satisfaction);
     if (Res.isInvalid())
       return true;
 
-    llvm::errs()<<"Did calc\n";
-    Res.get()->dump();
     Converted.push_back(Res.get());
     if (!Satisfaction.IsSatisfied) {
       // Backfill the 'converted' list with nulls so we can keep the Converted
@@ -467,6 +452,8 @@ bool Sema::CheckConstraintSatisfaction(
     llvm::SmallVectorImpl<Expr *> &ConvertedConstraints,
     const MultiLevelTemplateArgumentList &TemplateArgsLists,
     SourceRange TemplateIDRange, ConstraintSatisfaction &OutSatisfaction) {
+  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
+  if (Template) Template->dump();
   if (ConstraintExprs.empty()) {
     OutSatisfaction.IsSatisfied = true;
     return false;
@@ -527,6 +514,8 @@ bool Sema::CheckConstraintSatisfaction(
 
 bool Sema::CheckConstraintSatisfaction(const Expr *ConstraintExpr,
                                        ConstraintSatisfaction &Satisfaction) {
+  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
+  if (ConstraintExpr) ConstraintExpr->dump();
   return calculateConstraintSatisfaction(
              *this, ConstraintExpr, Satisfaction,
              [this](const Expr *AtomicExpr) -> ExprResult {
@@ -807,11 +796,8 @@ bool Sema::CheckInstantiatedFunctionTemplateConstraints(
     SourceLocation PointOfInstantiation, FunctionDecl *Decl,
     ArrayRef<TemplateArgument> TemplateArgs,
     ConstraintSatisfaction &Satisfaction) {
-  llvm::errs() << "Inside CheckInstantiatedFunctionTemplateConstraints\n";
-  Decl->dump();
   // In most cases we're not going to have constraints, so check for that first.
   FunctionTemplateDecl *Template = Decl->getPrimaryTemplate();
-  Template->dump();
   // Note - code synthesis context for the constraints check is created
   // inside CheckConstraintsSatisfaction.
   SmallVector<const Expr *, 3> TemplateAC;
@@ -821,29 +807,17 @@ bool Sema::CheckInstantiatedFunctionTemplateConstraints(
     return false;
   }
 
-  std::for_each(TemplateAC.begin(), TemplateAC.end(), [](const Expr* E) {
-      E->dump();
-    });
-
   // Enter the scope of this instantiation. We don't use
   // PushDeclContext because we don't have a scope.
   Sema::ContextRAII savedContext(*this, Decl);
   LocalInstantiationScope Scope(*this);
 
-  llvm::errs() << "Do call to get MLTAL, printing TemplateArgs\n";
-  Decl->dump();
-  std::for_each(TemplateArgs.begin(), TemplateArgs.end(), [](auto&& A) {
-      A.dump();
-      llvm::errs()<<"\n";
-    });
-    llvm::errs() << "Finish0 MLTAL TemplateArgs\n";
   std::optional<MultiLevelTemplateArgumentList> MLTAL =
       SetupConstraintCheckingTemplateArgumentsAndScope(Decl, TemplateArgs,
                                                        Scope);
 
   if (!MLTAL)
     return true;
-  llvm::errs() << "mlzx=" << MLTAL->getNumSubstitutedLevels() << " sz=" << TemplateArgs.size() << "\n";
 
   Qualifiers ThisQuals;
   CXXRecordDecl *Record = nullptr;

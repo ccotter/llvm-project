@@ -335,6 +335,8 @@ def executeCommand(command, cwd=None, env=None, input=None, timeout=0,
     is raised.
 
     """
+    if "NEWCODE" in os.environ:
+        env["NEWCODE"] = "1"
     if input is not None:
         input = to_bytes(input)
     err_out = subprocess.STDOUT if redirect_stderr else subprocess.PIPE
