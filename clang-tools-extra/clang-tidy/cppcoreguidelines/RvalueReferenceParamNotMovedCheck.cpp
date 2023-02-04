@@ -104,13 +104,12 @@ void RvalueReferenceParamNotMovedCheck::check(
     }
   }
 
-  StatementMatcher RefToParam = declRefExpr(to(equalsNode(Param))).bind("ref");
   StatementMatcher MoveCallMatcher =
       callExpr(anyOf(callee(functionDecl(hasName("::std::move"))),
                      callee(unresolvedLookupExpr(hasAnyDeclaration(namedDecl(
                          hasUnderlyingDecl(hasName("::std::move"))))))),
                argumentCountIs(1),
-               hasArgument(0, anyOf(RefToParam, hasDescendant(RefToParam))));
+               hasArgument(0, declRefExpr(to(equalsNode(Param))).bind("ref")));
 
   SmallVector<BoundNodes, 1> Matches;
   if (ContainingLambda) {

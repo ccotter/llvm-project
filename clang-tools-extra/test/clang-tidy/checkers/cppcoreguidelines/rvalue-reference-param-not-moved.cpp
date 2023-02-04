@@ -151,6 +151,7 @@ struct mypair {
 };
 
 void moves_member_of_parameter(mypair<Obj, Obj>&& pair) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj a = std::move(pair.first);
   Obj b = std::move(pair.second);
 }
@@ -161,11 +162,12 @@ struct myoptional {
   T&& operator*() &&;
 };
 
-void moves_optional_deref(myoptional<Obj>&& opt) {
+void moves_deref_optional(myoptional<Obj>&& opt) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj other = std::move(*opt);
 }
 
-void moves_optional_deref_alternate(myoptional<Obj>&& opt) {
+void moves_optional_then_deref_resulting_rvalue(myoptional<Obj>&& opt) {
   Obj other = *std::move(opt);
 }
 
