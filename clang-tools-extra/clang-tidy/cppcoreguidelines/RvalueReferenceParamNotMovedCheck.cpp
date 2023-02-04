@@ -85,14 +85,12 @@ void RvalueReferenceParamNotMovedCheck::check(
   const auto *TemplateType =
       Result.Nodes.getNodeAs<TemplateTypeParmDecl>("template-type");
 
-  if (!Param) {
+  if (!Param)
     return;
-  }
 
   const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
-  if (!Function) {
+  if (!Function)
     return;
-  }
 
   if (TemplateType) {
     if (const FunctionTemplateDecl *FuncTemplate =
@@ -146,8 +144,10 @@ void RvalueReferenceParamNotMovedCheck::check(
   }
 
   if (MoveExprsCount == 0) {
-    diag(Param->getLocation(), "rvalue reference parameter is never moved from "
-                               "inside the function body");
+    diag(Param->getLocation(),
+         "rvalue reference parameter %0 is never moved from "
+         "inside the function body")
+        << Param;
   }
 }
 
