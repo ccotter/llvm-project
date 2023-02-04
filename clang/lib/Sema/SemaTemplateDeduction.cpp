@@ -3607,11 +3607,12 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     bool V0 = SubstParmTypes(Decl->getLocation(), Decl->parameters(),
                              /*Proto->getExtParameterInfosOrNull()*/nullptr, MLTAL, ParamTypes,
                              /*params=*/nullptr, ExtParamInfos);
-    llvm::errs() << "V0=" << V0 << "\n";
+    assert(!V0 && "SubstParmTypes failed unexpectedly");
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
 
+#if 0
     llvm::errs() << "Before MLTAL\n";
     FunctionTemplate->dump();
     Decl->dump();
@@ -3629,6 +3630,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         E.dump();
         llvm::errs() << "\n";
     });
+#endif
 
     llvm::SmallVector<Expr *, 1> Converted;
     bool V = CheckConstraintSatisfaction(
@@ -3673,12 +3675,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
       SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
   if (!Specialization || Specialization->isInvalidDecl())
     return TDK_SubstitutionFailure;
-
-  llvm::errs() << "Made Specialization\n";
-  Specialization->dump();
-  llvm::errs() << "From\n";
-  FunctionTemplate->dump();
-  FunctionTemplate->getTemplatedDecl()->dump();
 
   assert(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
          FunctionTemplate->getCanonicalDecl());

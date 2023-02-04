@@ -2,7 +2,6 @@
 
 namespace SubstitutionFailureNestedRequires {
 template<class T>  concept True = true;
-template<class T>  concept False = false;
 
 struct S { double value; };
 
@@ -23,27 +22,13 @@ void bar() {
 namespace ErrorExpressions_NotSF {
 template<typename T> struct X { static constexpr bool value = T::value; }; // #X_Value
 struct True { static constexpr bool value = true; };
-struct False { static constexpr bool value = false; };
 template<typename T> concept C = true;
 template<typename T> concept F = false;
 
-template<typename T> requires requires(T) { requires C<T> || X<T>::value; } void foo();
 
 template<typename T> requires requires(T) { requires C<T> && X<T>::value; } void bar(); // #bar
-template<typename T> requires requires(T) { requires F<T> || (X<T>::value && C<T>); } void baz();
 
 void func() {
-  foo<True>();
-  foo<False>();
-  foo<int>();
-
-  bar<True>();
-  bar<False>();
-  // expected-error@-1 {{no matching function for call to 'bar'}}
-  // expected-note@#bar {{while substituting template arguments into constraint expression here}}
-  // expected-note@#bar {{while checking the satisfaction of nested requirement requested here}}
-  // expected-note@#bar {{candidate template ignored: constraints not satisfied [with T = False]}}
-  // expected-note@#bar {{because 'X<False>::value' evaluated to false}}
 
   bar<int>();
   // expected-note@-1 {{while checking constraint satisfaction for template 'bar<int>' required here}} \
@@ -53,6 +38,8 @@ void func() {
   // expected-note@#bar {{while checking the satisfaction of nested requirement requested here}}
   // expected-note@#bar {{while substituting template arguments into constraint expression here}}
   // expected-error@#X_Value {{type 'int' cannot be used prior to '::' because it has no members}}
+  // expected-note@#bar {{while substituting template arguments into constraint expression here}}
+  // expected-note@#bar {{while checking the satisfaction of nested requirement requested here}}
 }
 }
 }

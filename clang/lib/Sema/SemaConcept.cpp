@@ -401,9 +401,6 @@ static bool CheckConstraintSatisfaction(
     llvm::SmallVectorImpl<Expr *> &Converted,
     const MultiLevelTemplateArgumentList &TemplateArgsLists,
     SourceRange TemplateIDRange, ConstraintSatisfaction &Satisfaction) {
-  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
-  if (Template) Template->dump();
-
   if (ConstraintExprs.empty()) {
     Satisfaction.IsSatisfied = true;
     return false;
@@ -452,8 +449,6 @@ bool Sema::CheckConstraintSatisfaction(
     llvm::SmallVectorImpl<Expr *> &ConvertedConstraints,
     const MultiLevelTemplateArgumentList &TemplateArgsLists,
     SourceRange TemplateIDRange, ConstraintSatisfaction &OutSatisfaction) {
-  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
-  if (Template) Template->dump();
   if (ConstraintExprs.empty()) {
     OutSatisfaction.IsSatisfied = true;
     return false;
@@ -514,8 +509,6 @@ bool Sema::CheckConstraintSatisfaction(
 
 bool Sema::CheckConstraintSatisfaction(const Expr *ConstraintExpr,
                                        ConstraintSatisfaction &Satisfaction) {
-  llvm::errs() << __LINE__ << " CheckConstraintSatisfaction\n";
-  if (ConstraintExpr) ConstraintExpr->dump();
   return calculateConstraintSatisfaction(
              *this, ConstraintExpr, Satisfaction,
              [this](const Expr *AtomicExpr) -> ExprResult {
