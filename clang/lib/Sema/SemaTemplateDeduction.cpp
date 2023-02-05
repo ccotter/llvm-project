@@ -3629,7 +3629,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
 
     llvm::errs() << "newcode Do call to get MLTAL\n";
     Decl->dump();
-    MultiLevelTemplateArgumentList MLTAL(Decl, CanonicalDeducedArgumentList->asArray(),
+    MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
                                        /*Final=*/false);
     llvm::errs() << "Template Args1\n";
     std::for_each(CanonicalBuilder.begin(), CanonicalBuilder.end(), [](auto&& A) {
