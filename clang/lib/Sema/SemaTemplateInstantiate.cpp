@@ -301,8 +301,6 @@ MultiLevelTemplateArgumentList Sema::getTemplateInstantiationArgs(
   const Decl *CurDecl = ND;
 
   while (!CurDecl->isFileContextDecl()) {
-    llvm::errs() << "Inside loop\n";
-    CurDecl->dump();
     using namespace TemplateInstArgsHelpers;
     Response R;
     if (const auto *VarTemplSpec =
@@ -338,7 +336,6 @@ MultiLevelTemplateArgumentList Sema::getTemplateInstantiationArgs(
     assert(R.NextDecl);
     CurDecl = R.NextDecl;
   }
-  llvm::errs() << "Exit loop\n";
 
   return Result;
 }

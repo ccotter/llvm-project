@@ -193,21 +193,9 @@ enum class TemplateSubstitutionKind : char {
       return false;
     }
 
-    static void dumplist(const ArgList& L) {
-      llvm::errs() << "dumplist\n";
-      std::for_each(L.begin(), L.end(), [](const auto& ALE) {
-        ALE.dump();
-        llvm::errs() << "\n";
-      });
-      llvm::errs() << "done\n";
-    }
-
     /// Clear out a specific template argument.
     void setArgument(unsigned Depth, unsigned Index,
                      TemplateArgument Arg) {
-      llvm::errs() << "[" << this << "]MLTAL setArgument(" << Depth << ", " << Index << ")=";
-      Arg.dump();
-      llvm::errs() << "\n";
       assert(NumRetainedOuterLevels <= Depth && Depth < getNumLevels());
       assert(Index <
              TemplateArgumentLists[getNumLevels() - Depth - 1].Args.size());
@@ -220,8 +208,6 @@ enum class TemplateSubstitutionKind : char {
       assert(!NumRetainedOuterLevels &&
              "substituted args outside retained args?");
       assert(getKind() == TemplateSubstitutionKind::Specialization);
-      llvm::errs() << "[" << this << "]MLTAL addInnerTemplateArguments\n";
-      dumplist(Args);
       TemplateArgumentLists.insert(
           TemplateArgumentLists.begin(),
           {{AssociatedDecl->getCanonicalDecl(), Final}, Args});
@@ -236,8 +222,6 @@ enum class TemplateSubstitutionKind : char {
       assert(!NumRetainedOuterLevels &&
              "substituted args outside retained args?");
       assert(getKind() == TemplateSubstitutionKind::Specialization);
-      llvm::errs() << "[" << this << "]MLTAL addOuterTemplateArguments1\n";
-      dumplist(Args);
       TemplateArgumentLists.push_back(
           {{AssociatedDecl->getCanonicalDecl(), Final}, Args});
     }
@@ -246,15 +230,12 @@ enum class TemplateSubstitutionKind : char {
       assert(!NumRetainedOuterLevels &&
              "substituted args outside retained args?");
       assert(getKind() == TemplateSubstitutionKind::Rewrite);
-      llvm::errs() << "[" << this << "]MLTAL addOuterTemplateArguments2\n";
-      dumplist(Args);
       TemplateArgumentLists.push_back({{}, Args});
     }
 
     void addOuterTemplateArguments(std::nullopt_t) {
       assert(!NumRetainedOuterLevels &&
              "substituted args outside retained args?");
-      llvm::errs() << "[" << this << "]MLTAL addOuterTemplateArguments3 (nullopt)\n";
       TemplateArgumentLists.push_back({});
     }
 

@@ -219,8 +219,6 @@ calculateConstraintSatisfaction(Sema &S, const Expr *ConstraintExpr,
   }
 
   // An atomic constraint expression
-  llvm::errs() << "Before subst\n";
-  ConstraintExpr->dump();
   ExprResult SubstitutedAtomicExpr = Evaluator(ConstraintExpr);
 
   if (SubstitutedAtomicExpr.isInvalid())
@@ -259,8 +257,6 @@ calculateConstraintSatisfaction(Sema &S, const Expr *ConstraintExpr,
   SmallVector<PartialDiagnosticAt, 2> EvaluationDiags;
   Expr::EvalResult EvalResult;
   EvalResult.Diag = &EvaluationDiags;
-  llvm::errs() << "SubstitutedAtomicExpr\n";
-  SubstitutedAtomicExpr.get()->dump();
   if (!SubstitutedAtomicExpr.get()->EvaluateAsConstantExpr(EvalResult,
                                                            S.Context) ||
       !EvaluationDiags.empty()) {
@@ -593,9 +589,6 @@ Sema::SetupConstraintCheckingTemplateArgumentsAndScope(
     LocalInstantiationScope &Scope) {
   MultiLevelTemplateArgumentList MLTAL;
 
-  llvm::errs() << "SetupConstraintCheckingTemplateArgumentsAndScope[" << int(TemplateArgs ? TemplateArgs->size() : -1) << "]\n";
-  FD->dump();
-
   // Collect the list of template arguments relative to the 'primary' template.
   // We need the entire list, since the constraint is completely uninstantiated
   // at this point.
@@ -812,22 +805,12 @@ bool Sema::CheckInstantiatedFunctionTemplateConstraints(
   Sema::ContextRAII savedContext(*this, Decl);
   LocalInstantiationScope Scope(*this);
 
-  llvm::errs() << "SemaConcept MLTAL\n";
   std::optional<MultiLevelTemplateArgumentList> MLTAL =
       SetupConstraintCheckingTemplateArgumentsAndScope(Decl, TemplateArgs,
                                                        Scope);
-  llvm::errs() << "SemaConcept DONE MLTAL\n";
 
   if (!MLTAL)
     return true;
-
-  auto&& MLTAL2 = *MLTAL;
-
-  llvm::errs() << "TemplateArgs:\n";
-  std::for_each(TemplateArgs.begin(), TemplateArgs.end(), [](auto E) {
-      E.dump();
-      llvm::errs() << "\n";
-  });
 
   Qualifiers ThisQuals;
   CXXRecordDecl *Record = nullptr;

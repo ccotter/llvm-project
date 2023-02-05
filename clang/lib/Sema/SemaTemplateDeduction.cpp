@@ -3565,9 +3565,8 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
   if (auto Result = ConvertDeducedTemplateArguments(
           *this, FunctionTemplate, /*IsDeduced*/ true, Deduced, Info,
           SugaredBuilder, CanonicalBuilder, CurrentInstantiationScope,
-          NumExplicitlySpecified, PartialOverloading)) {
+          NumExplicitlySpecified, PartialOverloading))
     return Result;
-  }
 
   // C++ [temp.deduct.call]p10: [DR1391]
   //   If deduction succeeds for all parameters that contain
@@ -3607,7 +3606,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     std::optional<MultiLevelTemplateArgumentList> MLTAL =
         SetupConstraintCheckingTemplateArgumentsAndScope(
             Decl, CanonicalDeducedArgumentList->asArray(), Scope);
-    llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
+    //llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
     MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
 
     SmallVector<QualType, 8> ParamTypes;
@@ -3621,7 +3620,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
 
-#if 1
+#if 0
     llvm::errs() << "Before MLTAL\n";
     FunctionTemplate->dump();
     Decl->dump();

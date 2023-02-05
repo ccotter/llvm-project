@@ -284,7 +284,6 @@ class Builder(threading.Thread):
             os.makedirs(execdir)
 
         execenv = os.environ.copy()
-        print(execenv)
 
         for key, value in env.items():
             execenv[key] = value
