@@ -3933,6 +3933,10 @@ Sema::SubstConstraintExpr(Expr *E,
   if (!E)
     return E;
 
+  llvm::errs() << "SubstConstraintExpr\n";
+  E->dump();
+  TemplateArgs.dumplist();
+
   // This is where we need to make sure we 'know' constraint checking needs to
   // happen.
   TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),

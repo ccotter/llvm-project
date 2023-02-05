@@ -193,6 +193,18 @@ enum class TemplateSubstitutionKind : char {
       return false;
     }
 
+    void dumplist() const {
+      llvm::errs() << "dumplist[" << this << "]\n";
+      for (const auto& TAL: TemplateArgumentLists) {
+        std::for_each(TAL.Args.begin(), TAL.Args.end(), [](const auto& ALE) {
+          ALE.dump();
+          llvm::errs() << ",";
+        });
+        llvm::errs() << "\n";
+      }
+      llvm::errs() << "dumplist[" << this << "] done\n";
+    }
+
     /// Clear out a specific template argument.
     void setArgument(unsigned Depth, unsigned Index,
                      TemplateArgument Arg) {
