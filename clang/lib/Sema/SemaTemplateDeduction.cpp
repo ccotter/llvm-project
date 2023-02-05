@@ -58,6 +58,8 @@
 #include <type_traits>
 #include <utility>
 
+extern bool enable_hack;
+
 namespace clang {
 
   /// Various flags that control template argument deduction.
@@ -3612,30 +3614,31 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     llvm::errs() << "NEWCODE 1. SubstArgs DONE\n";
 
     // TODO how to do this without modifying 'Decl'?
+#if 1
     SmallVector<QualType, 8> ParamTypes;
+    SmallVector<ParmVarDecl*, 8> Params;
     ExtParameterInfoBuilder ExtParamInfos;
     //const auto *Proto = Function->getType()->castAs<FunctionProtoType>();
     Decl->dump();
     bool V0 = SubstParmTypes(Decl->getLocation(), Decl->parameters(),
                              /*Proto->getExtParameterInfosOrNull()*/nullptr, SubstArgs, ParamTypes,
-                             /*params=*/nullptr, ExtParamInfos);
+                             &Params, ExtParamInfos);
     Decl->dump();
     if (V0)
       return TDK_SubstitutionFailure;
-
     assert(!V0 && "SubstParmTypes failed unexpectedly");
+    llvm::errs() << "After SubstParmTypes[" << ParamTypes.size() << "][" << Params.size() << "]\n";
+    for (const ParmVarDecl* P: Params) {
+      P->dump();
+    }
+
+    Decl->dump();
+#endif
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
 
 #if 0
-    llvm::errs() << "Before MLTAL\n";
-    FunctionTemplate->dump();
-    Decl->dump();
-    llvm::errs() << "Constraints:\n";
-    std::for_each(AssociatedConstraints.begin(), AssociatedConstraints.end(), [](const auto* E) {
-        E->dump();
-    });
     llvm::errs() << "CanonicalBuilder:\n";
     std::for_each(CanonicalBuilder.begin(), CanonicalBuilder.end(), [](auto E) {
         E.dump();
@@ -3656,6 +3659,12 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
     MLTAL->dumplist();
     llvm::errs() << "NEWCODE DONE\n";
+
+    llvm::errs() << "Before CheckConstraintSatisfaction\n";
+    llvm::errs() << "Constraints[" << AssociatedConstraints.size() << "]:\n";
+    std::for_each(AssociatedConstraints.begin(), AssociatedConstraints.end(), [](const auto* E) {
+        E->dump();
+    });
 
     llvm::SmallVector<Expr *, 1> Converted;
     bool V = CheckConstraintSatisfaction(

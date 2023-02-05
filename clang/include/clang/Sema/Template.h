@@ -196,6 +196,15 @@ enum class TemplateSubstitutionKind : char {
     void dumplist() const {
       llvm::errs() << "dumplist[" << this << "]\n";
       for (const auto& TAL: TemplateArgumentLists) {
+        auto& ADF = TAL.AssociatedDeclAndFinal;
+        Decl* AD = ADF.getPointer();
+        bool Final = ADF.getInt() != 0;
+        if (AD) {
+          llvm::errs() << "For Decl[Final=" << Final << "]\n";
+          AD->dump();
+        } else {
+          llvm::errs() << "For Decl[Final=" << Final << ",nullptr]\n";
+        }
         std::for_each(TAL.Args.begin(), TAL.Args.end(), [](const auto& ALE) {
           ALE.dump();
           llvm::errs() << ",";

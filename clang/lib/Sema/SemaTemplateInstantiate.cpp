@@ -38,6 +38,8 @@
 #include "llvm/Support/TimeProfiler.h"
 #include <optional>
 
+bool enable_hack = false;
+
 using namespace clang;
 using namespace sema;
 
@@ -1104,7 +1106,10 @@ namespace {
                          const MultiLevelTemplateArgumentList &TemplateArgs,
                          SourceLocation Loc, DeclarationName Entity)
         : inherited(SemaRef), TemplateArgs(TemplateArgs), Loc(Loc),
-          Entity(Entity) {}
+          Entity(Entity) {
+            llvm::errs() << "TemplateInstantiator\n";
+            TemplateArgs.dumplist();
+          }
 
     void setEvaluateConstraints(bool B) {
       EvaluateConstraints = B;
@@ -3942,6 +3947,26 @@ Sema::SubstConstraintExpr(Expr *E,
   TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),
                                     DeclarationName());
   return Instantiator.TransformExpr(E);
+}
+
+ExprResult
+Sema::SubstParamsForConstraintChecking(FunctionDecl *FD,
+                                       const MultiLevelTemplateArgumentList &TemplateArgs) {
+#if 0
+  if (!FD)
+    return FD;
+
+  llvm::errs() << "SubstParamsForConstraintChecking\n";
+  FD->dump();
+  TemplateArgs.dumplist();
+
+  // This is where we need to make sure we 'know' constraint checking needs to
+  // happen.
+  TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),
+                                    DeclarationName());
+  return Instantiator.TransformExpr(E);
+#endif
+  return {};
 }
 
 ExprResult Sema::SubstInitializer(Expr *Init,
