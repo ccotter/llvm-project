@@ -4637,8 +4637,12 @@ Sema::CreateUnaryExprOrTypeTraitExpr(TypeSourceInfo *TInfo,
       TInfo->getType()->isVariablyModifiedType())
     TInfo = TransformToPotentiallyEvaluated(TInfo);
 
-  return new (Context) UnaryExprOrTypeTraitExpr(
+  auto* P = new (Context) UnaryExprOrTypeTraitExpr(
       ExprKind, TInfo, Context.getSizeType(), OpLoc, R.getEnd());
+  llvm::errs() << "Created UnaryExprOrTypeTrait [valdep=" << P->isValueDependent() <<
+    " typedep=" << P->isTypeDependent() << " argtype=" << P->isArgumentType() << "]\n";
+  P->dump();
+  return P;
 }
 
 /// Build a sizeof or alignof expression given an expression

@@ -3596,23 +3596,32 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         TemplateArgumentList::CreateCopy(Context, CanonicalBuilder);
     Info.reset(SugaredDeducedArgumentList, CanonicalDeducedArgumentList);
 
-    MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
-                                       /*Final=*/false);
+    //MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
+    //                                   /*Final=*/false);
 
-    ContextRAII SavedContext(*this, FunctionTemplate->getTemplatedDecl());
+    // TODO - does SavedContext need to be before or after MLTAL construction?
+    ContextRAII SavedContext(*this, Decl);
+    LocalInstantiationScope Scope(*this);
+
+    llvm::errs() << "NEWCODE MLTAL\n";
+    std::optional<MultiLevelTemplateArgumentList> MLTAL =
+        SetupConstraintCheckingTemplateArgumentsAndScope(
+            Decl, CanonicalDeducedArgumentList->asArray(), Scope);
+    llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
+    MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
 
     SmallVector<QualType, 8> ParamTypes;
     ExtParameterInfoBuilder ExtParamInfos;
     //const auto *Proto = Function->getType()->castAs<FunctionProtoType>();
     bool V0 = SubstParmTypes(Decl->getLocation(), Decl->parameters(),
-                             /*Proto->getExtParameterInfosOrNull()*/nullptr, MLTAL, ParamTypes,
+                             /*Proto->getExtParameterInfosOrNull()*/nullptr, *MLTAL, ParamTypes,
                              /*params=*/nullptr, ExtParamInfos);
     assert(!V0 && "SubstParmTypes failed unexpectedly");
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
 
-#if 0
+#if 1
     llvm::errs() << "Before MLTAL\n";
     FunctionTemplate->dump();
     Decl->dump();
@@ -3637,7 +3646,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         FunctionTemplate,
         AssociatedConstraints,
         Converted,
-        MLTAL,
+        *MLTAL,
         Info.getLocation(),
         Info.AssociatedConstraintsSatisfaction);
     //llvm::errs() << "Dump Converted\n";
