@@ -194,7 +194,7 @@ enum class TemplateSubstitutionKind : char {
     }
 
     void dumplist() const {
-      llvm::errs() << "dumplist[" << this << "]\n";
+      llvm::errs() << "dumplist[" << this << "][" << TemplateArgumentLists.size() << "]\n";
       for (const auto& TAL: TemplateArgumentLists) {
         auto& ADF = TAL.AssociatedDeclAndFinal;
         Decl* AD = ADF.getPointer();

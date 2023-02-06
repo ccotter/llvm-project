@@ -4106,7 +4106,7 @@ LocalInstantiationScope::findInstantiationOf(const Decl *D) {
   return nullptr;
 }
 
-void LocalInstantiationScope::InstantiatedLocal(const Decl *D, Decl *Inst) {
+void LocalInstantiationScope::InstantiatedLocal(const Decl *D, Decl *Inst) { // E.g., D = U, Inst = int
   D = getCanonicalParmVarDecl(D);
   llvm::PointerUnion<Decl *, DeclArgumentPack *> &Stored = LocalDecls[D];
   if (Stored.isNull()) {
