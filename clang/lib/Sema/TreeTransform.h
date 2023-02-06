@@ -44,6 +44,8 @@
 
 using namespace llvm::omp;
 
+extern bool enable_hack;
+
 namespace clang {
 using namespace sema;
 
@@ -6021,7 +6023,7 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
   Sema::ExtParameterInfoBuilder ExtParamInfos;
   const FunctionProtoType *T = TL.getTypePtr();
 
-  QualType ResultType;
+  QualType ResultType = TL.getType();
 
   if (T->hasTrailingReturn()) {
     if (getDerived().TransformFunctionTypeParams(
@@ -6046,9 +6048,11 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
     }
   }
   else {
-    ResultType = getDerived().TransformType(TLB, TL.getReturnLoc());
-    if (ResultType.isNull())
-      return QualType();
+    if (!enable_hack) {
+      ResultType = getDerived().TransformType(TLB, TL.getReturnLoc());
+      if (ResultType.isNull())
+        return QualType();
+      }
 
     if (getDerived().TransformFunctionTypeParams(
             TL.getBeginLoc(), TL.getParams(),

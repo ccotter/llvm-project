@@ -3600,10 +3600,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     //MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
     //                                   /*Final=*/false);
 
-    // TODO - does SavedContext need to be before or after MLTAL construction?
-    ContextRAII SavedContext(*this, Decl);
-    LocalInstantiationScope Scope(*this);
-
     // First, subst parm types only with immediaetly substituted template params
     // Then, substitute with full MultiLevelTemplateArgumentList from outer template
 
@@ -3614,7 +3610,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     llvm::errs() << "NEWCODE 1. SubstArgs DONE\n";
 
     // TODO how to do this without modifying 'Decl'?
-#if 1
+#if 0
     SmallVector<QualType, 8> ParamTypes;
     SmallVector<ParmVarDecl*, 8> Params;
     ExtParameterInfoBuilder ExtParamInfos;
@@ -3633,7 +3629,25 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     }
 
     Decl->dump();
+#else
+    // Substitute the deduced template arguments into the function template
+    // declaration to produce the function template specialization.
+    DeclContext *Owner = FunctionTemplate->getDeclContext();
+    if (FunctionTemplate->getFriendObjectKind())
+      Owner = FunctionTemplate->getLexicalDeclContext();
+    enable_hack = false;
+    llvm::errs() << "NEWCODE Specialization\n";
+    Specialization = cast_or_null<FunctionDecl>(
+        SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
+    enable_hack = false;
+    if (Specialization) Specialization->dump(); else llvm::errs() << "Nullspec\n";
+    if (!Specialization || Specialization->isInvalidDecl())
+      return TDK_SubstitutionFailure;
 #endif
+
+    // TODO - does SavedContext need to be before or after MLTAL construction?
+    ContextRAII SavedContext(*this, Specialization);
+    LocalInstantiationScope Scope(*this);
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
@@ -3654,7 +3668,7 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     llvm::errs() << "NEWCODE MLTAL\n";
     std::optional<MultiLevelTemplateArgumentList> MLTAL =
         SetupConstraintCheckingTemplateArgumentsAndScope(
-            Decl, CanonicalDeducedArgumentList->asArray(), Scope);
+            Specialization, CanonicalDeducedArgumentList->asArray(), Scope);
     //llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
     MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
     MLTAL->dumplist();
