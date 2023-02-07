@@ -9944,7 +9944,7 @@ public:
   TypeSourceInfo *SubstFunctionDeclType(
       TypeSourceInfo *T, const MultiLevelTemplateArgumentList &TemplateArgs,
       SourceLocation Loc, DeclarationName Entity, CXXRecordDecl *ThisContext,
-      Qualifiers ThisTypeQuals, bool EvaluateConstraints = true);
+      Qualifiers ThisTypeQuals, bool EvaluateConstraints = true, bool ParamsOnly = false);
   void SubstExceptionSpec(FunctionDecl *New, const FunctionProtoType *Proto,
                           const MultiLevelTemplateArgumentList &Args);
   bool SubstExceptionSpec(SourceLocation Loc,
@@ -10023,6 +10023,9 @@ public:
 
   Decl *SubstDecl(Decl *D, DeclContext *Owner,
                   const MultiLevelTemplateArgumentList &TemplateArgs);
+
+  Decl *SubstParamsInDecl(Decl *D, DeclContext *Owner,
+                          const MultiLevelTemplateArgumentList &TemplateArgs);
 
   /// Substitute the name and return type of a defaulted 'operator<=>' to form
   /// an implicit 'operator=='.

@@ -3999,6 +3999,20 @@ Decl *Sema::SubstDecl(Decl *D, DeclContext *Owner,
   return SubstD;
 }
 
+Decl *Sema::SubstParamsInDecl(Decl *D, DeclContext *Owner,
+                              const MultiLevelTemplateArgumentList &TemplateArgs) {
+  TemplateDeclInstantiator Instantiator(*this, Owner, TemplateArgs);
+  Instantiator.setParamsOnly(true);
+  if (D->isInvalidDecl())
+    return nullptr;
+
+  Decl *SubstD;
+  runWithSufficientStackSpace(D->getLocation(), [&] {
+    SubstD = Instantiator.Visit(D);
+  });
+  return SubstD;
+}
+
 void TemplateDeclInstantiator::adjustForRewrite(RewriteKind RK,
                                                 FunctionDecl *Orig, QualType &T,
                                                 TypeSourceInfo *&TInfo,
@@ -4392,7 +4406,7 @@ TemplateDeclInstantiator::SubstFunctionType(FunctionDecl *D,
 
   TypeSourceInfo *NewTInfo = SemaRef.SubstFunctionDeclType(
       OldTInfo, TemplateArgs, D->getTypeSpecStartLoc(), D->getDeclName(),
-      ThisContext, ThisTypeQuals, EvaluateConstraints);
+      ThisContext, ThisTypeQuals, EvaluateConstraints, ParamsOnly);
   if (!NewTInfo)
     return nullptr;
 

@@ -565,6 +565,7 @@ enum class TemplateSubstitutionKind : char {
     Sema::LateInstantiatedAttrVec* LateAttrs = nullptr;
     LocalInstantiationScope *StartingScope = nullptr;
     bool EvaluateConstraints = true;
+    bool ParamsOnly = false;
 
     /// A list of out-of-line class template partial
     /// specializations that will need to be instantiated after the
@@ -593,6 +594,12 @@ enum class TemplateSubstitutionKind : char {
     }
     bool getEvaluateConstraints() {
       return EvaluateConstraints;
+    }
+    void setParamsOnly(bool B) {
+      ParamsOnly = B;
+    }
+    bool getParamsOnly() {
+      return ParamsOnly;
     }
 
 // Define all the decl visitors using DeclNodes.inc

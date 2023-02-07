@@ -44,8 +44,6 @@
 
 using namespace llvm::omp;
 
-extern bool enable_hack;
-
 namespace clang {
 using namespace sema;
 
@@ -645,6 +643,11 @@ public:
   TransformSubstTemplateTypeParmPackType(TypeLocBuilder &TLB,
                                          SubstTemplateTypeParmPackTypeLoc TL,
                                          bool SuppressObjCLifetime);
+
+  QualType TransformFunctionProtoTypeParams(TypeLocBuilder &TLB,
+                                      FunctionProtoTypeLoc TL,
+                                      CXXRecordDecl *ThisContext,
+                                      Qualifiers ThisTypeQuals);
 
   template<typename Fn>
   QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
@@ -5993,6 +5996,71 @@ bool TreeTransform<Derived>::TransformFunctionTypeParams(
 }
 
 template<typename Derived>
+QualType TreeTransform<Derived>::TransformFunctionProtoTypeParams(
+    TypeLocBuilder &TLB, FunctionProtoTypeLoc TL, CXXRecordDecl *ThisContext,
+    Qualifiers ThisTypeQuals) {
+
+  // Transform the parameters and return type.
+  //
+  // We are required to instantiate the params and return type in source order.
+  // When the function has a trailing return type, we instantiate the
+  // parameters before the return type,  since the return type can then refer
+  // to the parameters themselves (via decltype, sizeof, etc.).
+  //
+  SmallVector<QualType, 4> ParamTypes;
+  SmallVector<ParmVarDecl*, 4> ParamDecls;
+  Sema::ExtParameterInfoBuilder ExtParamInfos;
+  const FunctionProtoType *T = TL.getTypePtr();
+
+  QualType ResultType = TL.getReturnLoc().getType();
+  TLB.pushFullCopy(TL.getReturnLoc());
+
+  if (getDerived().TransformFunctionTypeParams(
+          TL.getBeginLoc(), TL.getParams(),
+          TL.getTypePtr()->param_type_begin(),
+          T->getExtParameterInfosOrNull(),
+          ParamTypes, &ParamDecls, ExtParamInfos))
+    return QualType();
+
+  FunctionProtoType::ExtProtoInfo EPI = T->getExtProtoInfo();
+
+  bool EPIChanged = false;
+
+  // Handle extended parameter information.
+  if (auto NewExtParamInfos =
+        ExtParamInfos.getPointerOrNull(ParamTypes.size())) {
+    if (!EPI.ExtParameterInfos ||
+        llvm::ArrayRef(EPI.ExtParameterInfos, TL.getNumParams()) !=
+            llvm::ArrayRef(NewExtParamInfos, ParamTypes.size())) {
+      EPIChanged = true;
+    }
+    EPI.ExtParameterInfos = NewExtParamInfos;
+  } else if (EPI.ExtParameterInfos) {
+    EPIChanged = true;
+    EPI.ExtParameterInfos = nullptr;
+  }
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() ||
+      T->getParamTypes() != llvm::ArrayRef(ParamTypes) || EPIChanged) {
+    Result = getDerived().RebuildFunctionProtoType(ResultType, ParamTypes, EPI);
+    if (Result.isNull())
+      return QualType();
+  }
+
+  FunctionProtoTypeLoc NewTL = TLB.push<FunctionProtoTypeLoc>(Result);
+  NewTL.setLocalRangeBegin(TL.getLocalRangeBegin());
+  NewTL.setLParenLoc(TL.getLParenLoc());
+  NewTL.setRParenLoc(TL.getRParenLoc());
+  NewTL.setExceptionSpecRange(TL.getExceptionSpecRange());
+  NewTL.setLocalRangeEnd(TL.getLocalRangeEnd());
+  for (unsigned i = 0, e = NewTL.getNumParams(); i != e; ++i)
+    NewTL.setParam(i, ParamDecls[i]);
+
+  return Result;
+}
+
+template<typename Derived>
 QualType
 TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                                    FunctionProtoTypeLoc TL) {
@@ -6023,7 +6091,7 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
   Sema::ExtParameterInfoBuilder ExtParamInfos;
   const FunctionProtoType *T = TL.getTypePtr();
 
-  QualType ResultType = TL.getType();
+  QualType ResultType;
 
   if (T->hasTrailingReturn()) {
     if (getDerived().TransformFunctionTypeParams(
@@ -6048,11 +6116,9 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
     }
   }
   else {
-    if (!enable_hack) {
-      ResultType = getDerived().TransformType(TLB, TL.getReturnLoc());
-      if (ResultType.isNull())
-        return QualType();
-      }
+    ResultType = getDerived().TransformType(TLB, TL.getReturnLoc());
+    if (ResultType.isNull())
+      return QualType();
 
     if (getDerived().TransformFunctionTypeParams(
             TL.getBeginLoc(), TL.getParams(),

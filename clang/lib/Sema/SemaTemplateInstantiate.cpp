@@ -2510,7 +2510,8 @@ TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
                                 DeclarationName Entity,
                                 CXXRecordDecl *ThisContext,
                                 Qualifiers ThisTypeQuals,
-                                bool EvaluateConstraints) {
+                                bool EvaluateConstraints,
+                                bool ParamsOnly) {
   assert(!CodeSynthesisContexts.empty() &&
          "Cannot perform an instantiation without some context on the "
          "instantiation stack");
@@ -2524,7 +2525,6 @@ TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
   TypeLocBuilder TLB;
 
   TypeLoc TL = T->getTypeLoc();
-  TLB.reserve(TL.getFullDataSize());
 
   QualType Result;
 
@@ -2535,10 +2535,16 @@ TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
     // once we've built the FunctionDecl.
     // FIXME: Set the exception specification to EST_Uninstantiated here,
     // instead of rebuilding the function type again later.
-    Result = Instantiator.TransformFunctionProtoType(
-        TLB, Proto, ThisContext, ThisTypeQuals,
-        [](FunctionProtoType::ExceptionSpecInfo &ESI,
-           bool &Changed) { return false; });
+    if (ParamsOnly) {
+      Result = Instantiator.TransformFunctionProtoTypeParams(
+          TLB, Proto, ThisContext, ThisTypeQuals);
+    } else {
+      TLB.reserve(TL.getFullDataSize());
+      Result = Instantiator.TransformFunctionProtoType(
+          TLB, Proto, ThisContext, ThisTypeQuals,
+          [](FunctionProtoType::ExceptionSpecInfo &ESI,
+            bool &Changed) { return false; });
+    }
   } else {
     Result = Instantiator.TransformType(TLB, TL);
   }

@@ -58,8 +58,6 @@
 #include <type_traits>
 #include <utility>
 
-extern bool enable_hack;
-
 namespace clang {
 
   /// Various flags that control template argument deduction.
@@ -3639,14 +3637,13 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     DeclContext *Owner = FunctionTemplate->getDeclContext();
     if (FunctionTemplate->getFriendObjectKind())
       Owner = FunctionTemplate->getLexicalDeclContext();
-    enable_hack = false;
-    llvm::errs() << "NEWCODE Specialization\n";
-    Specialization = cast_or_null<FunctionDecl>(
-        SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
-    enable_hack = false;
-    if (Specialization) Specialization->dump(); else llvm::errs() << "Nullspec\n";
-    if (!Specialization || Specialization->isInvalidDecl())
+    llvm::errs() << "NEWCODE FakeSpecialization\n";
+    FunctionDecl* FakeSpecialization = cast_or_null<FunctionDecl>(
+        SubstParamsInDecl(Decl, Owner, SubstArgs));
+    if (FakeSpecialization) FakeSpecialization->dump(); else llvm::errs() << "Nullspec\n";
+    if (!FakeSpecialization || FakeSpecialization->isInvalidDecl())
       return TDK_SubstitutionFailure;
+    FakeSpecialization->dump();
 #endif
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
@@ -3668,9 +3665,10 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     llvm::errs() << "NEWCODE MLTAL\n";
     std::optional<MultiLevelTemplateArgumentList> MLTAL =
         SetupConstraintCheckingTemplateArgumentsAndScope(
-            getenv("NEWCODE2") ? Specialization : Decl, CanonicalDeducedArgumentList->asArray(), Scope);
+            FakeSpecialization, CanonicalDeducedArgumentList->asArray(), Scope);
+            //getenv("NEWCODE2") ? Specialization : Decl, CanonicalDeducedArgumentList->asArray(), Scope);
     //llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
-    if (!getenv("NEWCODE2")) MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
+    //if (!getenv("NEWCODE2")) MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
     MLTAL->dumplist();
     llvm::errs() << "NEWCODE DONE\n";
 
@@ -3727,6 +3725,8 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
   if (Specialization) Specialization->dump(); else llvm::errs() << "Nullspec\n";
   if (!Specialization || Specialization->isInvalidDecl())
     return TDK_SubstitutionFailure;
+  llvm::errs() << "Real Specialization\n";
+  Specialization->dump();
 
   assert(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
          FunctionTemplate->getCanonicalDecl());
