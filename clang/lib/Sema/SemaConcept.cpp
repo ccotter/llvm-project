@@ -805,12 +805,9 @@ bool Sema::CheckInstantiatedFunctionTemplateConstraints(
   Sema::ContextRAII savedContext(*this, Decl);
   LocalInstantiationScope Scope(*this);
 
-  llvm::errs() << "OLDCODE MLTAL\n";
   std::optional<MultiLevelTemplateArgumentList> MLTAL =
       SetupConstraintCheckingTemplateArgumentsAndScope(Decl, TemplateArgs,
                                                        Scope);
-  MLTAL->dumplist();
-  llvm::errs() << "OLDCODE DONE\n";
 
   if (!MLTAL)
     return true;

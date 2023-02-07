@@ -3595,9 +3595,6 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
         TemplateArgumentList::CreateCopy(Context, CanonicalBuilder);
     Info.reset(SugaredDeducedArgumentList, CanonicalDeducedArgumentList);
 
-    //MultiLevelTemplateArgumentList MLTAL(FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
-    //                                   /*Final=*/false);
-
     // TODO - does SavedContext need to be before or after MLTAL construction?
     //ContextRAII SavedContext(*this, Decl);
     LocalInstantiationScope Scope(*this);
@@ -3605,78 +3602,26 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
     // First, subst parm types only with immediaetly substituted template params
     // Then, substitute with full MultiLevelTemplateArgumentList from outer template
 
-    llvm::errs() << "NEWCODE 1. SubstArgs\n";
+    // Substitute the deduced template arguments into the function template
+    // declaration, but only in the function parameter types.
     MultiLevelTemplateArgumentList SubstArgs(
         FunctionTemplate, CanonicalDeducedArgumentList->asArray(), /*Final=*/false);
-    SubstArgs.dumplist();
-    llvm::errs() << "NEWCODE 1. SubstArgs DONE\n";
-
-    // TODO how to do this without modifying 'Decl'?
-#if 0
-    SmallVector<QualType, 8> ParamTypes;
-    SmallVector<ParmVarDecl*, 8> Params;
-    ExtParameterInfoBuilder ExtParamInfos;
-    //const auto *Proto = Function->getType()->castAs<FunctionProtoType>();
-    Decl->dump();
-    bool V0 = SubstParmTypes(Decl->getLocation(), Decl->parameters(),
-                             /*Proto->getExtParameterInfosOrNull()*/nullptr, SubstArgs, ParamTypes,
-                             &Params, ExtParamInfos);
-    Decl->dump();
-    if (V0)
-      return TDK_SubstitutionFailure;
-    assert(!V0 && "SubstParmTypes failed unexpectedly");
-    llvm::errs() << "After SubstParmTypes[" << ParamTypes.size() << "][" << Params.size() << "]\n";
-    for (const ParmVarDecl* P: Params) {
-      P->dump();
-    }
-
-    Decl->dump();
-#else
-    // Substitute the deduced template arguments into the function template
-    // declaration to produce the function template specialization.
+    //SubstArgs.dumplist();
     DeclContext *Owner = FunctionTemplate->getDeclContext();
     if (FunctionTemplate->getFriendObjectKind())
       Owner = FunctionTemplate->getLexicalDeclContext();
-    llvm::errs() << "NEWCODE FakeSpecialization\n";
     FunctionDecl* FakeSpecialization = cast_or_null<FunctionDecl>(
         SubstParamsInDecl(Decl, Owner, SubstArgs));
-    if (FakeSpecialization) FakeSpecialization->dump(); else llvm::errs() << "Nullspec\n";
     if (!FakeSpecialization || FakeSpecialization->isInvalidDecl())
       return TDK_SubstitutionFailure;
-    FakeSpecialization->dump();
-#endif
 
     llvm::SmallVector<const Expr *, 4> AssociatedConstraints;
     FunctionTemplate->getAssociatedConstraints(AssociatedConstraints);
 
-#if 0
-    llvm::errs() << "CanonicalBuilder:\n";
-    std::for_each(CanonicalBuilder.begin(), CanonicalBuilder.end(), [](auto E) {
-        E.dump();
-        llvm::errs() << "\n";
-    });
-    llvm::errs() << "CanonicalDeducedArgumentList:\n";
-    std::for_each(CanonicalDeducedArgumentList->asArray().begin(), CanonicalDeducedArgumentList->asArray().end(), [](auto E) {
-        E.dump();
-        llvm::errs() << "\n";
-    });
-#endif
-
-    llvm::errs() << "NEWCODE MLTAL\n";
     std::optional<MultiLevelTemplateArgumentList> MLTAL =
         SetupConstraintCheckingTemplateArgumentsAndScope(
             FakeSpecialization, CanonicalDeducedArgumentList->asArray(), Scope);
-            //getenv("NEWCODE2") ? Specialization : Decl, CanonicalDeducedArgumentList->asArray(), Scope);
-    //llvm::errs() << "MLTAL has_value=" << MLTAL.has_value() << "\n";
-    //if (!getenv("NEWCODE2")) MLTAL->addInnerTemplateArguments(Decl, CanonicalDeducedArgumentList->asArray(), false);
-    MLTAL->dumplist();
-    llvm::errs() << "NEWCODE DONE\n";
-
-    llvm::errs() << "Before CheckConstraintSatisfaction\n";
-    llvm::errs() << "Constraints[" << AssociatedConstraints.size() << "]:\n";
-    std::for_each(AssociatedConstraints.begin(), AssociatedConstraints.end(), [](const auto* E) {
-        E->dump();
-    });
+    //MLTAL->dumplist();
 
     llvm::SmallVector<Expr *, 1> Converted;
     bool V = CheckConstraintSatisfaction(
@@ -3717,16 +3662,11 @@ Sema::TemplateDeductionResult Sema::FinishTemplateArgumentDeduction(
   MultiLevelTemplateArgumentList SubstArgs(
       FunctionTemplate, CanonicalDeducedArgumentList->asArray(),
       /*Final=*/false);
-  llvm::errs() << "SubstArgs\n";
-  SubstArgs.dumplist();
-  FunctionTemplate->getTemplatedDecl()->dump();
+  //SubstArgs.dumplist();
   Specialization = cast_or_null<FunctionDecl>(
       SubstDecl(FunctionTemplate->getTemplatedDecl(), Owner, SubstArgs));
-  if (Specialization) Specialization->dump(); else llvm::errs() << "Nullspec\n";
   if (!Specialization || Specialization->isInvalidDecl())
     return TDK_SubstitutionFailure;
-  llvm::errs() << "Real Specialization\n";
-  Specialization->dump();
 
   assert(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
          FunctionTemplate->getCanonicalDecl());

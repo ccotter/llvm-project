@@ -1106,10 +1106,7 @@ namespace {
                          const MultiLevelTemplateArgumentList &TemplateArgs,
                          SourceLocation Loc, DeclarationName Entity)
         : inherited(SemaRef), TemplateArgs(TemplateArgs), Loc(Loc),
-          Entity(Entity) {
-            llvm::errs() << "TemplateInstantiator\n";
-            TemplateArgs.dumplist();
-          }
+          Entity(Entity) {}
 
     void setEvaluateConstraints(bool B) {
       EvaluateConstraints = B;
@@ -3944,35 +3941,11 @@ Sema::SubstConstraintExpr(Expr *E,
   if (!E)
     return E;
 
-  llvm::errs() << "SubstConstraintExpr\n";
-  E->dump();
-  TemplateArgs.dumplist();
-
   // This is where we need to make sure we 'know' constraint checking needs to
   // happen.
   TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),
                                     DeclarationName());
   return Instantiator.TransformExpr(E);
-}
-
-ExprResult
-Sema::SubstParamsForConstraintChecking(FunctionDecl *FD,
-                                       const MultiLevelTemplateArgumentList &TemplateArgs) {
-#if 0
-  if (!FD)
-    return FD;
-
-  llvm::errs() << "SubstParamsForConstraintChecking\n";
-  FD->dump();
-  TemplateArgs.dumplist();
-
-  // This is where we need to make sure we 'know' constraint checking needs to
-  // happen.
-  TemplateInstantiator Instantiator(*this, TemplateArgs, SourceLocation(),
-                                    DeclarationName());
-  return Instantiator.TransformExpr(E);
-#endif
-  return {};
 }
 
 ExprResult Sema::SubstInitializer(Expr *Init,
@@ -4047,14 +4020,14 @@ static const Decl *getCanonicalParmVarDecl(const Decl *D) {
 
 llvm::PointerUnion<Decl *, LocalInstantiationScope::DeclArgumentPack *> *
 LocalInstantiationScope::findInstantiationOf(const Decl *D) {
-  llvm::errs() << "findInstantiationOf\n";
-  D->dump();
+  //llvm::errs() << "findInstantiationOf\n";
+  //D->dump();
   D = getCanonicalParmVarDecl(D);
-  D->dump();
+  //D->dump();
   for (LocalInstantiationScope *Current = this; Current;
        Current = Current->Outer) {
 
-    llvm::errs() << "Next loop\n";
+    //llvm::errs() << "Next loop\n";
 
     // Check if we found something within this scope.
     const Decl *CheckD = D;
@@ -4062,10 +4035,10 @@ LocalInstantiationScope::findInstantiationOf(const Decl *D) {
       LocalDeclsMap::iterator Found = Current->LocalDecls.find(CheckD);
       if (Found != Current->LocalDecls.end()) {
         if (Found->second.is<Decl*>()) {
-          llvm::errs() << "Found it1\n";
-          Found->second.get<Decl*>()->dump();
+          //llvm::errs() << "Found it1\n";
+          //Found->second.get<Decl*>()->dump();
         } else {
-          llvm::errs() << "Found it2\n";
+          //llvm::errs() << "Found it2\n";
         }
         return &Found->second;
       }

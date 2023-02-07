@@ -9987,10 +9987,6 @@ public:
   SubstConstraintExpr(Expr *E,
                       const MultiLevelTemplateArgumentList &TemplateArgs);
 
-  ExprResult
-  SubstParamsForConstraintChecking(FunctionDecl *FD,
-                                   const MultiLevelTemplateArgumentList &TemplateArgs);
-
   /// Substitute the given template arguments into a list of
   /// expressions, expanding pack expansions if required.
   ///
