@@ -48,6 +48,17 @@ StringConstructorCheck::StringConstructorCheck(StringRef Name,
       StringNames(utils::options::parseStringList(
           Options.get("StringNames", DefaultStringNames))) {}
 
+namespace {
+AST_MATCHER_P2(CXXConstructExpr, hasRawArgument, unsigned, N,
+               ast_matchers::internal::Matcher<Expr>, InnerMatcher) {
+  if (N >= Node.getNumArgs()) {
+    return false;
+  }
+  const Expr *Arg = Node.getArg(N);
+  return InnerMatcher.matches(*Arg, Finder, Builder);
+}
+} // namespace
+
 void StringConstructorCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "WarnOnLargeLength", WarnOnLargeLength);
   Options.store(Opts, "LargeLengthThreshold", LargeLengthThreshold);
@@ -76,6 +87,14 @@ void StringConstructorCheck::registerMatchers(MatchFinder *Finder) {
   const auto ConstStrLiteral = expr(ignoringParenImpCasts(anyOf(
       BoundStringLiteral, declRefExpr(hasDeclaration(anyOf(
                               ConstPtrStrLiteralDecl, ConstStrLiteralDecl))))));
+  const auto NonCharacterInteger =
+      qualType(isInteger(), unless(isAnyCharacter()));
+  const auto CharToIntCastExpr = implicitCastExpr(
+      hasSourceExpression(expr(hasType(qualType(isAnyCharacter())))),
+      hasImplicitDestinationType(NonCharacterInteger));
+  const auto IntToCharCastExpr =
+      implicitCastExpr(hasSourceExpression(expr(hasType(NonCharacterInteger))),
+                       hasImplicitDestinationType(qualType(isAnyCharacter())));
 
   // Check the fill constructor. Fills the string with n consecutive copies of
   // character c. [i.e string(size_t n, char c);].
@@ -84,15 +103,24 @@ void StringConstructorCheck::registerMatchers(MatchFinder *Finder) {
           hasDeclaration(cxxMethodDecl(hasName("basic_string"))),
           hasArgument(0, hasType(qualType(isInteger()))),
           hasArgument(1, hasType(qualType(isInteger()))),
-          anyOf(
-              // Detect the expression: string('x', 40);
-              hasArgument(0, CharExpr.bind("swapped-parameter")),
-              // Detect the expression: string(0, ...);
-              hasArgument(0, ZeroExpr.bind("empty-string")),
-              // Detect the expression: string(-4, ...);
-              hasArgument(0, NegativeExpr.bind("negative-length")),
-              // Detect the expression: string(0x1234567, ...);
-              hasArgument(0, LargeLengthExpr.bind("large-length"))))
+          anyOf(anyOf(
+                    // Detect the expression: string('x', 40);
+                    hasArgument(0, CharExpr.bind("swapped-parameter")),
+                    // Detect the expression: string(0, ...);
+                    hasArgument(0, ZeroExpr.bind("empty-string")),
+                    // Detect the expression: string(-4, ...);
+                    hasArgument(0, NegativeExpr.bind("negative-length")),
+                    // Detect the expression: string(0x1234567, ...);
+                    hasArgument(0, LargeLengthExpr.bind("large-length"))),
+                // Finally, check for implicitly cast of both arguments. When
+                // the source type and destination types of the implicit casts
+                // from character to integer or vice versa for both arguments,
+                // this can be confusing to readers and indicative of a bug in
+                // the program. E.g., string(ch, i) implicitly casts 'ch' to
+                // size_type and casts 'i' to char.
+                allOf(hasRawArgument(0, CharToIntCastExpr),
+                      hasRawArgument(1, IntToCharCastExpr.bind(
+                                            "implicit-cast-both-args")))))
           .bind("constructor"),
       this);
 
@@ -147,7 +175,7 @@ void StringConstructorCheck::check(const MatchFinder::MatchResult &Result) {
   if (Result.Nodes.getNodeAs<Expr>("swapped-parameter")) {
     const Expr *P0 = E->getArg(0);
     const Expr *P1 = E->getArg(1);
-    diag(Loc, "string constructor parameters are probably swapped;"
+    diag(Loc, "string constructor arguments are probably swapped;"
               " expecting string(count, character)")
         << tooling::fixit::createReplacement(*P0, *P1, Ctx)
         << tooling::fixit::createReplacement(*P1, *P0, Ctx);
@@ -178,6 +206,13 @@ void StringConstructorCheck::check(const MatchFinder::MatchResult &Result) {
       }
       diag(Loc, "constructing string from nullptr is undefined behaviour");
     }
+  } else if (const auto *E =
+                 Result.Nodes.getNodeAs<Expr>("implicit-cast-both-args")) {
+    diag(Loc, "string constructor arguments might be incorrect;"
+              " calling as string(count, character) due to implicit casting of "
+              "both arguments;"
+              " use explicit casts if string(count, character) is the intended "
+              "constructor");
   }
 }
 

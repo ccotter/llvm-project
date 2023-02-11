@@ -5,12 +5,13 @@ template <typename T>
 class allocator {};
 template <typename T>
 class char_traits {};
-template <typename C, typename T = std::char_traits<C>, typename A = std::allocator<C> >
+template <typename C, typename T = std::char_traits<C>, typename A = std::allocator<C>>
 struct basic_string {
   basic_string();
-  basic_string(const C*, unsigned int size);
-  basic_string(const C *, const A &allocator = A());
-  basic_string(unsigned int size, C c);
+  basic_string(const basic_string&, unsigned int, unsigned int, const A & = A());
+  basic_string(const C*, unsigned int);
+  basic_string(const C*, const A& = A());
+  basic_string(unsigned int, C);
 };
 typedef basic_string<char> string;
 typedef basic_string<wchar_t> wstring;
@@ -18,7 +19,7 @@ typedef basic_string<wchar_t> wstring;
 template <typename C, typename T = std::char_traits<C>>
 struct basic_string_view {
   basic_string_view();
-  basic_string_view(const C *, unsigned int size);
+  basic_string_view(const C *, unsigned int);
   basic_string_view(const C *);
 };
 typedef basic_string_view<char> string_view;
@@ -31,10 +32,10 @@ extern const char kText3[];
 
 void Test() {
   std::string str('x', 4);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor parameters are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
   // CHECK-FIXES: std::string str(4, 'x');
   std::wstring wstr(L'x', 4);
-  // CHECK-MESSAGES: [[@LINE-1]]:16: warning: string constructor parameters are probably swapped
+  // CHECK-MESSAGES: [[@LINE-1]]:16: warning: string constructor arguments are probably swapped
   // CHECK-FIXES: std::wstring wstr(4, L'x');
   std::string s0(0, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: constructor creating an empty string
@@ -42,6 +43,22 @@ void Test() {
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: negative value used as length parameter
   std::string s2(0x1000000, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: suspicious large length parameter
+
+  short sh;
+  int i;
+  char ch;
+  std::string s3(ch, 10);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect; calling as string(count, character) due to implicit casting of both arguments; use explicit casts if string(count, character) is the intended constructor [bugprone-string-constructor]
+  std::string s4(ch, sh);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  std::string s5(ch, i);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  std::string s6(ch, (int)ch);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  std::string s7(kText[1], 10);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  std::string s8(kText[1], i);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
 
   std::string q0("test", 0);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: constructor creating an empty string
@@ -91,12 +108,15 @@ std::string_view StringViewFromZero() {
 }
 
 void Valid() {
+  int i;
   std::string empty();
   std::string str(4, 'x');
   std::wstring wstr(4, L'x');
   std::string s1("test", 4);
   std::string s2("test", 3);
   std::string s3("test");
+  std::string s4((int)kText[1], i);
+  std::string s5(kText[1], (char)i);
 
   std::string_view emptyv();
   std::string_view sv1("test", 4);

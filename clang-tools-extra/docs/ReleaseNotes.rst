@@ -219,6 +219,10 @@ Changes in existing checks
   <clang-tidy/checks/bugprone/incorrect-roundings>` check by adding support for
   other floating point representations in float constant like ``0.5L``.
 
+- Updated :doc:`bugprone-string-constructor
+  <clang-tidy/checks/bugprone/string-constructor>` check to flag more potentially
+  buggy code.
+
 - Deprecated check-local options `HeaderFileExtensions` and `ImplementationFileExtensions`
   in :doc:`bugprone-suspicious-include
   <clang-tidy/checks/bugprone/suspicious-include>` check.
