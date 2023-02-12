@@ -21,6 +21,7 @@
 #include "AvoidGotoCheck.h"
 #include "AvoidNonConstGlobalVariablesCheck.h"
 #include "AvoidReferenceCoroutineParametersCheck.h"
+#include "ForwardingReferenceParamNotForwardedCheck.h"
 #include "InitVariablesCheck.h"
 #include "InterfacesGlobalInitCheck.h"
 #include "MacroUsageCheck.h"
@@ -70,6 +71,8 @@ public:
         "cppcoreguidelines-avoid-reference-coroutine-parameters");
     CheckFactories.registerCheck<modernize::UseOverrideCheck>(
         "cppcoreguidelines-explicit-virtual-functions");
+    CheckFactories.registerCheck<ForwardingReferenceParamNotForwardedCheck>(
+        "cppcoreguidelines-forwarding-reference-param-not-forwarded");
     CheckFactories.registerCheck<InitVariablesCheck>(
         "cppcoreguidelines-init-variables");
     CheckFactories.registerCheck<InterfacesGlobalInitCheck>(
