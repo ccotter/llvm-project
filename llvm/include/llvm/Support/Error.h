@@ -835,7 +835,7 @@ public:
   template <typename HandlerT>
   static Error apply(HandlerT &&H, std::unique_ptr<ErrorInfoBase> E) {
     assert(appliesTo(*E) && "Applying incorrect handler");
-    return H(static_cast<ErrT &>(*E));
+    return std::forward<HandlerT>(H)(static_cast<ErrT &>(*E));
   }
 };
 
@@ -849,7 +849,7 @@ public:
   template <typename HandlerT>
   static Error apply(HandlerT &&H, std::unique_ptr<ErrorInfoBase> E) {
     assert(appliesTo(*E) && "Applying incorrect handler");
-    H(static_cast<ErrT &>(*E));
+    std::forward<HandlerT>(H)(static_cast<ErrT &>(*E));
     return Error::success();
   }
 };
@@ -866,7 +866,7 @@ public:
   static Error apply(HandlerT &&H, std::unique_ptr<ErrorInfoBase> E) {
     assert(appliesTo(*E) && "Applying incorrect handler");
     std::unique_ptr<ErrT> SubE(static_cast<ErrT *>(E.release()));
-    return H(std::move(SubE));
+    return std::forward<HandlerT>(H)(std::move(SubE));
   }
 };
 
@@ -882,7 +882,7 @@ public:
   static Error apply(HandlerT &&H, std::unique_ptr<ErrorInfoBase> E) {
     assert(appliesTo(*E) && "Applying incorrect handler");
     std::unique_ptr<ErrT> SubE(static_cast<ErrT *>(E.release()));
-    H(std::move(SubE));
+    std::forward<HandlerT>(H)(std::move(SubE));
     return Error::success();
   }
 };

@@ -550,7 +550,7 @@ public:
            "consistent sizes");
     Out.resize(Arg.size());
     for (size_type I = 0, E = Arg.Bits.size(); I != E; ++I)
-      Out.Bits[I] = f(Arg.Bits[I], Args.Bits[I]...);
+      Out.Bits[I] = std::forward<F>(f)(Arg.Bits[I], Args.Bits[I]...);
     Out.clear_unused_bits();
     return Out;
   }
