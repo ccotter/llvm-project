@@ -100,7 +100,7 @@ public:
       : HashBuilderBase<HasherT>(Hasher) {}
   template <typename... ArgTypes>
   explicit HashBuilderImpl(ArgTypes &&...Args)
-      : HashBuilderBase<HasherT>(Args...) {}
+      : HashBuilderBase<HasherT>(std::forward<ArgTypes>(Args)...) {}
 
   /// Implement hashing for hashable data types, e.g. integral or enum values.
   template <typename T>
