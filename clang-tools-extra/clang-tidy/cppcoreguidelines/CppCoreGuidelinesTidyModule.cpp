@@ -21,6 +21,7 @@
 #include "AvoidGotoCheck.h"
 #include "AvoidNonConstGlobalVariablesCheck.h"
 #include "AvoidReferenceCoroutineParametersCheck.h"
+#include "AvoidUnknownCallsWithMutexHeldCheck.h"
 #include "InitVariablesCheck.h"
 #include "InterfacesGlobalInitCheck.h"
 #include "MacroUsageCheck.h"
@@ -68,6 +69,8 @@ public:
         "cppcoreguidelines-avoid-non-const-global-variables");
     CheckFactories.registerCheck<AvoidReferenceCoroutineParametersCheck>(
         "cppcoreguidelines-avoid-reference-coroutine-parameters");
+    CheckFactories.registerCheck<AvoidUnknownCallsWithMutexHeldCheck>(
+        "cppcoreguidelines-avoid-unknown-calls-with-mutex-held");
     CheckFactories.registerCheck<modernize::UseOverrideCheck>(
         "cppcoreguidelines-explicit-virtual-functions");
     CheckFactories.registerCheck<InitVariablesCheck>(

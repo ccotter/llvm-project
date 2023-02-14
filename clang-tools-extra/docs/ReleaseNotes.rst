@@ -114,6 +114,11 @@ New checks
 
   Warns when lambda specify a capture default and capture ``this``.
 
+- New :doc:`cppcoreguidelines-avoid-unknown-calls-with-mutex-held
+  <clang-tidy/checks/cppcoreguidelines/avoid-unknown-calls-with-mutex-held>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`cppcoreguidelines-avoid-capturing-lambda-coroutines
   <clang-tidy/checks/cppcoreguidelines/avoid-capturing-lambda-coroutines>` check.
 
