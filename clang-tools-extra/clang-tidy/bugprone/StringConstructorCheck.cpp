@@ -67,7 +67,11 @@ void StringConstructorCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 
 void StringConstructorCheck::registerMatchers(MatchFinder *Finder) {
   const auto ZeroExpr = expr(ignoringParenImpCasts(integerLiteral(equals(0))));
-  const auto CharExpr = expr(ignoringParenImpCasts(characterLiteral()));
+  const auto CharExpr = expr(anyOf(
+      ignoringParenImpCasts(characterLiteral()),
+      declRefExpr(hasDeclaration(varDecl(hasType(qualType(isAnyCharacter()))))),
+      ignoringParens(callExpr(
+          callee(functionDecl(returns(qualType(isAnyCharacter()))))))));
   const auto NegativeExpr = expr(ignoringParenImpCasts(
       unaryOperator(hasOperatorName("-"),
                     hasUnaryOperand(integerLiteral(unless(equals(0)))))));

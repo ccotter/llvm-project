@@ -29,35 +29,57 @@ typedef basic_string_view<wchar_t> wstring_view;
 const char* kText = "";
 const char kText2[] = "";
 extern const char kText3[];
+char getChar();
+const char* getCharPtr();
 
 void Test() {
-  std::string str('x', 4);
+  short sh;
+  int i;
+  char ch;
+
+  std::string swapped('x', 4);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
-  // CHECK-FIXES: std::string str(4, 'x');
-  std::wstring wstr(L'x', 4);
+  // CHECK-FIXES: std::string swapped(4, 'x');
+  std::wstring wswapped(L'x', 4);
   // CHECK-MESSAGES: [[@LINE-1]]:16: warning: string constructor arguments are probably swapped
-  // CHECK-FIXES: std::wstring wstr(4, L'x');
+  // CHECK-FIXES: std::wstring wswapped(4, L'x');
+  std::string swapped2('x', i);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped2(i, 'x');
+  std::string swapped3(ch, 4);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped3(4, ch);
+  std::string swapped4(ch, i);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped4(i, ch);
+  std::string swapped5('x', (int)'x');
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped5((int)'x', 'x');
+  std::string swapped6(getChar(), 10);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped6(10, getChar());
+  std::string swapped7((('x')), ( i ));
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped7(( i ), (('x')));
+  std::string swapped8((ch), (i));
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped8((i), (ch));
+  std::string swapped9((getChar()), (i));
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string swapped9((i), (getChar()));
   std::string s0(0, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: constructor creating an empty string
   std::string s1(-4, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: negative value used as length parameter
   std::string s2(0x1000000, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: suspicious large length parameter
-
-  short sh;
-  int i;
-  char ch;
-  std::string s3(ch, 10);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect; calling as string(count, character) due to implicit casting of both arguments; use explicit casts if string(count, character) is the intended constructor [bugprone-string-constructor]
-  std::string s4(ch, sh);
+  std::string s3(kText[0], sh);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
-  std::string s5(ch, i);
+  std::string s4(kText[1], 10);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
-  std::string s6(ch, (int)ch);
+  std::string s5(kText[1], i);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
-  std::string s7(kText[1], 10);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
-  std::string s8(kText[1], i);
+  std::string s6(*getCharPtr(), 10);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
 
   std::string q0("test", 0);

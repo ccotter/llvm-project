@@ -11,19 +11,18 @@ Examples:
 
 .. code-block:: c++
 
+  int x;
   std::string str('x', 50); // should be str(50, 'x')
+  std::string str2('a', x); // should be str2(x, 'a')
 
 Constructing a string using the 'fill' constructor where both arguments
 are implicitly cast is confusing and likely indicative of a bug.
 
 .. code-block: c++
 
-  int x;
-  char ch;
   char buf[10];
-  std::string str1(ch, 5); // Args possibly swapped?
-  std::string str2('a', x); // Args possibly swpaped?
-  std::string str3(buf[1], 5); // First arg should be '&buf[1]'?
+  std::string str(buf[1], 5); // First arg should be '&buf[1]'?
+  std::string str2((int)buf[1], 5); // Ok - explicitly cast to express intent
 
 Calling the string-literal constructor with a length bigger than the literal is
 suspicious and adds extra random characters to the string.
