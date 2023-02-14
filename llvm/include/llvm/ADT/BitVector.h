@@ -542,7 +542,7 @@ public:
   }
 
   template <class F, class... ArgTys>
-  static BitVector &apply(F &&f, BitVector &Out, BitVector const &Arg,
+  static BitVector &apply(const F &f, BitVector &Out, BitVector const &Arg,
                           ArgTys const &...Args) {
     assert(llvm::all_of(
                std::initializer_list<unsigned>{Args.size()...},
@@ -550,7 +550,7 @@ public:
            "consistent sizes");
     Out.resize(Arg.size());
     for (size_type I = 0, E = Arg.Bits.size(); I != E; ++I)
-      Out.Bits[I] = std::forward<F>(f)(Arg.Bits[I], Args.Bits[I]...);
+      Out.Bits[I] = f(Arg.Bits[I], Args.Bits[I]...);
     Out.clear_unused_bits();
     return Out;
   }
