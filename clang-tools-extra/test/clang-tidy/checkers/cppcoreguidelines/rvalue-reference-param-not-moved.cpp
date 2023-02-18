@@ -1,9 +1,9 @@
 // RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}"
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}" -- -fno-delayed-template-parsing
 // RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}"
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}" -- -fno-delayed-template-parsing
 // RUN: %check_clang_tidy -check-suffix=,STRICT -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true}]}"
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true}]}" -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
