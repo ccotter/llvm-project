@@ -20,13 +20,16 @@ namespace clang::tidy::cppcoreguidelines {
 /// http://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved.html
 class RvalueReferenceParamNotMovedCheck : public ClangTidyCheck {
 public:
-  RvalueReferenceParamNotMovedCheck(StringRef Name, ClangTidyContext *Context)
-      : ClangTidyCheck(Name, Context) {}
+  RvalueReferenceParamNotMovedCheck(StringRef Name, ClangTidyContext *Context);
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
   bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
     return LangOpts.CPlusPlus11;
   }
+  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
+
+private:
+  const unsigned StrictMode : 1;
 };
 
 } // namespace clang::tidy::cppcoreguidelines

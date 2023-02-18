@@ -28,6 +28,7 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
           parmVarDecl(
               equalsBoundNode("param"),
+              unless(hasType(references(isConstQualified()))),
               unless(
                   hasType(qualType(references(substTemplateTypeParmType())))),
               hasType(ReferenceTypeOrAnything),
@@ -73,6 +74,18 @@ static bool isValueCapturedByAnyLambda(ASTContext &Context,
   return false;
 }
 
+namespace {
+AST_MATCHER_P2(Stmt, moveArgumentOf, bool, StrictMode, const Decl *, D) {
+  StatementMatcher RefToParam = declRefExpr(to(equalsNode(D))).bind("ref");
+  if (StrictMode) {
+    return RefToParam.matches(Node, Finder, Builder);
+  } else {
+    return stmt(anyOf(RefToParam, hasDescendant(RefToParam)))
+        .matches(Node, Finder, Builder);
+  }
+}
+} // namespace
+
 void RvalueReferenceParamNotMovedCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *Param = Result.Nodes.getNodeAs<ParmVarDecl>("param");
@@ -104,12 +117,11 @@ void RvalueReferenceParamNotMovedCheck::check(
     }
   }
 
-  StatementMatcher MoveCallMatcher =
-      callExpr(anyOf(callee(functionDecl(hasName("::std::move"))),
-                     callee(unresolvedLookupExpr(hasAnyDeclaration(namedDecl(
-                         hasUnderlyingDecl(hasName("::std::move"))))))),
-               argumentCountIs(1),
-               hasArgument(0, declRefExpr(to(equalsNode(Param))).bind("ref")));
+  StatementMatcher MoveCallMatcher = callExpr(
+      anyOf(callee(functionDecl(hasName("::std::move"))),
+            callee(unresolvedLookupExpr(hasAnyDeclaration(
+                namedDecl(hasUnderlyingDecl(hasName("::std::move"))))))),
+      argumentCountIs(1), hasArgument(0, moveArgumentOf(StrictMode, Param)));
 
   SmallVector<BoundNodes, 1> Matches;
   if (ContainingLambda) {
@@ -148,6 +160,16 @@ void RvalueReferenceParamNotMovedCheck::check(
          "inside the function body")
         << Param;
   }
+}
+
+RvalueReferenceParamNotMovedCheck::RvalueReferenceParamNotMovedCheck(
+    StringRef Name, ClangTidyContext *Context)
+    : ClangTidyCheck(Name, Context),
+      StrictMode(Options.getLocalOrGlobal("StrictMode", true)) {}
+
+void RvalueReferenceParamNotMovedCheck::storeOptions(
+    ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "StrictMode", StrictMode);
 }
 
 } // namespace clang::tidy::cppcoreguidelines

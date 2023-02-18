@@ -1,5 +1,9 @@
-// RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
-// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14-or-later %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}"
+// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}"
+// RUN: %check_clang_tidy -check-suffix=,STRICT -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true}]}"
 
 // NOLINTBEGIN
 namespace std {
@@ -151,7 +155,7 @@ struct mypair {
 };
 
 void moves_member_of_parameter(mypair<Obj, Obj>&& pair) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES-STRICT: :[[@LINE-1]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj a = std::move(pair.first);
   Obj b = std::move(pair.second);
 }
@@ -163,7 +167,7 @@ struct myoptional {
 };
 
 void moves_deref_optional(myoptional<Obj>&& opt) {
-  // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES-STRICT: :[[@LINE-1]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj other = std::move(*opt);
 }
 
@@ -180,6 +184,10 @@ void pass_by_value(Obj o) {
 }
 
 void pass_by_const_lvalue_reference(const Obj& o) {
+  o.member();
+}
+
+void pass_by_const_lvalue_reference(const Obj&& o) {
   o.member();
 }
 
