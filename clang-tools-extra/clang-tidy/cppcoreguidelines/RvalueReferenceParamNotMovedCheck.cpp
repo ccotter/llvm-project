@@ -36,8 +36,7 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
                         lambdaExpr(has(cxxRecordDecl(has(cxxMethodDecl(
                                        ToParam, hasName("operator()"))))))
                             .bind("containing-lambda")))),
-                    hasAncestor(cxxConstructorDecl(isDefinition(), ToParam,
-                                                   unless(isMoveConstructor()),
+                    hasAncestor(cxxConstructorDecl(unless(isMoveConstructor()),
                                                    isDefinition(), ToParam)
                                     .bind("containing-ctor")),
                     hasAncestor(
