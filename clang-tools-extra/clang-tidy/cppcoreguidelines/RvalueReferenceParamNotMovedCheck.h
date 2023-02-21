@@ -30,6 +30,7 @@ public:
 
 private:
   const unsigned StrictMode : 1;
+  const unsigned IgnoreUnnamedParams : 1;
 };
 
 } // namespace clang::tidy::cppcoreguidelines

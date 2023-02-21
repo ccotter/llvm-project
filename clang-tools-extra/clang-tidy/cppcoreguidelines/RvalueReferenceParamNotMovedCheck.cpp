@@ -93,6 +93,9 @@ void RvalueReferenceParamNotMovedCheck::check(
   if (!Param)
     return;
 
+  if (IgnoreUnnamedParams && Param->getName().empty())
+    return;
+
   const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
   if (!Function)
     return;
@@ -145,11 +148,14 @@ void RvalueReferenceParamNotMovedCheck::check(
 RvalueReferenceParamNotMovedCheck::RvalueReferenceParamNotMovedCheck(
     StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      StrictMode(Options.getLocalOrGlobal("StrictMode", true)) {}
+      StrictMode(Options.getLocalOrGlobal("StrictMode", true)),
+      IgnoreUnnamedParams(
+          Options.getLocalOrGlobal("IgnoreUnnamedParams", false)) {}
 
 void RvalueReferenceParamNotMovedCheck::storeOptions(
     ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "StrictMode", StrictMode);
+  Options.store(Opts, "IgnoreUnnamedParams", IgnoreUnnamedParams);
 }
 
 } // namespace clang::tidy::cppcoreguidelines

@@ -1,9 +1,11 @@
 // RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}" -- -fno-delayed-template-parsing
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true}]}" -- -fno-delayed-template-parsing
 // RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false}]}" -- -fno-delayed-template-parsing
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: false},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true}]}" -- -fno-delayed-template-parsing
 // RUN: %check_clang_tidy -check-suffix=,STRICT -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true}]}" -- -fno-delayed-template-parsing
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true}]}" -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,UNNAMED -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.StrictMode, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: false}]}" -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
@@ -61,6 +63,9 @@ void never_moves_some_params(Obj&& o1, Obj&& o2) {
 
   Obj other{std::move(o2)};
 }
+
+void never_moves_unnamed(Obj&&) {}
+// CHECK-MESSAGES-UNNAMED: :[[@LINE-1]]:31: warning: rvalue reference parameter '' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 
 void never_moves_mixed(Obj o1, Obj&& o2) {
   // CHECK-MESSAGES: :[[@LINE-1]]:38: warning: rvalue reference parameter 'o2' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
@@ -155,6 +160,7 @@ struct mypair {
 
 void moves_member_of_parameter(mypair<Obj, Obj>&& pair) {
   // CHECK-MESSAGES-STRICT: :[[@LINE-1]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES-UNNAMED: :[[@LINE-2]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj a = std::move(pair.first);
   Obj b = std::move(pair.second);
 }
@@ -167,6 +173,7 @@ struct myoptional {
 
 void moves_deref_optional(myoptional<Obj>&& opt) {
   // CHECK-MESSAGES-STRICT: :[[@LINE-1]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // CHECK-MESSAGES-UNNAMED: :[[@LINE-2]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj other = std::move(*opt);
 }
 
