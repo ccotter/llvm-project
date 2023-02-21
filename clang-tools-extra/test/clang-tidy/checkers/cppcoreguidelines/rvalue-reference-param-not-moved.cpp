@@ -10,10 +10,9 @@ namespace std {
 template <typename>
 struct remove_reference;
 
-template <typename _Tp>
-struct remove_reference {
-  typedef _Tp type;
-};
+template <typename _Tp> struct remove_reference { typedef _Tp type; };
+template <typename _Tp> struct remove_reference<_Tp&> { typedef _Tp type; };
+template <typename _Tp> struct remove_reference<_Tp&&> { typedef _Tp type; };
 
 template <typename _Tp>
 constexpr typename std::remove_reference<_Tp>::type &&move(_Tp &&__t) noexcept;
@@ -299,5 +298,19 @@ struct AClassTemplate {
     T other = std::move(t);
   }
   void never_moves(T&& t) {}
-  // CHECK-MESSAGES: :[[@LINE-1]]:24: warning: rvalue reference parameter 't' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+  // FIXME - 'T' is non-deduced here, and, in an instantiation of AClassTemplate,
+  // never_moves indeed is suspicious. In many cases, AClassTemplate would
+  // either have a different specialization for T being a reference or
+  // non-reference (example, std::future), or restrict AClassTemplate to only
+  // allow instantiations where 'T' is a reference or non-reference, but not
+  // both. For now, we don't flag this code.
 };
+
+void instantiate_a_class_template() {
+  Obj o;
+  AClassTemplate<Obj> withObj;
+  withObj.never_moves(std::move(o));
+
+  AClassTemplate<Obj&> withObjRef;
+  withObjRef.never_moves(o);
+}

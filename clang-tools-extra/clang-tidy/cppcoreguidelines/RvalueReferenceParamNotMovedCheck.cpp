@@ -17,21 +17,16 @@ namespace clang::tidy::cppcoreguidelines {
 void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
   auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
 
-  internal::Matcher<QualType> ReferenceTypeOrAnything =
-      anyOf(qualType(references(templateTypeParmType(hasDeclaration(
-                         templateTypeParmDecl().bind("template-type")))),
-                     unless(references(qualType(isConstQualified())))),
-            anything());
-
   Finder->addMatcher(
       parmVarDecl(allOf(
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
           parmVarDecl(
               equalsBoundNode("param"),
               unless(hasType(references(isConstQualified()))),
+              unless(hasType(qualType(references(templateTypeParmType(
+                  hasDeclaration(templateTypeParmDecl())))))),
               unless(
                   hasType(qualType(references(substTemplateTypeParmType())))),
-              hasType(ReferenceTypeOrAnything),
               anyOf(hasAncestor(compoundStmt(hasParent(
                         lambdaExpr(has(cxxRecordDecl(has(cxxMethodDecl(
                                        ToParam, hasName("operator()"))))))
@@ -94,8 +89,6 @@ void RvalueReferenceParamNotMovedCheck::check(
       Result.Nodes.getNodeAs<FunctionDecl>("containing-ctor");
   const auto *ContainingFunc =
       Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
-  const auto *TemplateType =
-      Result.Nodes.getNodeAs<TemplateTypeParmDecl>("template-type");
 
   if (!Param)
     return;
@@ -103,18 +96,6 @@ void RvalueReferenceParamNotMovedCheck::check(
   const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
   if (!Function)
     return;
-
-  if (TemplateType) {
-    if (const FunctionTemplateDecl *FuncTemplate =
-            Function->getDescribedFunctionTemplate()) {
-      const TemplateParameterList *Params =
-          FuncTemplate->getTemplateParameters();
-      if (llvm::is_contained(*Params, TemplateType)) {
-        // Ignore forwarding reference
-        return;
-      }
-    }
-  }
 
   StatementMatcher MoveCallMatcher = callExpr(
       anyOf(callee(functionDecl(hasName("::std::move"))),
