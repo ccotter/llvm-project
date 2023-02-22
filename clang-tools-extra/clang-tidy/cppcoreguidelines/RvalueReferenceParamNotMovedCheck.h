@@ -29,8 +29,8 @@ public:
   void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
 
 private:
-  const unsigned StrictMode : 1;
-  const unsigned IgnoreUnnamedParams : 1;
+  const bool StrictMode;
+  const bool IgnoreUnnamedParams;
 };
 
 } // namespace clang::tidy::cppcoreguidelines
