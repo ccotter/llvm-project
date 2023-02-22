@@ -42,6 +42,8 @@ void never_moves_param(Obj&& o) {
   o.member();
 }
 
+void just_a_declaration(Obj&& o);
+
 void copies_object(Obj&& o) {
   // CHECK-MESSAGES: :[[@LINE-1]]:26: warning: rvalue reference parameter 'o' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj copy = o;
@@ -291,6 +293,11 @@ struct DefinesMove {
     return *this;
   }
   Obj o;
+};
+
+struct DeclaresMove {
+  DeclaresMove(DeclaresMove&& rhs);
+  DeclaresMove& operator=(DeclaresMove&& rhs);
 };
 
 struct AnotherObj {

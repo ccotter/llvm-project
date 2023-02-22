@@ -14,38 +14,13 @@ using namespace clang::ast_matchers;
 
 namespace clang::tidy::cppcoreguidelines {
 
-void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
-  auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
-
-  Finder->addMatcher(
-      parmVarDecl(
-          parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
-          parmVarDecl(
-              unless(hasType(references(qualType(anyOf(
-                  isConstQualified(),
-                  templateTypeParmType(hasDeclaration(templateTypeParmDecl())),
-                  substTemplateTypeParmType()))))),
-              anyOf(hasAncestor(compoundStmt(hasParent(
-                        lambdaExpr(has(cxxRecordDecl(has(cxxMethodDecl(
-                                       ToParam, hasName("operator()"))))))
-                            .bind("containing-lambda")))),
-                    hasAncestor(
-                        functionDecl(
-                            isDefinition(), ToParam,
-                            optionally(
-                                cxxConstructorDecl().bind("containing-ctor")),
-                            unless(cxxConstructorDecl(isMoveConstructor())),
-                            unless(cxxMethodDecl(isMoveAssignmentOperator())))
-                            .bind("containing-func"))))),
-      this);
-}
-
 namespace {
-AST_MATCHER_P(LambdaExpr, valueCapturesVar, const VarDecl *, Var) {
+AST_MATCHER_P(LambdaExpr, valueCapturesVar, DeclarationMatcher, VarMatcher) {
   return std::find_if(Node.capture_begin(), Node.capture_end(),
                       [&](const LambdaCapture &Capture) {
                         return Capture.capturesVariable() &&
-                               Capture.getCapturedVar() == Var &&
+                               VarMatcher.matches(*Capture.getCapturedVar(),
+                                                  Finder, Builder) &&
                                Capture.getCaptureKind() == LCK_ByCopy;
                       }) != Node.capture_end();
 }
@@ -58,15 +33,50 @@ AST_MATCHER_P2(Stmt, argumentOf, bool, StrictMode, StatementMatcher, Ref) {
 }
 } // namespace
 
+void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
+  auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
+
+  StatementMatcher MoveCallMatcher =
+      callExpr(
+          anyOf(callee(functionDecl(hasName("::std::move"))),
+                callee(unresolvedLookupExpr(hasAnyDeclaration(
+                    namedDecl(hasUnderlyingDecl(hasName("::std::move"))))))),
+          argumentCountIs(1),
+          hasArgument(
+              0, argumentOf(
+                     StrictMode,
+                     declRefExpr(to(equalsBoundNode("param"))).bind("ref"))),
+          unless(hasAncestor(
+              lambdaExpr(hasDescendant(declRefExpr(equalsBoundNode("ref"))),
+                         valueCapturesVar(equalsBoundNode("param"))))))
+          .bind("move-call");
+
+  Finder->addMatcher(
+      parmVarDecl(
+          parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
+          parmVarDecl(
+              unless(hasType(references(qualType(anyOf(
+                  isConstQualified(),
+                  templateTypeParmType(hasDeclaration(templateTypeParmDecl())),
+                  substTemplateTypeParmType()))))),
+              anyOf(
+                  hasAncestor(compoundStmt(hasParent(lambdaExpr(
+                      has(cxxRecordDecl(
+                          has(cxxMethodDecl(ToParam, hasName("operator()"))))),
+                      optionally(hasDescendant(MoveCallMatcher)))))),
+                  hasAncestor(cxxConstructorDecl(
+                      ToParam, isDefinition(), unless(isMoveConstructor()),
+                      optionally(hasDescendant(MoveCallMatcher)))),
+                  hasAncestor(functionDecl(
+                      unless(cxxConstructorDecl()), ToParam,
+                      unless(cxxMethodDecl(isMoveAssignmentOperator())),
+                      hasBody(optionally(hasDescendant(MoveCallMatcher)))))))),
+      this);
+}
+
 void RvalueReferenceParamNotMovedCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *Param = Result.Nodes.getNodeAs<ParmVarDecl>("param");
-  const auto *ContainingLambda =
-      Result.Nodes.getNodeAs<LambdaExpr>("containing-lambda");
-  const auto *ContainingCtor =
-      Result.Nodes.getNodeAs<FunctionDecl>("containing-ctor");
-  const auto *ContainingFunc =
-      Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
 
   if (!Param)
     return;
@@ -74,42 +84,8 @@ void RvalueReferenceParamNotMovedCheck::check(
   if (IgnoreUnnamedParams && Param->getName().empty())
     return;
 
-  const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
-  if (!Function)
-    return;
-
-  StatementMatcher MoveCallMatcher = callExpr(
-      anyOf(callee(functionDecl(hasName("::std::move"))),
-            callee(unresolvedLookupExpr(hasAnyDeclaration(
-                namedDecl(hasUnderlyingDecl(hasName("::std::move"))))))),
-      argumentCountIs(1),
-      hasArgument(0,
-                  argumentOf(StrictMode,
-                             declRefExpr(to(equalsNode(Param))).bind("ref"))),
-      unless(hasAncestor(
-          lambdaExpr(hasDescendant(declRefExpr(equalsBoundNode("ref"))),
-                     valueCapturesVar(Param)))));
-
-  SmallVector<BoundNodes, 1> Matches;
-  if (ContainingLambda) {
-    if (!ContainingLambda->getBody())
-      return;
-    Matches = match(findAll(MoveCallMatcher), *ContainingLambda->getBody(),
-                    *Result.Context);
-  } else if (ContainingCtor) {
-    Matches = match(findAll(cxxConstructorDecl(hasDescendant(MoveCallMatcher))),
-                    *ContainingCtor, *Result.Context);
-  } else if (ContainingFunc) {
-    if (!ContainingFunc->getBody())
-      return;
-    Matches = match(findAll(MoveCallMatcher), *ContainingFunc->getBody(),
-                    *Result.Context);
-  } else {
-    return;
-  }
-
-  int MoveExprsCount = Matches.size();
-  if (MoveExprsCount == 0) {
+  const auto *MoveCall = Result.Nodes.getNodeAs<CallExpr>("move-call");
+  if (!MoveCall) {
     diag(Param->getLocation(),
          "rvalue reference parameter %0 is never moved from "
          "inside the function body")
