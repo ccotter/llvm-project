@@ -18,28 +18,25 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
   auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
 
   Finder->addMatcher(
-      parmVarDecl(allOf(
+      parmVarDecl(
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
           parmVarDecl(
-              equalsBoundNode("param"),
-              unless(hasType(references(isConstQualified()))),
-              unless(hasType(qualType(references(templateTypeParmType(
-                  hasDeclaration(templateTypeParmDecl())))))),
-              unless(
-                  hasType(qualType(references(substTemplateTypeParmType())))),
+              unless(hasType(references(qualType(anyOf(
+                  isConstQualified(),
+                  templateTypeParmType(hasDeclaration(templateTypeParmDecl())),
+                  substTemplateTypeParmType()))))),
               anyOf(hasAncestor(compoundStmt(hasParent(
                         lambdaExpr(has(cxxRecordDecl(has(cxxMethodDecl(
                                        ToParam, hasName("operator()"))))))
                             .bind("containing-lambda")))),
-                    hasAncestor(cxxConstructorDecl(unless(isMoveConstructor()),
-                                                   isDefinition(), ToParam)
-                                    .bind("containing-ctor")),
                     hasAncestor(
                         functionDecl(
                             isDefinition(), ToParam,
+                            optionally(
+                                cxxConstructorDecl().bind("containing-ctor")),
                             unless(cxxConstructorDecl(isMoveConstructor())),
                             unless(cxxMethodDecl(isMoveAssignmentOperator())))
-                            .bind("containing-func")))))),
+                            .bind("containing-func"))))),
       this);
 }
 
