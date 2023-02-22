@@ -46,5 +46,28 @@ Options
    If set to `true`, the check ignores unnamed rvalue reference parameters.
    Default is `false`.
 
+.. option:: IgnoreNonDeducedTemplateTypes
+
+   If set to `true`, the check ignores non-deduced template type rvalue
+   reference parameters. Default is `false`.
+
+  .. code-block:: c++
+
+    template <class T>
+    struct SomeClass {
+      // Below, 'T' is not deduced and 'T&&' is an rvalue reference type.
+      // This will be flagged if and only if IgnoreNonDeducedTemplateTypes is
+      // false. One suggested fix would be to specialize the class for 'T' and
+      // 'T&' separately (e.g., see std::future), or allow only one of 'T' or
+      // 'T&' instantiations of SomeClass (e.g., see std::optional).
+      SomeClass(T&& t) { }
+    };
+
+    // Never flagged, since 'T' is a forwarding reference in a deduced context
+    template <class T>
+    void forwarding_ref(T&& t) {
+      T other = std::forward<T>(t);
+    }
+
 This check implements
 `CppCoreGuideline F.18 <http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#f18-for-will-move-from-parameters-pass-by-x-and-stdmove-the-parameter>`_.

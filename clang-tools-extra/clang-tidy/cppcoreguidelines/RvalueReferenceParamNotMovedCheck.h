@@ -31,6 +31,7 @@ public:
 private:
   const bool AllowAnySubExpr;
   const bool IgnoreUnnamedParams;
+  const bool IgnoreNonDeducedTemplateTypes;
 };
 
 } // namespace clang::tidy::cppcoreguidelines

@@ -55,10 +55,11 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
       parmVarDecl(
           parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
           parmVarDecl(
-              unless(hasType(references(qualType(anyOf(
-                  isConstQualified(),
-                  templateTypeParmType(hasDeclaration(templateTypeParmDecl())),
-                  substTemplateTypeParmType()))))),
+              optionally(hasType(
+                  qualType(references(templateTypeParmType(hasDeclaration(
+                      templateTypeParmDecl().bind("template-type"))))))),
+              unless(hasType(references(qualType(
+                  anyOf(isConstQualified(), substTemplateTypeParmType()))))),
               anyOf(
                   hasAncestor(compoundStmt(hasParent(lambdaExpr(
                       has(cxxRecordDecl(
@@ -77,12 +78,33 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
 void RvalueReferenceParamNotMovedCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *Param = Result.Nodes.getNodeAs<ParmVarDecl>("param");
+  const auto *TemplateType =
+      Result.Nodes.getNodeAs<TemplateTypeParmDecl>("template-type");
 
   if (!Param)
     return;
 
   if (IgnoreUnnamedParams && Param->getName().empty())
     return;
+
+  const auto *Function = dyn_cast<FunctionDecl>(Param->getDeclContext());
+  if (!Function)
+    return;
+
+  if (IgnoreNonDeducedTemplateTypes && TemplateType)
+    return;
+
+  if (TemplateType) {
+    if (const FunctionTemplateDecl *FuncTemplate =
+            Function->getDescribedFunctionTemplate()) {
+      const TemplateParameterList *Params =
+          FuncTemplate->getTemplateParameters();
+      if (llvm::is_contained(*Params, TemplateType)) {
+        // Ignore forwarding reference
+        return;
+      }
+    }
+  }
 
   const auto *MoveCall = Result.Nodes.getNodeAs<CallExpr>("move-call");
   if (!MoveCall) {
@@ -98,12 +120,16 @@ RvalueReferenceParamNotMovedCheck::RvalueReferenceParamNotMovedCheck(
     : ClangTidyCheck(Name, Context),
       AllowAnySubExpr(Options.getLocalOrGlobal("AllowAnySubExpr", false)),
       IgnoreUnnamedParams(
-          Options.getLocalOrGlobal("IgnoreUnnamedParams", false)) {}
+          Options.getLocalOrGlobal("IgnoreUnnamedParams", false)),
+      IgnoreNonDeducedTemplateTypes(
+          Options.getLocalOrGlobal("IgnoreNonDeducedTemplateTypes", false)) {}
 
 void RvalueReferenceParamNotMovedCheck::storeOptions(
     ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "AllowAnySubExpr", AllowAnySubExpr);
   Options.store(Opts, "IgnoreUnnamedParams", IgnoreUnnamedParams);
+  Options.store(Opts, "IgnoreNonDeducedTemplateTypes",
+                IgnoreNonDeducedTemplateTypes);
 }
 
 } // namespace clang::tidy::cppcoreguidelines

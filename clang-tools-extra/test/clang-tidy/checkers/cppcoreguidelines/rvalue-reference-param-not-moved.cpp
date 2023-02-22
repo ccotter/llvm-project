@@ -1,9 +1,13 @@
 // RUN: %check_clang_tidy -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true}]}" -- -fno-delayed-template-parsing
-// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreNonDeducedTemplateTypes, value: true}]}" -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreNonDeducedTemplateTypes, value: true}]}" -- -fno-delayed-template-parsing
 // RUN: %check_clang_tidy -check-suffix=,NOSUBEXPR -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
-// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: false},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true}]}" -- -fno-delayed-template-parsing
-// RUN: %check_clang_tidy -check-suffix=,UNNAMED -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- -- -fno-delayed-template-parsing
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: false},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreNonDeducedTemplateTypes, value: true}]}" -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,UNNAMED -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: false},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreNonDeducedTemplateTypes, value: true}]}" -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,NONDEDUCED -std=c++11 %s cppcoreguidelines-rvalue-reference-param-not-moved %t -- \
+// RUN: -config="{CheckOptions: [{key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowAnySubExpr, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams, value: true},{key: cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreNonDeducedTemplateTypes, value: false}]}" -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
@@ -66,7 +70,6 @@ void never_moves_some_params(Obj&& o1, Obj&& o2) {
 
 void never_moves_unnamed(Obj&&) {}
 // CHECK-MESSAGES-UNNAMED: :[[@LINE-1]]:31: warning: rvalue reference parameter '' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-// CHECK-MESSAGES-CXX14: :[[@LINE-2]]:31: warning: rvalue reference parameter '' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 
 void never_moves_mixed(Obj o1, Obj&& o2) {
   // CHECK-MESSAGES: :[[@LINE-1]]:38: warning: rvalue reference parameter 'o2' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
@@ -161,8 +164,6 @@ struct mypair {
 
 void moves_member_of_parameter(mypair<Obj, Obj>&& pair) {
   // CHECK-MESSAGES-NOSUBEXPR: :[[@LINE-1]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-  // CHECK-MESSAGES-UNNAMED: :[[@LINE-2]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-  // CHECK-MESSAGES-CXX14: :[[@LINE-3]]:51: warning: rvalue reference parameter 'pair' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj a = std::move(pair.first);
   Obj b = std::move(pair.second);
 }
@@ -175,8 +176,6 @@ struct myoptional {
 
 void moves_deref_optional(myoptional<Obj>&& opt) {
   // CHECK-MESSAGES-NOSUBEXPR: :[[@LINE-1]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-  // CHECK-MESSAGES-UNNAMED: :[[@LINE-2]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
-  // CHECK-MESSAGES-CXX14: :[[@LINE-3]]:45: warning: rvalue reference parameter 'opt' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
   Obj other = std::move(*opt);
 }
 
@@ -309,23 +308,21 @@ struct AnotherObj {
 
 template <class T>
 struct AClassTemplate {
+  AClassTemplate(T&& t) {}
+  // CHECK-MESSAGES-NONDEDUCED: :[[@LINE-1]]:22: warning: rvalue reference parameter 't' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
+
   void moves(T&& t) {
     T other = std::move(t);
   }
   void never_moves(T&& t) {}
-  // FIXME - 'T' is non-deduced here, and, in an instantiation of AClassTemplate,
-  // never_moves indeed is suspicious. In many cases, AClassTemplate would
-  // either have a different specialization for T being a reference or
-  // non-reference (example, std::future), or restrict AClassTemplate to only
-  // allow instantiations where 'T' is a reference or non-reference, but not
-  // both. For now, we don't flag this code.
+  // CHECK-MESSAGES-NONDEDUCED: :[[@LINE-1]]:24: warning: rvalue reference parameter 't' is never moved from inside the function body [cppcoreguidelines-rvalue-reference-param-not-moved]
 };
 
 void instantiate_a_class_template() {
   Obj o;
-  AClassTemplate<Obj> withObj;
+  AClassTemplate<Obj> withObj{std::move(o)};
   withObj.never_moves(std::move(o));
 
-  AClassTemplate<Obj&> withObjRef;
+  AClassTemplate<Obj&> withObjRef(o);
   withObjRef.never_moves(o);
 }
