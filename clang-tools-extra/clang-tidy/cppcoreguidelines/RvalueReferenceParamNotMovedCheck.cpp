@@ -40,39 +40,20 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
       this);
 }
 
-static bool isValueCapturedByAnyLambda(ASTContext &Context,
-                                       const FunctionDecl *Function,
-                                       const DeclRefExpr *MoveTarget,
-                                       const ParmVarDecl *Param) {
-  SmallVector<BoundNodes, 3> Matches =
-      match(lambdaExpr(hasAncestor(equalsNode(Function)),
-                       hasDescendant(declRefExpr(equalsNode(MoveTarget))))
-                .bind("lambda"),
-            Context);
-  for (const BoundNodes &Match : Matches) {
-    const auto *Lambda = Match.getNodeAs<LambdaExpr>("lambda");
-    bool ParamIsValueCaptured =
-        std::find_if(Lambda->capture_begin(), Lambda->capture_end(),
-                     [&](const LambdaCapture &Capture) {
-                       return Capture.capturesVariable() &&
-                              Capture.getCapturedVar() == Param &&
-                              Capture.getCaptureKind() == LCK_ByCopy;
-                     }) != Lambda->capture_end();
-    if (ParamIsValueCaptured) {
-      return true;
-    }
-  }
-  return false;
-}
-
 namespace {
-AST_MATCHER_P2(Stmt, moveArgumentOf, bool, StrictMode, const Decl *, D) {
-  StatementMatcher RefToParam = declRefExpr(to(equalsNode(D))).bind("ref");
+AST_MATCHER_P(LambdaExpr, valueCapturesVar, const VarDecl *, Var) {
+  return std::find_if(Node.capture_begin(), Node.capture_end(),
+                      [&](const LambdaCapture &Capture) {
+                        return Capture.capturesVariable() &&
+                               Capture.getCapturedVar() == Var &&
+                               Capture.getCaptureKind() == LCK_ByCopy;
+                      }) != Node.capture_end();
+}
+AST_MATCHER_P2(Stmt, argumentOf, bool, StrictMode, StatementMatcher, Ref) {
   if (StrictMode) {
-    return RefToParam.matches(Node, Finder, Builder);
+    return Ref.matches(Node, Finder, Builder);
   } else {
-    return stmt(anyOf(RefToParam, hasDescendant(RefToParam)))
-        .matches(Node, Finder, Builder);
+    return stmt(anyOf(Ref, hasDescendant(Ref))).matches(Node, Finder, Builder);
   }
 }
 } // namespace
@@ -101,7 +82,13 @@ void RvalueReferenceParamNotMovedCheck::check(
       anyOf(callee(functionDecl(hasName("::std::move"))),
             callee(unresolvedLookupExpr(hasAnyDeclaration(
                 namedDecl(hasUnderlyingDecl(hasName("::std::move"))))))),
-      argumentCountIs(1), hasArgument(0, moveArgumentOf(StrictMode, Param)));
+      argumentCountIs(1),
+      hasArgument(0,
+                  argumentOf(StrictMode,
+                             declRefExpr(to(equalsNode(Param))).bind("ref"))),
+      unless(hasAncestor(
+          lambdaExpr(hasDescendant(declRefExpr(equalsBoundNode("ref"))),
+                     valueCapturesVar(Param)))));
 
   SmallVector<BoundNodes, 1> Matches;
   if (ContainingLambda) {
@@ -122,18 +109,6 @@ void RvalueReferenceParamNotMovedCheck::check(
   }
 
   int MoveExprsCount = Matches.size();
-  for (const BoundNodes &Match : Matches) {
-    // The DeclRefExprs of non-initializer value captured variables refer to
-    // the original variable declaration in the AST. In such cases, we exclude
-    // those DeclRefExprs since they are not actually moving the original
-    // variable.
-    if (isValueCapturedByAnyLambda(*Result.Context, Function,
-                                   Match.getNodeAs<DeclRefExpr>("ref"),
-                                   Param)) {
-      --MoveExprsCount;
-    }
-  }
-
   if (MoveExprsCount == 0) {
     diag(Param->getLocation(),
          "rvalue reference parameter %0 is never moved from "
