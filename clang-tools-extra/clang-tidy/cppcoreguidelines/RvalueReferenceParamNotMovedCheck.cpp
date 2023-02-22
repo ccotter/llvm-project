@@ -24,11 +24,11 @@ AST_MATCHER_P(LambdaExpr, valueCapturesVar, DeclarationMatcher, VarMatcher) {
                                Capture.getCaptureKind() == LCK_ByCopy;
                       }) != Node.capture_end();
 }
-AST_MATCHER_P2(Stmt, argumentOf, bool, StrictMode, StatementMatcher, Ref) {
-  if (StrictMode) {
-    return Ref.matches(Node, Finder, Builder);
-  } else {
+AST_MATCHER_P2(Stmt, argumentOf, bool, AllowAnySubExpr, StatementMatcher, Ref) {
+  if (AllowAnySubExpr) {
     return stmt(anyOf(Ref, hasDescendant(Ref))).matches(Node, Finder, Builder);
+  } else {
+    return Ref.matches(Node, Finder, Builder);
   }
 }
 } // namespace
@@ -44,7 +44,7 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
           argumentCountIs(1),
           hasArgument(
               0, argumentOf(
-                     StrictMode,
+                     AllowAnySubExpr,
                      declRefExpr(to(equalsBoundNode("param"))).bind("ref"))),
           unless(hasAncestor(
               lambdaExpr(hasDescendant(declRefExpr(equalsBoundNode("ref"))),
@@ -96,13 +96,13 @@ void RvalueReferenceParamNotMovedCheck::check(
 RvalueReferenceParamNotMovedCheck::RvalueReferenceParamNotMovedCheck(
     StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      StrictMode(Options.getLocalOrGlobal("StrictMode", true)),
+      AllowAnySubExpr(Options.getLocalOrGlobal("AllowAnySubExpr", false)),
       IgnoreUnnamedParams(
           Options.getLocalOrGlobal("IgnoreUnnamedParams", false)) {}
 
 void RvalueReferenceParamNotMovedCheck::storeOptions(
     ClangTidyOptions::OptionMap &Opts) {
-  Options.store(Opts, "StrictMode", StrictMode);
+  Options.store(Opts, "AllowAnySubExpr", AllowAnySubExpr);
   Options.store(Opts, "IgnoreUnnamedParams", IgnoreUnnamedParams);
 }
 

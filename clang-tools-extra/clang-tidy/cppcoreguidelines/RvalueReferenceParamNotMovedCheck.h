@@ -29,7 +29,7 @@ public:
   void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
 
 private:
-  const bool StrictMode;
+  const bool AllowAnySubExpr;
   const bool IgnoreUnnamedParams;
 };
 
