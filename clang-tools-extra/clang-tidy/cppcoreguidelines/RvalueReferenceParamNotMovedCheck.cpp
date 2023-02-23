@@ -47,31 +47,23 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
                      AllowAnySubExpr,
                      declRefExpr(to(equalsBoundNode("param"))).bind("ref"))),
           unless(hasAncestor(
-              lambdaExpr(hasDescendant(declRefExpr(equalsBoundNode("ref"))),
-                         valueCapturesVar(equalsBoundNode("param"))))))
+              lambdaExpr(valueCapturesVar(equalsBoundNode("param"))))))
           .bind("move-call");
 
   Finder->addMatcher(
       parmVarDecl(
-          parmVarDecl(hasType(type(rValueReferenceType()))).bind("param"),
-          parmVarDecl(
-              optionally(hasType(
-                  qualType(references(templateTypeParmType(hasDeclaration(
-                      templateTypeParmDecl().bind("template-type"))))))),
-              unless(hasType(references(qualType(
-                  anyOf(isConstQualified(), substTemplateTypeParmType()))))),
-              anyOf(
-                  hasAncestor(compoundStmt(hasParent(lambdaExpr(
-                      has(cxxRecordDecl(
-                          has(cxxMethodDecl(ToParam, hasName("operator()"))))),
-                      optionally(hasDescendant(MoveCallMatcher)))))),
-                  hasAncestor(cxxConstructorDecl(
-                      ToParam, isDefinition(), unless(isMoveConstructor()),
-                      optionally(hasDescendant(MoveCallMatcher)))),
-                  hasAncestor(functionDecl(
-                      unless(cxxConstructorDecl()), ToParam,
-                      unless(cxxMethodDecl(isMoveAssignmentOperator())),
-                      hasBody(optionally(hasDescendant(MoveCallMatcher)))))))),
+          hasType(type(rValueReferenceType())), parmVarDecl().bind("param"),
+          unless(hasType(references(qualType(
+              anyOf(isConstQualified(), substTemplateTypeParmType()))))),
+          optionally(hasType(qualType(references(templateTypeParmType(
+              hasDeclaration(templateTypeParmDecl().bind("template-type"))))))),
+          anyOf(hasAncestor(cxxConstructorDecl(
+                    ToParam, isDefinition(), unless(isMoveConstructor()),
+                    optionally(hasDescendant(MoveCallMatcher)))),
+                hasAncestor(functionDecl(
+                    unless(cxxConstructorDecl()), ToParam,
+                    unless(cxxMethodDecl(isMoveAssignmentOperator())),
+                    hasBody(optionally(hasDescendant(MoveCallMatcher))))))),
       this);
 }
 
