@@ -315,19 +315,19 @@ StatementMatcher makePseudoArrayLoopMatcher() {
 // Returns at a 3-tuple with the container expr, function name (begin/end/etc),
 // and whether the call is made through an arrow (->) for CXXMemberCallExprs.
 // The returned Expr* is nullptr if any of the assumptions are not met.
-static const std::tuple<const Expr *, StringRef, bool>
+static std::tuple<const Expr *, StringRef, bool>
 getContainerExpr(const Expr *Call) {
   const Expr *Dug = digThroughConstructorsConversions(Call);
 
   if (const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(Dug)) {
-    const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee());
-    if (!Member) {
+    if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee())) {
+      return std::make_tuple(TheCall->getImplicitObjectArgument(),
+                             Member->getMemberDecl()->getName(),
+                             Member->isArrow());
+    } else {
       return std::make_tuple(TheCall->getArg(0),
                              TheCall->getDirectCallee()->getName(), false);
     }
-    return std::make_tuple(TheCall->getImplicitObjectArgument(),
-                           Member->getMemberDecl()->getName(),
-                           Member->isArrow());
   } else if (const auto *TheCall = dyn_cast_or_null<CallExpr>(Dug)) {
     if (TheCall->getNumArgs() != 1)
       return std::make_tuple(nullptr, StringRef{}, false);
