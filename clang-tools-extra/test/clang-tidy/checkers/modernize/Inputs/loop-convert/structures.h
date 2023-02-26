@@ -39,13 +39,13 @@ struct S {
   iterator end();
 };
 
-S::const_iterator begin(const S& s);
-S::const_iterator end(const S& s);
-S::const_iterator cbegin(const S& s);
-S::const_iterator cend(const S& s);
-S::iterator begin(S& s);
-S::iterator end(S& s);
-unsigned size(const S& s);
+S::const_iterator begin(const S&);
+S::const_iterator end(const S&);
+S::const_iterator cbegin(const S&);
+S::const_iterator cend(const S&);
+S::iterator begin(S&);
+S::iterator end(S&);
+unsigned size(const S&);
 
 struct T {
   typedef int value_type;
@@ -60,6 +60,8 @@ struct T {
   iterator begin();
   iterator end();
 };
+T::iterator begin(T&);
+T::iterator end(T&);
 
 struct Q {
   typedef int value_type;

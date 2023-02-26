@@ -202,6 +202,8 @@ void differentContainers() {
   T Other;
   for (T::iterator I = Tt.begin(), E = Other.end();  I != E; ++I)
     int K = *I;
+  for (T::iterator I = begin(Tt), E = end(Other);  I != E; ++I)
+    int K = *I;
 
   for (T::iterator I = Other.begin(), E = Tt.end();  I != E; ++I)
     int K = *I;
