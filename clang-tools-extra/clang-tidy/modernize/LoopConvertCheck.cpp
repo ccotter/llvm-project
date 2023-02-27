@@ -139,6 +139,8 @@ StatementMatcher makeArrayLoopMatcher() {
 ///        it != anotherContainer.end(); ++it) { ... }
 ///   for (containerType::iterator it = begin(container),
 ///        e = end(container); it != e; ++it) { ... }
+///   for (containerType::iterator it = std::begin(container),
+///        e = std::end(container); it != e; ++it) { ... }
 /// \endcode
 /// The following string identifiers are bound to the parts of the AST:
 ///   InitVarName: 'it' (as a VarDecl)
@@ -146,8 +148,9 @@ StatementMatcher makeArrayLoopMatcher() {
 ///   In the first example only:
 ///     EndVarName: 'e' (as a VarDecl)
 ///   In the second example only:
-///     EndCallName: 'container.end()' (as a CXXMemberCallExpr) or
-///     'end(container)' (as a CallExpr)
+///     EndCallName: 'container.end()' (as a CXXMemberCallExpr)
+///   In the third/fourth examples:
+///     'end(container)' or 'std::end(container)' (as a CallExpr)
 ///
 /// Client code will need to make sure that:
 ///   - The two containers on which 'begin' and 'end' are called are the same.
