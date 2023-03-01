@@ -41,6 +41,7 @@
 #include "llvm/Target/TargetMachine.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <list>
 
@@ -883,11 +884,11 @@ public:
     Result.Is.insert(LI);
 
     for (unsigned i = 0; i < Result.getDimension(); i++) {
-      Value *Idx[2] = {
+      std::array<Value *, 2>Idx = { {
           ConstantInt::get(Type::getInt32Ty(LI->getContext()), 0),
           ConstantInt::get(Type::getInt32Ty(LI->getContext()), i),
-      };
-      int64_t Ofs = DL.getIndexedOffsetInType(Result.VTy, makeArrayRef(Idx, 2));
+      } };
+      int64_t Ofs = DL.getIndexedOffsetInType(Result.VTy, makeArrayRef(Idx.begin(), 2));
       Result.EI[i] = ElementInfo(Offset + Ofs, i == 0 ? LI : nullptr);
     }
 

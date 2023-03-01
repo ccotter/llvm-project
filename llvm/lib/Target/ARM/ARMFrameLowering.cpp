@@ -154,6 +154,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -2964,7 +2965,7 @@ void ARMFrameLowering::adjustForSegmentedStacks(
   // The blocks will all be inserted before PrologueMBB using that order.
   // Therefore the block that should appear first in the CFG should appear
   // first in the list.
-  MachineBasicBlock *AddedBlocks[] = {PrevStackMBB, McrMBB, GetMBB, AllocMBB,
+  std::array AddedBlocks = {PrevStackMBB, McrMBB, GetMBB, AllocMBB,
                                       PostStackMBB};
 
   for (MachineBasicBlock *B : AddedBlocks)

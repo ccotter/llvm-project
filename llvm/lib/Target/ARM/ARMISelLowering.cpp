@@ -105,6 +105,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -245,7 +246,7 @@ void ARMTargetLowering::addAllExtLoads(const MVT From, const MVT To,
 }
 
 void ARMTargetLowering::addMVEVectorTypes(bool HasMVEFP) {
-  const MVT IntTypes[] = { MVT::v16i8, MVT::v8i16, MVT::v4i32 };
+  const std::array<MVT, 3> IntTypes = { { MVT::v16i8, MVT::v8i16, MVT::v4i32 } };
 
   for (auto VT : IntTypes) {
     addRegisterClass(VT, &ARM::MQPRRegClass);
@@ -321,7 +322,7 @@ void ARMTargetLowering::addMVEVectorTypes(bool HasMVEFP) {
     }
   }
 
-  const MVT FloatTypes[] = { MVT::v8f16, MVT::v4f32 };
+  const std::array<MVT, 2> FloatTypes = { { MVT::v8f16, MVT::v4f32 } };
   for (auto VT : FloatTypes) {
     addRegisterClass(VT, &ARM::MQPRRegClass);
     if (!HasMVEFP)
@@ -389,7 +390,7 @@ void ARMTargetLowering::addMVEVectorTypes(bool HasMVEFP) {
   // We 'support' these types up to bitcast/load/store level, regardless of
   // MVE integer-only / float support. Only doing FP data processing on the FP
   // vector types is inhibited at integer-only level.
-  const MVT LongTypes[] = { MVT::v2i64, MVT::v2f64 };
+  const std::array<MVT, 2> LongTypes = { { MVT::v2i64, MVT::v2f64 } };
   for (auto VT : LongTypes) {
     addRegisterClass(VT, &ARM::MQPRRegClass);
     setAllExpand(VT);
@@ -435,7 +436,7 @@ void ARMTargetLowering::addMVEVectorTypes(bool HasMVEFP) {
   }
 
   // Predicate types
-  const MVT pTypes[] = {MVT::v16i1, MVT::v8i1, MVT::v4i1, MVT::v2i1};
+  const std::array<MVT, 4> pTypes = { {MVT::v16i1, MVT::v8i1, MVT::v4i1, MVT::v2i1} };
   for (auto VT : pTypes) {
     addRegisterClass(VT, &ARM::VCCRRegClass);
     setOperationAction(ISD::BUILD_VECTOR, VT, Custom);
@@ -8275,7 +8276,7 @@ SDValue ARMTargetLowering::ReconstructShuffle(SDValue Op,
   // been checked before this point.
   assert(Sources.size() <= 2 && "Too many sources!");
 
-  SDValue ShuffleOps[] = { DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT) };
+  std::array ShuffleOps = { DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT) };
   for (unsigned i = 0; i < Sources.size(); ++i)
     ShuffleOps[i] = Sources[i].ShuffleVec;
 
@@ -8325,7 +8326,7 @@ static bool isLegalMVEShuffleOp(unsigned PFEntry) {
 bool ARMTargetLowering::isShuffleMaskLegal(ArrayRef<int> M, EVT VT) const {
   if (VT.getVectorNumElements() == 4 &&
       (VT.is128BitVector() || VT.is64BitVector())) {
-    unsigned PFIndexes[4];
+    std::array<unsigned, 4> PFIndexes;
     for (unsigned i = 0; i != 4; ++i) {
       if (M[i] < 0)
         PFIndexes[i] = 8;
@@ -8846,7 +8847,7 @@ static SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG,
   // the PerfectShuffle-generated table to synthesize it from other shuffles.
   unsigned NumElts = VT.getVectorNumElements();
   if (NumElts == 4) {
-    unsigned PFIndexes[4];
+    std::array<unsigned, 4> PFIndexes;
     for (unsigned i = 0; i != 4; ++i) {
       if (ShuffleMask[i] < 0)
         PFIndexes[i] = 8;
@@ -15844,14 +15845,14 @@ static bool TryCombineBaseUpdate(struct BaseUpdateTarget &Target,
 
   // Create the new updating load/store node.
   // First, create an SDVTList for the new updating node's results.
-  EVT Tys[6];
+  std::array<EVT, 6> Tys;
   unsigned NumResultVecs = (isLoadOp ? NumVecs : 0);
   unsigned n;
   for (n = 0; n < NumResultVecs; ++n)
     Tys[n] = AlignedVecTy;
   Tys[n++] = MVT::i32;
   Tys[n] = MVT::Other;
-  SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys, NumResultVecs + 2));
+  SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys.begin(), NumResultVecs + 2));
 
   // Then, gather the new node's operands.
   SmallVector<SDValue, 8> Ops;
@@ -16155,14 +16156,14 @@ static SDValue PerformMVEVLDCombine(SDNode *N,
 
     // Create the new updating load/store node.
     // First, create an SDVTList for the new updating node's results.
-    EVT Tys[6];
+    std::array<EVT, 6> Tys;
     unsigned NumResultVecs = (isLoadOp ? NumVecs : 0);
     unsigned n;
     for (n = 0; n < NumResultVecs; ++n)
       Tys[n] = VecTy;
     Tys[n++] = MVT::i32;
     Tys[n] = MVT::Other;
-    SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys, NumResultVecs + 2));
+    SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys.begin(), NumResultVecs + 2));
 
     // Then, gather the new node's operands.
     SmallVector<SDValue, 8> Ops;
@@ -16238,12 +16239,12 @@ static bool CombineVLDDUP(SDNode *N, TargetLowering::DAGCombinerInfo &DCI) {
   }
 
   // Create the vldN-dup node.
-  EVT Tys[5];
+  std::array<EVT, 5> Tys;
   unsigned n;
   for (n = 0; n < NumVecs; ++n)
     Tys[n] = VT;
   Tys[n] = MVT::Other;
-  SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys, NumVecs+1));
+  SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys.begin(), NumVecs+1));
   SDValue Ops[] = { VLD->getOperand(0), VLD->getOperand(2) };
   MemIntrinsicSDNode *VLDMemInt = cast<MemIntrinsicSDNode>(VLD);
   SDValue VLDDup = DAG.getMemIntrinsicNode(NewOpc, SDLoc(VLD), SDTys,
@@ -21440,9 +21441,9 @@ bool ARMTargetLowering::lowerInterleavedLoad(
     if (Subtarget->hasNEON()) {
       Type *Int8Ptr = Builder.getInt8PtrTy(LI->getPointerAddressSpace());
       Type *Tys[] = {VecTy, Int8Ptr};
-      static const Intrinsic::ID LoadInts[3] = {Intrinsic::arm_neon_vld2,
+      static const std::array<Intrinsic::ID, 3> LoadInts = { {Intrinsic::arm_neon_vld2,
                                                 Intrinsic::arm_neon_vld3,
-                                                Intrinsic::arm_neon_vld4};
+                                                Intrinsic::arm_neon_vld4} };
       Function *VldnFunc =
           Intrinsic::getDeclaration(LI->getModule(), LoadInts[Factor - 2], Tys);
 
@@ -21606,9 +21607,9 @@ bool ARMTargetLowering::lowerInterleavedStore(StoreInst *SI,
   auto createStoreIntrinsic = [&](Value *BaseAddr,
                                   SmallVectorImpl<Value *> &Shuffles) {
     if (Subtarget->hasNEON()) {
-      static const Intrinsic::ID StoreInts[3] = {Intrinsic::arm_neon_vst2,
+      static const std::array<Intrinsic::ID, 3> StoreInts = { {Intrinsic::arm_neon_vst2,
                                                  Intrinsic::arm_neon_vst3,
-                                                 Intrinsic::arm_neon_vst4};
+                                                 Intrinsic::arm_neon_vst4} };
       Type *Int8Ptr = Builder.getInt8PtrTy(SI->getPointerAddressSpace());
       Type *Tys[] = {Int8Ptr, SubVecTy};
 

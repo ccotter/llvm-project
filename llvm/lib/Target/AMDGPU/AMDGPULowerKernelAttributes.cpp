@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AMDGPU.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -95,10 +97,10 @@ static bool processUse(CallInst *CI, bool IsV5OrAbove) {
   if (!HasReqdWorkGroupSize && !HasUniformWorkGroupSize)
     return false;
 
-  Value *BlockCounts[3] = {nullptr, nullptr, nullptr};
-  Value *GroupSizes[3]  = {nullptr, nullptr, nullptr};
-  Value *Remainders[3]  = {nullptr, nullptr, nullptr};
-  Value *GridSizes[3]   = {nullptr, nullptr, nullptr};
+  std::array<Value *, 3>BlockCounts = { {nullptr, nullptr, nullptr} };
+  std::array<Value *, 3>GroupSizes = { {nullptr, nullptr, nullptr} };
+  std::array<Value *, 3>Remainders = { {nullptr, nullptr, nullptr} };
+  std::array<Value *, 3>GridSizes  = { {nullptr, nullptr, nullptr} };
 
   const DataLayout &DL = F->getParent()->getDataLayout();
 

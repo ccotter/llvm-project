@@ -24,6 +24,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
+#include <array>
 #include <numeric>
 
 using namespace llvm;
@@ -347,7 +348,7 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
        << ";\n";
   };
 
-  constexpr int Log2LMULs[] = {-3, -2, -1, 0, 1, 2, 3};
+  constexpr std::array Log2LMULs = {-3, -2, -1, 0, 1, 2, 3};
   // Print RVV boolean types.
   for (int Log2LMUL : Log2LMULs) {
     auto T = TypeCache.computeType(BasicType::Int8, Log2LMUL,

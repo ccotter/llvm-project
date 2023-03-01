@@ -11,6 +11,7 @@
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/Errc.h"
+#include <array>
 #include <memory>
 
 using namespace llvm;
@@ -116,7 +117,7 @@ Expected<std::vector<std::unique_ptr<Section>>> static extractSections(
 Error MachOReader::readLoadCommands(Object &O) const {
   // For MachO sections indices start from 1.
   uint32_t NextSectionIndex = 1;
-  static constexpr char TextSegmentName[] = "__TEXT";
+  static constexpr std::array<char, 7> TextSegmentName = { "__TEXT" };
   for (auto LoadCmd : MachOObj.load_commands()) {
     LoadCommand LC;
     switch (LoadCmd.C.cmd) {
@@ -129,7 +130,7 @@ Error MachOReader::readLoadCommands(Object &O) const {
       // have alignment restrictions.
       if (StringRef(reinterpret_cast<const char *>(
               LoadCmd.Ptr + offsetof(MachO::segment_command, segname))) ==
-          TextSegmentName)
+          TextSegmentName.begin())
         O.TextSegmentCommandIndex = O.LoadCommands.size();
 
       if (Expected<std::vector<std::unique_ptr<Section>>> Sections =
@@ -145,7 +146,7 @@ Error MachOReader::readLoadCommands(Object &O) const {
       // not have alignment restrictions.
       if (StringRef(reinterpret_cast<const char *>(
               LoadCmd.Ptr + offsetof(MachO::segment_command_64, segname))) ==
-          TextSegmentName)
+          TextSegmentName.begin())
         O.TextSegmentCommandIndex = O.LoadCommands.size();
 
       if (Expected<std::vector<std::unique_ptr<Section>>> Sections =

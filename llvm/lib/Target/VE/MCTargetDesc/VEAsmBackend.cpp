@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/VEFixupKinds.h"
 #include "MCTargetDesc/VEMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -102,7 +104,7 @@ public:
   unsigned getNumFixupKinds() const override { return VE::NumTargetFixupKinds; }
 
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
-    const static MCFixupKindInfo Infos[VE::NumTargetFixupKinds] = {
+    const static std::array<MCFixupKindInfo, VE::NumTargetFixupKinds> Infos = { {
         // name, offset, bits, flags
         {"fixup_ve_reflong", 0, 32, 0},
         {"fixup_ve_srel32", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
@@ -120,7 +122,7 @@ public:
         {"fixup_ve_tls_gd_lo32", 0, 32, 0},
         {"fixup_ve_tpoff_hi32", 0, 32, 0},
         {"fixup_ve_tpoff_lo32", 0, 32, 0},
-    };
+    } };
 
     if (Kind < FirstTargetFixupKind)
       return MCAsmBackend::getFixupKindInfo(Kind);

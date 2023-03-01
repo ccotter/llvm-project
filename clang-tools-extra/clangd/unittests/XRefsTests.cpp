@@ -24,6 +24,7 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -71,7 +72,7 @@ highlightsFrom(const Annotations &Test) {
 }
 
 TEST(HighlightsTest, All) {
-  const char *Tests[] = {
+  std::array<const char *, 6>Tests = { {
       R"cpp(// Local variable
         int main() {
           int [[bonjour]];
@@ -122,7 +123,7 @@ TEST(HighlightsTest, All) {
           [Foo [[x]]:2 [[^y]]:4];
         }
       )cpp",
-  };
+  } };
   for (const char *Test : Tests) {
     Annotations T(Test);
     auto TU = TestTU::withCode(T.code());
@@ -134,7 +135,7 @@ TEST(HighlightsTest, All) {
 }
 
 TEST(HighlightsTest, ControlFlow) {
-  const char *Tests[] = {
+  std::array<const char *, 10>Tests = { {
       R"cpp(
         // Highlight same-function returns.
         int fib(unsigned n) {
@@ -259,7 +260,7 @@ TEST(HighlightsTest, ControlFlow) {
           out: return;
         }
       )cpp",
-  };
+  } };
   for (const char *Test : Tests) {
     Annotations T(Test);
     auto TU = TestTU::withCode(T.code());
@@ -436,7 +437,7 @@ TEST(LocateSymbol, All) {
   //   $decl is the declaration location (if absent, no symbol is located)
   //   $def is the definition location (if absent, symbol has no definition)
   //   unnamed range becomes both $decl and $def.
-  const char *Tests[] = {
+  std::array<const char *, 68>Tests = { {
       R"cpp(
         struct X {
           union {
@@ -996,7 +997,7 @@ TEST(LocateSymbol, All) {
         void play(Dog *dog) {
           [dog ho^wl];
         }
-      )objc"};
+      )objc"} };
   for (const char *Test : Tests) {
     Annotations T(Test);
     llvm::Optional<Range> WantDecl;
@@ -1059,7 +1060,7 @@ TEST(LocateSymbol, AllMulti) {
     Range WantDecl;
     llvm::Optional<Range> WantDef;
   };
-  const char *Tests[] = {
+  std::array<const char *, 3>Tests = { {
       R"objc(
         @interface $decl0[[Cat]]
         @end
@@ -1096,7 +1097,7 @@ TEST(LocateSymbol, AllMulti) {
         - (void)meow {}
         @end
       )objc",
-  };
+  } };
   for (const char *Test : Tests) {
     Annotations T(Test);
     std::vector<ExpectedRanges> Ranges;
@@ -1136,7 +1137,7 @@ TEST(LocateSymbol, AllMulti) {
 // These are separated out from All so that in All we can assert
 // that there are no diagnostics.
 TEST(LocateSymbol, Warnings) {
-  const char *Tests[] = {
+  std::array<const char *, 2>Tests = { {
       R"cpp(// Field, GNU old-style field designator
         struct Foo { int [[x]]; };
         int main() {
@@ -1151,7 +1152,7 @@ TEST(LocateSymbol, Warnings) {
         #define MACRO 2
         #undef macro
       )cpp",
-  };
+  } };
 
   for (const char *Test : Tests) {
     Annotations T(Test);
@@ -1200,7 +1201,7 @@ TEST(LocateSymbol, TextualSmoke) {
 }
 
 TEST(LocateSymbol, Textual) {
-  const char *Tests[] = {
+  std::array<const char *, 5>Tests = { {
       R"cpp(// Comment
         struct [[MyClass]] {};
         // Comment mentioning M^yClass
@@ -1225,7 +1226,7 @@ TEST(LocateSymbol, Textual) {
         int myFunction(int);
         // Not triggered for token which survived preprocessing.
         int var = m^yFunction();
-      )cpp"};
+      )cpp"} };
 
   for (const char *Test : Tests) {
     Annotations T(Test);
@@ -1367,7 +1368,7 @@ TEST(LocateSymbol, TextualDependent) {
 }
 
 TEST(LocateSymbol, Alias) {
-  const char *Tests[] = {
+  std::array<const char *, 11>Tests = { {
       R"cpp(
       template <class T> struct function {};
       template <class T> using [[callback]] = function<T()>;
@@ -1440,7 +1441,7 @@ TEST(LocateSymbol, Alias) {
         using Base<T>::w^aldo;
       };
     )cpp",
-  };
+  } };
 
   for (const auto *Case : Tests) {
     SCOPED_TRACE(Case);
@@ -1650,7 +1651,7 @@ TEST(LocateSymbol, NearbyTokenSmoke) {
 }
 
 TEST(LocateSymbol, NearbyIdentifier) {
-  const char *Tests[] = {
+  std::array<const char *, 10>Tests = { {
       R"cpp(
       // regular identifiers (won't trigger)
       int hello;
@@ -1722,7 +1723,7 @@ TEST(LocateSymbol, NearbyIdentifier) {
       int x = hello, y = hello;
       int z = [[hello]];
       // h^ello
-    )cpp"};
+    )cpp"} };
   for (const char *Test : Tests) {
     Annotations T(Test);
     auto AST = TestTU::withCode(T.code()).build();
@@ -1930,7 +1931,7 @@ void checkFindRefs(llvm::StringRef Test, bool UseIndex = false) {
 }
 
 TEST(FindReferences, WithinAST) {
-  const char *Tests[] = {
+  std::array<const char *, 24>Tests = { {
       R"cpp(// Local variable
         int main() {
           int $def[[foo]];
@@ -2115,7 +2116,7 @@ TEST(FindReferences, WithinAST) {
         using $def[[MyTypeD^ef]] = int;
         enum MyEnum : [[MyTy^peDef]] { };
       )cpp",
-  };
+  } };
   for (const char *Test : Tests)
     checkFindRefs(Test);
 }
@@ -2235,7 +2236,7 @@ TEST(FindReferences, MainFileReferencesOnly) {
 }
 
 TEST(FindReferences, ExplicitSymbols) {
-  const char *Tests[] = {
+  std::array<const char *, 5>Tests = { {
       R"cpp(
       struct Foo { Foo* $decl[[self]]() const; };
       void f() {
@@ -2281,7 +2282,7 @@ TEST(FindReferences, ExplicitSymbols) {
         if ([[a^]]) {} // ignore implicit conversion-operator AST node
       }
     )cpp",
-  };
+  } };
   for (const char *Test : Tests)
     checkFindRefs(Test);
 }

@@ -58,6 +58,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1621,7 +1622,7 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
 
   // Set the action for vector operations to "expand", then override it with
   // either "custom" or "legal" for specific cases.
-  static const unsigned VectExpOps[] = {
+  static const std::array<unsigned, 61> VectExpOps = { {
     // Integer arithmetic:
     ISD::ADD,     ISD::SUB,     ISD::MUL,     ISD::SDIV,      ISD::UDIV,
     ISD::SREM,    ISD::UREM,    ISD::SDIVREM, ISD::UDIVREM,   ISD::SADDO,
@@ -1644,7 +1645,7 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
     ISD::EXTRACT_SUBVECTOR,     ISD::INSERT_SUBVECTOR,
     ISD::CONCAT_VECTORS,        ISD::VECTOR_SHUFFLE,
     ISD::SPLAT_VECTOR,
-  };
+  } };
 
   for (MVT VT : MVT::fixedlen_vector_valuetypes()) {
     for (unsigned VectExpOp : VectExpOps)
@@ -2557,7 +2558,7 @@ HexagonTargetLowering::buildVector32(ArrayRef<SDValue> Elem, const SDLoc &dl,
     //   (zxtb(Elem[0]) | (zxtb(Elem[1]) << 8)) |
     //   (zxtb(Elem[2]) | (zxtb(Elem[3]) << 8)) << 16
     assert(Elem.size() == 4);
-    SDValue Vs[4];
+    std::array<SDValue, 4> Vs;
     for (unsigned i = 0; i != 4; ++i) {
       Vs[i] = DAG.getZExtOrTrunc(Elem[i], dl, MVT::i32);
       Vs[i] = DAG.getZeroExtendInReg(Vs[i], dl, MVT::i8);
@@ -2989,7 +2990,7 @@ HexagonTargetLowering::LowerCONCAT_VECTORS(SDValue Op,
     // inserts to form values of doubled length. Up until there are only
     // two values left to concatenate, all of these values will fit in a
     // 32-bit integer, so keep them as i32 to use 32-bit inserts.
-    SmallVector<SDValue,4> Words[2];
+    std::array<SmallVector<SDValue,4>, 2> Words;
     unsigned IdxW = 0;
 
     for (SDValue P : Op.getNode()->op_values()) {

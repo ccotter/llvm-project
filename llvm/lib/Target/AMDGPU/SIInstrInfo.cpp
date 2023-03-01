@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIInstrInfo.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "AMDGPUInstrInfo.h"
 #include "GCNHazardRecognizer.h"
@@ -2327,7 +2329,7 @@ SIInstrInfo::expandMovDPP64(MachineInstr &MI) const {
   MachineRegisterInfo &MRI = MF->getRegInfo();
   Register Dst = MI.getOperand(0).getReg();
   unsigned Part = 0;
-  MachineInstr *Split[2];
+  std::array<MachineInstr *, 2>Split;
 
   for (auto Sub : { AMDGPU::sub0, AMDGPU::sub1 }) {
     auto MovDPP = BuildMI(MBB, MI, DL, get(AMDGPU::V_MOV_B32_dpp));
@@ -2956,23 +2958,23 @@ void SIInstrInfo::insertSelect(MachineBasicBlock &MBB,
     return;
   }
 
-  static const int16_t Sub0_15[] = {
+  static const std::array<int16_t, 16> Sub0_15 = { {
     AMDGPU::sub0, AMDGPU::sub1, AMDGPU::sub2, AMDGPU::sub3,
     AMDGPU::sub4, AMDGPU::sub5, AMDGPU::sub6, AMDGPU::sub7,
     AMDGPU::sub8, AMDGPU::sub9, AMDGPU::sub10, AMDGPU::sub11,
     AMDGPU::sub12, AMDGPU::sub13, AMDGPU::sub14, AMDGPU::sub15,
-  };
+  } };
 
-  static const int16_t Sub0_15_64[] = {
+  static const std::array<int16_t, 8> Sub0_15_64 = { {
     AMDGPU::sub0_sub1, AMDGPU::sub2_sub3,
     AMDGPU::sub4_sub5, AMDGPU::sub6_sub7,
     AMDGPU::sub8_sub9, AMDGPU::sub10_sub11,
     AMDGPU::sub12_sub13, AMDGPU::sub14_sub15,
-  };
+  } };
 
   unsigned SelOp = AMDGPU::V_CNDMASK_B32_e32;
   const TargetRegisterClass *EltRC = &AMDGPU::VGPR_32RegClass;
-  const int16_t *SubIndices = Sub0_15;
+  const int16_t *SubIndices = Sub0_15.begin();
   int NElts = DstSize / 32;
 
   // 64-bit select is only available for SALU.
@@ -2984,7 +2986,7 @@ void SIInstrInfo::insertSelect(MachineBasicBlock &MBB,
     } else {
       SelOp = AMDGPU::S_CSELECT_B64;
       EltRC = &AMDGPU::SGPR_64RegClass;
-      SubIndices = Sub0_15_64;
+      SubIndices = Sub0_15_64.begin();
       NElts /= 2;
     }
   }
@@ -5333,11 +5335,11 @@ void SIInstrInfo::legalizeOperandsVOP3(MachineRegisterInfo &MRI,
                                        MachineInstr &MI) const {
   unsigned Opc = MI.getOpcode();
 
-  int VOP3Idx[3] = {
+  std::array<int, 3> VOP3Idx = { {
     AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::src0),
     AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::src1),
     AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::src2)
-  };
+  } };
 
   if (Opc == AMDGPU::V_PERMLANE16_B32_e64 ||
       Opc == AMDGPU::V_PERMLANEX16_B32_e64) {
@@ -5363,7 +5365,7 @@ void SIInstrInfo::legalizeOperandsVOP3(MachineRegisterInfo &MRI,
   int ConstantBusLimit = ST.getConstantBusLimit(Opc);
   int LiteralLimit = ST.hasVOP3Literal() ? 1 : 0;
   SmallDenseSet<unsigned> SGPRsUsed;
-  Register SGPRReg = findUsedSGPR(MI, VOP3Idx);
+  Register SGPRReg = findUsedSGPR(MI, VOP3Idx.begin());
   if (SGPRReg) {
     SGPRsUsed.insert(SGPRReg);
     --ConstantBusLimit;
@@ -7443,7 +7445,7 @@ Register SIInstrInfo::findUsedSGPR(const MachineInstr &MI,
   if (SGPRReg)
     return SGPRReg;
 
-  Register UsedSGPRs[3] = {Register()};
+  std::array<Register, 3> UsedSGPRs = { {Register()} };
   const MachineRegisterInfo &MRI = MI.getParent()->getParent()->getRegInfo();
 
   for (unsigned i = 0; i < 3; ++i) {

@@ -32,6 +32,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <string>
@@ -638,7 +639,7 @@ bool HasNameMatcher::matchesNodeFullFast(const NamedDecl &Node) const {
 }
 
 bool HasNameMatcher::matchesNodeFullSlow(const NamedDecl &Node) const {
-  const bool SkipUnwrittenCases[] = {false, true};
+  const std::array SkipUnwrittenCases = {false, true};
   for (bool SkipUnwritten : SkipUnwrittenCases) {
     llvm::SmallString<128> NodeName = StringRef("::");
     llvm::raw_svector_ostream OS(NodeName);

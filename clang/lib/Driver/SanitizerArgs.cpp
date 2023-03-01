@@ -20,6 +20,7 @@
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Transforms/Instrumentation/AddressSanitizerOptions.h"
+#include <array>
 #include <memory>
 
 using namespace clang;
@@ -481,7 +482,7 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
     }
   }
 
-  std::pair<SanitizerMask, SanitizerMask> IncompatibleGroups[] = {
+  std::array<std::pair<SanitizerMask, SanitizerMask>, 10> IncompatibleGroups = { {
       std::make_pair(SanitizerKind::Address,
                      SanitizerKind::Thread | SanitizerKind::Memory),
       std::make_pair(SanitizerKind::Thread, SanitizerKind::Memory),
@@ -516,7 +517,7 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
       std::make_pair(SanitizerKind::MemTag,
                      SanitizerKind::Address | SanitizerKind::KernelAddress |
                          SanitizerKind::HWAddress |
-                         SanitizerKind::KernelHWAddress)};
+                         SanitizerKind::KernelHWAddress)} };
   // Enable toolchain specific default sanitizers if not explicitly disabled.
   SanitizerMask Default = TC.getDefaultSanitizers() & ~AllRemove;
 
@@ -1098,7 +1099,7 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
   // Translate available CoverageFeatures to corresponding clang-cc1 flags.
   // Do it even if Sanitizers.empty() since some forms of coverage don't require
   // sanitizers.
-  std::pair<int, const char *> CoverageFlags[] = {
+  std::array<std::pair<int, const char *>, 19> CoverageFlags = { {
       std::make_pair(CoverageFunc, "-fsanitize-coverage-type=1"),
       std::make_pair(CoverageBB, "-fsanitize-coverage-type=2"),
       std::make_pair(CoverageEdge, "-fsanitize-coverage-type=3"),
@@ -1120,7 +1121,7 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
       std::make_pair(CoverageStackDepth, "-fsanitize-coverage-stack-depth"),
       std::make_pair(CoverageTraceLoads, "-fsanitize-coverage-trace-loads"),
       std::make_pair(CoverageTraceStores, "-fsanitize-coverage-trace-stores"),
-      std::make_pair(CoverageControlFlow, "-fsanitize-coverage-control-flow")};
+      std::make_pair(CoverageControlFlow, "-fsanitize-coverage-control-flow")} };
   for (auto F : CoverageFlags) {
     if (CoverageFeatures & F.first)
       CmdArgs.push_back(F.second);
@@ -1132,10 +1133,10 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
 
   // Translate available BinaryMetadataFeatures to corresponding clang-cc1
   // flags. Does not depend on any other sanitizers.
-  const std::pair<int, std::string> BinaryMetadataFlags[] = {
+  const std::array<std::pair<int, std::string>, 3> BinaryMetadataFlags = { {
       std::make_pair(BinaryMetadataCovered, "covered"),
       std::make_pair(BinaryMetadataAtomics, "atomics"),
-      std::make_pair(BinaryMetadataUAR, "uar")};
+      std::make_pair(BinaryMetadataUAR, "uar")} };
   for (const auto &F : BinaryMetadataFlags) {
     if (BinaryMetadataFeatures & F.first)
       CmdArgs.push_back(

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -1197,8 +1199,8 @@ TEST_F(LoopPassManagerTest, LoopPeerInsertion) {
       .WillOnce(Invoke([&](Loop &L, LoopAnalysisManager &AM,
                            LoopStandardAnalysisResults &AR,
                            LPMUpdater &Updater) {
-        Loop *NewLoops[] = {AR.LI.AllocateLoop(), AR.LI.AllocateLoop(),
-                            AR.LI.AllocateLoop()};
+        std::array<Loop *, 3>NewLoops = { {AR.LI.AllocateLoop(), AR.LI.AllocateLoop(),
+                            AR.LI.AllocateLoop()} };
         L.getParentLoop()->addChildLoop(NewLoops[0]);
         L.getParentLoop()->addChildLoop(NewLoops[1]);
         NewLoops[1]->addChildLoop(NewLoops[2]);

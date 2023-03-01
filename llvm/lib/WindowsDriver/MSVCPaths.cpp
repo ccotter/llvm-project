@@ -18,6 +18,7 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include <array>
 #include <optional>
 #include <string>
 
@@ -427,7 +428,7 @@ bool getWindowsSDKDir(vfs::FileSystem &VFS, std::optional<StringRef> WinSdkDir,
     // Windows SDK 8.x installs libraries in a folder whose names depend on the
     // version of the OS you're targeting.  By default choose the newest, which
     // usually corresponds to the version of the OS you've installed the SDK on.
-    const char *Tests[] = {"winv6.3", "win8", "win7"};
+    std::array<const char *, 3>Tests = { {"winv6.3", "win8", "win7"} };
     for (const char *Test : Tests) {
       SmallString<128> TestPath(Path);
       sys::path::append(TestPath, "Lib", Test);
@@ -578,8 +579,8 @@ bool findVCToolChainViaEnvironment(vfs::FileSystem &VFS, std::string &Path,
         // path components with these prefixes when walking backwards through
         // the path.
         // Note: empty strings match anything.
-        StringRef ExpectedPrefixes[] = {"",     "Host",  "bin", "",
-                                        "MSVC", "Tools", "VC"};
+        std::array<StringRef, 7> ExpectedPrefixes = { {"",     "Host",  "bin", "",
+                                        "MSVC", "Tools", "VC"} };
 
         auto It = sys::path::rbegin(PathEntry);
         auto End = sys::path::rend(PathEntry);

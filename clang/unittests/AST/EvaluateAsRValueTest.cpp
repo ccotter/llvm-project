@@ -16,6 +16,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Tooling/Tooling.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <map>
 #include <string>
 
@@ -83,7 +84,7 @@ TEST(EvaluateAsRValue, FailsGracefullyForUnknownTypes) {
   // This is a regression test; the AST library used to trigger assertion
   // failures because it assumed that the type of initializers was always
   // known (which is true only after template instantiation).
-  std::string ModesToTest[] = {"-std=c++03", "-std=c++11", "-std=c++1y"};
+  std::array<std::string, 3> ModesToTest = { {"-std=c++03", "-std=c++11", "-std=c++1y"} };
   for (std::string const &Mode : ModesToTest) {
     std::vector<std::string> Args(1, Mode);
     Args.push_back("-fno-delayed-template-parsing");
@@ -145,7 +146,7 @@ private:
 };
 
 TEST(EvaluateAsRValue, LValueToRValueConversionWorks) {
-  std::string ModesToTest[] = {"", "-fexperimental-new-constant-interpreter"};
+  std::array<std::string, 2> ModesToTest = { {"", "-fexperimental-new-constant-interpreter"} };
   for (std::string const &Mode : ModesToTest) {
     std::vector<std::string> Args(1, Mode);
     ASSERT_TRUE(runToolOnCodeWithArgs(std::make_unique<CheckConversionAction>(),

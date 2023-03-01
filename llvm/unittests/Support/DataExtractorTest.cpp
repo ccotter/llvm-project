@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/DataExtractor.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
@@ -340,8 +342,8 @@ TEST(DataExtractorTest, size) {
 }
 
 TEST(DataExtractorTest, FixedLengthString) {
-  const char Data[] = "hello\x00\x00\x00world  \thola\x00";
-  DataExtractor DE(StringRef(Data, sizeof(Data)-1), false, 8);
+  const std::array<char, 22> Data = { "hello\x00\x00\x00world  \thola\x00" };
+  DataExtractor DE(StringRef(Data.begin(), sizeof(Data)-1), false, 8);
   uint64_t Offset = 0;
   StringRef Str;
   // Test extracting too many bytes doesn't modify Offset and returns
@@ -370,8 +372,8 @@ TEST(DataExtractorTest, FixedLengthString) {
 
 TEST(DataExtractorTest, GetBytes) {
   // Use data with an embedded NULL character for good measure.
-  const char Data[] = "\x01\x02\x00\x04";
-  StringRef Bytes(Data, sizeof(Data)-1);
+  const std::array<char, 5> Data = { "\x01\x02\x00\x04" };
+  StringRef Bytes(Data.begin(), sizeof(Data)-1);
   DataExtractor DE(Bytes, false, 8);
   uint64_t Offset = 0;
   StringRef Str;

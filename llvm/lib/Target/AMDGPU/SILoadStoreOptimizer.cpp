@@ -57,6 +57,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AMDGPU.h"
 #include "GCNSubtarget.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
@@ -870,9 +872,9 @@ bool SILoadStoreOptimizer::dmasksCanBeCombined(const CombineInfo &CI,
     return false;
 
   // Check other optional immediate operands for equality.
-  unsigned OperandsToMatch[] = {AMDGPU::OpName::cpol, AMDGPU::OpName::d16,
+  std::array<unsigned, 6> OperandsToMatch = { {AMDGPU::OpName::cpol, AMDGPU::OpName::d16,
                                 AMDGPU::OpName::unorm, AMDGPU::OpName::da,
-                                AMDGPU::OpName::r128, AMDGPU::OpName::a16};
+                                AMDGPU::OpName::r128, AMDGPU::OpName::a16} };
 
   for (auto op : OperandsToMatch) {
     int Idx = AMDGPU::getNamedOperandIdx(CI.I->getOpcode(), op);

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
@@ -21,9 +23,9 @@ static void encodeBase64StringEntry(char *Buffer, uint64_t Value) {
   assert(Value > Max7DecimalOffset && Value <= MaxBase64Offset &&
          "Illegal section name encoding for value");
 
-  static const char Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  static const std::array<char, 65> Alphabet = { "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                  "abcdefghijklmnopqrstuvwxyz"
-                                 "0123456789+/";
+                                 "0123456789+/" };
 
   Buffer[0] = '/';
   Buffer[1] = '/';

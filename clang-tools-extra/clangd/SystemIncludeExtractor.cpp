@@ -50,6 +50,7 @@
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <algorithm>
+#include <array>
 #include <iterator>
 #include <map>
 #include <string>
@@ -76,9 +77,9 @@ bool isValidTarget(llvm::StringRef Triple) {
 
 llvm::Optional<DriverInfo> parseDriverOutput(llvm::StringRef Output) {
   DriverInfo Info;
-  const char SIS[] = "#include <...> search starts here:";
-  const char SIE[] = "End of search list.";
-  const char TS[] = "Target: ";
+  const std::array<char, 35> SIS = { "#include <...> search starts here:" };
+  const std::array<char, 20> SIE = { "End of search list." };
+  const std::array<char, 9> TS = { "Target: " };
   llvm::SmallVector<llvm::StringRef> Lines;
   Output.split(Lines, '\n', /*MaxSplit=*/-1, /*KeepEmpty=*/false);
 
@@ -93,13 +94,13 @@ llvm::Optional<DriverInfo> parseDriverOutput(llvm::StringRef Output) {
     auto Line = *It;
     switch (State) {
     case Initial:
-      if (!SeenIncludes && Line.trim() == SIS) {
+      if (!SeenIncludes && Line.trim() == SIS.begin()) {
         SeenIncludes = true;
         State = IncludesExtracting;
-      } else if (!SeenTarget && Line.trim().startswith(TS)) {
+      } else if (!SeenTarget && Line.trim().startswith(TS.begin())) {
         SeenTarget = true;
         llvm::StringRef TargetLine = Line.trim();
-        TargetLine.consume_front(TS);
+        TargetLine.consume_front(TS.begin());
         // Only detect targets that clang understands
         if (!isValidTarget(TargetLine)) {
           elog("System include extraction: invalid target \"{0}\", ignoring",
@@ -112,7 +113,7 @@ llvm::Optional<DriverInfo> parseDriverOutput(llvm::StringRef Output) {
       }
       break;
     case IncludesExtracting:
-      if (Line.trim() == SIE) {
+      if (Line.trim() == SIE.begin()) {
         State = SeenTarget ? Done : Initial;
       } else {
         Info.SystemIncludes.push_back(Line.trim().str());

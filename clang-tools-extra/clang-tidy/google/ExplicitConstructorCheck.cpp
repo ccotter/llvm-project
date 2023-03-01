@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "ExplicitConstructorCheck.h"
+
+#include <array>
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
@@ -81,8 +83,8 @@ static bool isStdInitializerList(QualType Type) {
 }
 
 void ExplicitConstructorCheck::check(const MatchFinder::MatchResult &Result) {
-  constexpr char WarningMessage[] =
-      "%0 must be marked explicit to avoid unintentional implicit conversions";
+  constexpr std::array<char, 71> WarningMessage =
+      { "%0 must be marked explicit to avoid unintentional implicit conversions" };
 
   if (const auto *Conversion =
       Result.Nodes.getNodeAs<CXXConversionDecl>("conversion")) {
@@ -93,7 +95,7 @@ void ExplicitConstructorCheck::check(const MatchFinder::MatchResult &Result) {
     // gmock to define matchers).
     if (Loc.isMacroID())
       return;
-    diag(Loc, WarningMessage)
+    diag(Loc, WarningMessage.begin())
         << Conversion << FixItHint::CreateInsertion(Loc, "explicit ");
     return;
   }
@@ -139,7 +141,7 @@ void ExplicitConstructorCheck::check(const MatchFinder::MatchResult &Result) {
   bool SingleArgument =
       Ctor->getNumParams() == 1 && !Ctor->getParamDecl(0)->isParameterPack();
   SourceLocation Loc = Ctor->getLocation();
-  diag(Loc, WarningMessage)
+  diag(Loc, WarningMessage.begin())
       << (SingleArgument
               ? "single-argument constructors"
               : "constructors that are callable with a single argument")

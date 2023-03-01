@@ -27,6 +27,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -417,7 +418,7 @@ void X86MCCodeEmitter::emitMemModRMByte(const MCInst &MI, unsigned Op,
       //
       // R16Table[] is a lookup from the normal RegNo, to the row values from
       // Table 2-1 for 16-bit addressing modes. Where zero means disallowed.
-      static const unsigned R16Table[] = {0, 0, 0, 7, 0, 6, 4, 5};
+      static const std::array<unsigned, 8> R16Table = { {0, 0, 0, 7, 0, 6, 4, 5} };
       unsigned RMfield = R16Table[BaseRegNo];
 
       assert(RMfield && "invalid 16-bit base register");
@@ -574,7 +575,7 @@ void X86MCCodeEmitter::emitMemModRMByte(const MCInst &MI, unsigned Op,
   }
 
   // Calculate what the SS field value should be...
-  static const unsigned SSTable[] = {~0U, 0, 1, ~0U, 2, ~0U, ~0U, ~0U, 3};
+  static const std::array<unsigned, 9> SSTable = { {~0U, 0, 1, ~0U, 2, ~0U, ~0U, ~0U, 3} };
   unsigned SS = SSTable[Scale.getImm()];
 
   unsigned IndexRegNo = IndexReg.getReg() ? getX86RegNum(IndexReg) : 4;

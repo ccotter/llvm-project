@@ -22,6 +22,7 @@
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -211,13 +212,13 @@ static SDNode *selectImm(SelectionDAG *CurDAG, const SDLoc &DL, const MVT VT,
 
 static SDValue createTuple(SelectionDAG &CurDAG, ArrayRef<SDValue> Regs,
                            unsigned NF, RISCVII::VLMUL LMUL) {
-  static const unsigned M1TupleRegClassIDs[] = {
+  static const std::array<unsigned, 7> M1TupleRegClassIDs = { {
       RISCV::VRN2M1RegClassID, RISCV::VRN3M1RegClassID, RISCV::VRN4M1RegClassID,
       RISCV::VRN5M1RegClassID, RISCV::VRN6M1RegClassID, RISCV::VRN7M1RegClassID,
-      RISCV::VRN8M1RegClassID};
-  static const unsigned M2TupleRegClassIDs[] = {RISCV::VRN2M2RegClassID,
+      RISCV::VRN8M1RegClassID} };
+  static const std::array<unsigned, 3> M2TupleRegClassIDs = { {RISCV::VRN2M2RegClassID,
                                                 RISCV::VRN3M2RegClassID,
-                                                RISCV::VRN4M2RegClassID};
+                                                RISCV::VRN4M2RegClassID} };
 
   assert(Regs.size() >= 2 && Regs.size() <= 8);
 

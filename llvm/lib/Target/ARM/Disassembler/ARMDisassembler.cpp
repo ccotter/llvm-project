@@ -25,6 +25,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <vector>
@@ -805,12 +806,12 @@ DecodeStatus ARMDisassembler::getARMInstruction(MCInst &MI, uint64_t &Size,
     bool DecodePred;
   };
 
-  const DecodeTable Tables[] = {
+  const std::array<DecodeTable, 7> Tables = { {
       {DecoderTableVFP32, false},      {DecoderTableVFPV832, false},
       {DecoderTableNEONData32, true},  {DecoderTableNEONLoadStore32, true},
       {DecoderTableNEONDup32, true},   {DecoderTablev8NEON32, false},
       {DecoderTablev8Crypto32, false},
-  };
+  } };
 
   for (auto Table : Tables) {
     Result = decodeInstruction(Table.P, MI, Insn, Address, this, STI);

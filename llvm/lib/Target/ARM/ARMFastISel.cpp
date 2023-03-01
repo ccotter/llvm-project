@@ -76,6 +76,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <utility>
@@ -3052,9 +3053,9 @@ bool ARMFastISel::fastLowerArguments() {
     }
   }
 
-  static const MCPhysReg GPRArgRegs[] = {
+  static const std::array<MCPhysReg, 4> GPRArgRegs = { {
     ARM::R0, ARM::R1, ARM::R2, ARM::R3
-  };
+  } };
 
   const TargetRegisterClass *RC = &ARM::rGPRRegClass;
   for (const Argument &Arg : F->args()) {

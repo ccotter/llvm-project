@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ExecutionEngine/Orc/OrcABISupport.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Process.h"
@@ -48,7 +50,7 @@ void OrcAArch64::writeResolverCode(char *ResolverWorkingMem,
                                    JITTargetAddress ReentryFnAddr,
                                    JITTargetAddress ReentryCtxAddr) {
 
-  const uint32_t ResolverCode[] = {
+  const std::array<uint32_t, 72> ResolverCode = { {
     // resolver_entry:
     0xa9bf47fd,        // 0x000:  stp  x29, x17, [sp, #-16]!
     0x910003fd,        // 0x004:  mov  x29, sp
@@ -122,12 +124,12 @@ void OrcAArch64::writeResolverCode(char *ResolverWorkingMem,
     0xdeadbeef,        // 0x114:      .quad 0
     0x98765432,        // 0x118:  Lreentry_ctx_ptr:
     0xcafef00d         // 0x11c:      .quad 0
-  };
+  } };
 
   const unsigned ReentryFnAddrOffset = 0x110;
   const unsigned ReentryCtxAddrOffset = 0x118;
 
-  memcpy(ResolverWorkingMem, ResolverCode, sizeof(ResolverCode));
+  memcpy(ResolverWorkingMem, ResolverCode.begin(), sizeof(ResolverCode));
   memcpy(ResolverWorkingMem + ReentryFnAddrOffset, &ReentryFnAddr,
          sizeof(uint64_t));
   memcpy(ResolverWorkingMem + ReentryCtxAddrOffset, &ReentryCtxAddr,
@@ -512,7 +514,7 @@ void OrcMips32_Base::writeResolverCode(char *ResolverWorkingMem,
                                        JITTargetAddress ReentryCtxAddr,
                                        bool isBigEndian) {
 
-  const uint32_t ResolverCode[] = {
+  const std::array<uint32_t, 63> ResolverCode = { {
       // resolver_entry:
       0x27bdff98,                    // 0x00: addiu $sp,$sp,-104
       0xafa20000,                    // 0x04: sw $v0,0($sp)
@@ -583,13 +585,13 @@ void OrcMips32_Base::writeResolverCode(char *ResolverWorkingMem,
       0x0300f825,                    // 0xf0: move $ra, $t8
       0x03200008,                    // 0xf4: jr $t9
       0x00000000,                    // 0xf8: move $t9, $v0/v1
-  };
+  } };
 
   const unsigned ReentryFnAddrOffset = 0x7c;   // JIT re-entry fn addr lui
   const unsigned ReentryCtxAddrOffset = 0x6c;  // JIT re-entry context addr lui
   const unsigned Offsett = 0xf8;
 
-  memcpy(ResolverWorkingMem, ResolverCode, sizeof(ResolverCode));
+  memcpy(ResolverWorkingMem, ResolverCode.begin(), sizeof(ResolverCode));
 
   // Depending on endian return value will be in v0 or v1.
   uint32_t MoveVxT9 = isBigEndian ? 0x0060c825 : 0x0040c825;
@@ -688,7 +690,7 @@ void OrcMips64::writeResolverCode(char *ResolverWorkingMem,
                                   JITTargetAddress ReentryFnAddr,
                                   JITTargetAddress ReentryCtxAddr) {
 
-  const uint32_t ResolverCode[] = {
+  const std::array<uint32_t, 72> ResolverCode = { {
        //resolver_entry:
       0x67bdff30,                     // 0x00: daddiu $sp,$sp,-208
       0xffa20000,                     // 0x04: sd v0,0(sp)
@@ -767,12 +769,12 @@ void OrcMips64::writeResolverCode(char *ResolverWorkingMem,
       0x0300f825,                     // 0x114: move $ra, $t8
       0x03200008,                     // 0x118: jr $t9
       0x0040c825,                     // 0x11c: move $t9, $v0
-  };
+  } };
 
   const unsigned ReentryFnAddrOffset = 0x8c;   // JIT re-entry fn addr lui
   const unsigned ReentryCtxAddrOffset = 0x6c;  // JIT re-entry ctx addr lui
 
-  memcpy(ResolverWorkingMem, ResolverCode, sizeof(ResolverCode));
+  memcpy(ResolverWorkingMem, ResolverCode.begin(), sizeof(ResolverCode));
 
   uint32_t ReentryCtxLUi =
       0x3c040000 | (((ReentryCtxAddr + 0x800080008000) >> 48) & 0xFFFF);
@@ -912,7 +914,7 @@ void OrcRiscv64::writeResolverCode(char *ResolverWorkingMem,
                                    JITTargetAddress ReentryFnAddr,
                                    JITTargetAddress ReentryCtxAddr) {
 
-  const uint32_t ResolverCode[] = {
+  const std::array<uint32_t, 82> ResolverCode = { {
       0xef810113, // 0x00: addi sp,sp,-264
       0x00813023, // 0x04: sd s0,0(sp)
       0x00913423, // 0x08: sd s1,8(sp)
@@ -995,12 +997,12 @@ void OrcRiscv64::writeResolverCode(char *ResolverWorkingMem,
       0xdeadbeef, // 0x13c:      .quad 0
       0x98765432, // 0x140: Lreentry_fn_ptr:
       0xcafef00d  // 0x144:      .quad 0
-  };
+  } };
 
   const unsigned ReentryCtxAddrOffset = 0x138;
   const unsigned ReentryFnAddrOffset = 0x140;
 
-  memcpy(ResolverWorkingMem, ResolverCode, sizeof(ResolverCode));
+  memcpy(ResolverWorkingMem, ResolverCode.begin(), sizeof(ResolverCode));
   memcpy(ResolverWorkingMem + ReentryFnAddrOffset, &ReentryFnAddr,
          sizeof(uint64_t));
   memcpy(ResolverWorkingMem + ReentryCtxAddrOffset, &ReentryCtxAddr,

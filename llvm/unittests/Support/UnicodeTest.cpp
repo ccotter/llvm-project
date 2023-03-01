@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/Unicode.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/edit_distance.h"
@@ -99,7 +101,7 @@ TEST(Unicode, isPrintable) {
   for (unsigned char c = 0; c < 128; ++c) {
     const UTF8 buf8[2] = {c, 0};
     const UTF8 *Target8 = &buf8[0];
-    UTF32 buf32[1];
+    std::array<UTF32, 1> buf32;
     UTF32 *Target32 = &buf32[0];
     auto status = ConvertUTF8toUTF32(&Target8, Target8 + 1, &Target32,
                                      Target32 + 1, strictConversion);

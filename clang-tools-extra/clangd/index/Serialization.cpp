@@ -22,6 +22,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -129,9 +130,9 @@ public:
 };
 
 void write32(uint32_t I, llvm::raw_ostream &OS) {
-  char Buf[4];
-  llvm::support::endian::write32le(Buf, I);
-  OS.write(Buf, sizeof(Buf));
+  std::array<char, 4> Buf;
+  llvm::support::endian::write32le(Buf.begin(), I);
+  OS.write(Buf.begin(), sizeof(Buf));
 }
 
 void writeVar(uint32_t I, llvm::raw_ostream &OS) {

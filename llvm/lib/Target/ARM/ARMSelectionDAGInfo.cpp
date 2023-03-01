@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "ARMTargetMachine.h"
 #include "ARMTargetTransformInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
@@ -201,8 +203,8 @@ SDValue ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(
   unsigned i = 0;
   // Emit a maximum of 4 loads in Thumb1 since we have fewer registers
   const unsigned MaxLoadsInLDM = Subtarget.isThumb1Only() ? 4 : 6;
-  SDValue TFOps[6];
-  SDValue Loads[6];
+  std::array<SDValue, 6> TFOps;
+  std::array<SDValue, 6> Loads;
   uint64_t SrcOff = 0, DstOff = 0;
 
   // FIXME: We should invent a VMEMCPY pseudo-instruction that lowers to
@@ -267,7 +269,7 @@ SDValue ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(
     BytesLeft -= VTSize;
   }
   Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
-                      makeArrayRef(TFOps, i));
+                      makeArrayRef(TFOps.begin(), i));
 
   i = 0;
   BytesLeft = BytesLeftSave;
@@ -283,7 +285,7 @@ SDValue ARMSelectionDAGInfo::EmitTargetCodeForMemcpy(
     BytesLeft -= VTSize;
   }
   return DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
-                     makeArrayRef(TFOps, i));
+                     makeArrayRef(TFOps.begin(), i));
 }
 
 SDValue ARMSelectionDAGInfo::EmitTargetCodeForMemmove(

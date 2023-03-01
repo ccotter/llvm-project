@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPUCallLowering.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "AMDGPULegalizerInfo.h"
 #include "AMDGPUTargetMachine.h"
@@ -769,7 +771,7 @@ bool AMDGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
   // TODO: Unify with private memory register handling. This is complicated by
   // the fact that at least in kernels, the input argument is not necessarily
   // in the same location as the input.
-  AMDGPUFunctionArgInfo::PreloadedValue InputRegs[] = {
+  std::array<AMDGPUFunctionArgInfo::PreloadedValue, 8> InputRegs = { {
     AMDGPUFunctionArgInfo::DISPATCH_PTR,
     AMDGPUFunctionArgInfo::QUEUE_PTR,
     AMDGPUFunctionArgInfo::IMPLICIT_ARG_PTR,
@@ -778,9 +780,9 @@ bool AMDGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
     AMDGPUFunctionArgInfo::WORKGROUP_ID_Y,
     AMDGPUFunctionArgInfo::WORKGROUP_ID_Z,
     AMDGPUFunctionArgInfo::LDS_KERNEL_ID,
-  };
+  } };
 
-  static constexpr StringLiteral ImplicitAttrNames[] = {
+  static constexpr std::array<StringLiteral, 8> ImplicitAttrNames = { {
     "amdgpu-no-dispatch-ptr",
     "amdgpu-no-queue-ptr",
     "amdgpu-no-implicitarg-ptr",
@@ -789,7 +791,7 @@ bool AMDGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
     "amdgpu-no-workgroup-id-y",
     "amdgpu-no-workgroup-id-z",
     "amdgpu-no-lds-kernel-id",
-  };
+  } };
 
   MachineRegisterInfo &MRI = MF.getRegInfo();
 

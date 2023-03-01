@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/BinaryStreamWriter.h"
 
 #include "llvm/Support/BinaryStreamReader.h"
@@ -32,15 +34,15 @@ Error BinaryStreamWriter::writeBytes(ArrayRef<uint8_t> Buffer) {
 }
 
 Error BinaryStreamWriter::writeULEB128(uint64_t Value) {
-  uint8_t EncodedBytes[10] = {0};
+  std::array<uint8_t, 10> EncodedBytes = { {0} };
   unsigned Size = encodeULEB128(Value, &EncodedBytes[0]);
-  return writeBytes({EncodedBytes, Size});
+  return writeBytes({EncodedBytes.begin(), Size});
 }
 
 Error BinaryStreamWriter::writeSLEB128(int64_t Value) {
-  uint8_t EncodedBytes[10] = {0};
+  std::array<uint8_t, 10> EncodedBytes = { {0} };
   unsigned Size = encodeSLEB128(Value, &EncodedBytes[0]);
-  return writeBytes({EncodedBytes, Size});
+  return writeBytes({EncodedBytes.begin(), Size});
 }
 
 Error BinaryStreamWriter::writeCString(StringRef Str) {
@@ -94,10 +96,10 @@ BinaryStreamWriter::split(uint64_t Off) const {
 Error BinaryStreamWriter::padToAlignment(uint32_t Align) {
   uint64_t NewOffset = alignTo(Offset, Align);
   const uint64_t ZerosSize = 64;
-  static constexpr char Zeros[ZerosSize] = {};
+  static constexpr std::array<char, ZerosSize> Zeros = { {} };
   while (Offset < NewOffset)
     if (auto E = writeArray(
-            ArrayRef<char>(Zeros, std::min(ZerosSize, NewOffset - Offset))))
+            ArrayRef<char>(Zeros.begin(), std::min(ZerosSize, NewOffset - Offset))))
       return E;
   return Error::success();
 }

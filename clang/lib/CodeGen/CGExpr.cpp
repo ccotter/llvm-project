@@ -42,6 +42,7 @@
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Transforms/Utils/SanitizerStats.h"
 
+#include <array>
 #include <string>
 
 using namespace clang;
@@ -3007,9 +3008,9 @@ LValue CodeGenFunction::EmitPredefinedLValue(const PredefinedExpr *E) {
   StringRef FnName = CurFn->getName();
   if (FnName.startswith("\01"))
     FnName = FnName.substr(1);
-  StringRef NameItems[] = {
-      PredefinedExpr::getIdentKindName(E->getIdentKind()), FnName};
-  std::string GVName = llvm::join(NameItems, NameItems + 2, ".");
+  std::array<StringRef, 2> NameItems = { {
+      PredefinedExpr::getIdentKindName(E->getIdentKind()), FnName} };
+  std::string GVName = llvm::join(NameItems.begin(), NameItems.begin() + 2, ".");
   if (auto *BD = dyn_cast_or_null<BlockDecl>(CurCodeDecl)) {
     std::string Name = std::string(SL->getString());
     if (!Name.empty()) {
@@ -3499,12 +3500,12 @@ void CodeGenFunction::EmitCfiCheckFail() {
                          {Addr, AllVtables}),
       IntPtrTy);
 
-  const std::pair<int, SanitizerMask> CheckKinds[] = {
+  const std::array<std::pair<int, SanitizerMask>, 5> CheckKinds = { {
       {CFITCK_VCall, SanitizerKind::CFIVCall},
       {CFITCK_NVCall, SanitizerKind::CFINVCall},
       {CFITCK_DerivedCast, SanitizerKind::CFIDerivedCast},
       {CFITCK_UnrelatedCast, SanitizerKind::CFIUnrelatedCast},
-      {CFITCK_ICall, SanitizerKind::CFIICall}};
+      {CFITCK_ICall, SanitizerKind::CFIICall}} };
 
   SmallVector<std::pair<llvm::Value *, SanitizerMask>, 5> Checks;
   for (auto CheckKindMaskPair : CheckKinds) {

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "MCTargetDesc/X86FixupKinds.h"
 #include "MCTargetDesc/X86InstrRelaxTables.h"
@@ -620,7 +622,7 @@ std::optional<MCFixupKind> X86AsmBackend::getFixupKind(StringRef Name) const {
 }
 
 const MCFixupKindInfo &X86AsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
-  const static MCFixupKindInfo Infos[X86::NumTargetFixupKinds] = {
+  const static std::array<MCFixupKindInfo, X86::NumTargetFixupKinds> Infos = { {
       {"reloc_riprel_4byte", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
       {"reloc_riprel_4byte_movq_load", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
       {"reloc_riprel_4byte_relax", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
@@ -630,7 +632,7 @@ const MCFixupKindInfo &X86AsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"reloc_global_offset_table", 0, 32, 0},
       {"reloc_global_offset_table8", 0, 64, 0},
       {"reloc_branch_4byte_pcrel", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
-  };
+  } };
 
   // Fixup kinds from .reloc directive are like R_386_NONE/R_X86_64_NONE. They
   // do not require any extra processing.
@@ -1288,7 +1290,7 @@ private:
     // Reverse the list.
     std::reverse(&SavedRegs[0], &SavedRegs[CU_NUM_SAVED_REGS]);
 
-    uint32_t RenumRegs[CU_NUM_SAVED_REGS];
+    std::array<uint32_t, CU_NUM_SAVED_REGS> RenumRegs;
     for (unsigned i = CU_NUM_SAVED_REGS - RegCount; i < CU_NUM_SAVED_REGS; ++i){
       unsigned Countless = 0;
       for (unsigned j = CU_NUM_SAVED_REGS - RegCount; j < i; ++j)

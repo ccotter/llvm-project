@@ -21,6 +21,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <cstdio>
@@ -736,8 +737,8 @@ AsmToken AsmLexer::LexToken() {
   if (!IsPeeking && CurChar == '#' && IsAtStartOfStatement) {
     // If this starts with a '#', this may be a cpp
     // hash directive and otherwise a line comment.
-    AsmToken TokenBuf[2];
-    MutableArrayRef<AsmToken> Buf(TokenBuf, 2);
+    std::array<AsmToken, 2> TokenBuf;
+    MutableArrayRef<AsmToken> Buf(TokenBuf.begin(), 2);
     size_t num = peekTokens(Buf, true);
     // There cannot be a space preceding this
     if (IsAtStartOfLine && num == 2 && TokenBuf[0].is(AsmToken::Integer) &&

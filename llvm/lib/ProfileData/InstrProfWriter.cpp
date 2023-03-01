@@ -24,6 +24,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -452,12 +453,12 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
 
     uint64_t FrameTableOffset = FrameTableGenerator.Emit(OS.OS, *FrameWriter);
 
-    PatchItem PatchItems[] = {
+    std::array<PatchItem, 3> PatchItems = { {
         {MemProfSectionStart, &RecordTableOffset, 1},
         {MemProfSectionStart + sizeof(uint64_t), &FramePayloadOffset, 1},
         {MemProfSectionStart + 2 * sizeof(uint64_t), &FrameTableOffset, 1},
-    };
-    OS.patch(PatchItems, 3);
+    } };
+    OS.patch(PatchItems.begin(), 3);
   }
 
   // Allocate space for data to be serialized out.

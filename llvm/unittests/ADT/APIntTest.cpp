@@ -2776,17 +2776,17 @@ TEST(APIntTest, RoundingSDiv) {
 }
 
 TEST(APIntTest, umul_ov) {
-  const std::pair<uint64_t, uint64_t> Overflows[] = {
+  const std::array<std::pair<uint64_t, uint64_t>, 4> Overflows = { {
       {0x8000000000000000, 2},
       {0x5555555555555556, 3},
       {4294967296, 4294967296},
       {4294967295, 4294967298},
-  };
-  const std::pair<uint64_t, uint64_t> NonOverflows[] = {
+  } };
+  const std::array<std::pair<uint64_t, uint64_t>, 3> NonOverflows = { {
       {0x7fffffffffffffff, 2},
       {0x5555555555555555, 3},
       {4294967295, 4294967297},
-  };
+  } };
 
   bool Overflow;
   for (auto &X : Overflows) {

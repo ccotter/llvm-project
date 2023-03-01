@@ -55,6 +55,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Scalar/CallSiteSplitting.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
@@ -322,7 +324,7 @@ static void splitCallSite(CallBase &CB,
   assert(Preds.size() == 2 && "The ValueToValueMaps array has size 2.");
   // ValueToValueMapTy is neither copy nor moveable, so we use a simple array
   // here.
-  ValueToValueMapTy ValueToValueMaps[2];
+  std::array<ValueToValueMapTy, 2> ValueToValueMaps;
   for (unsigned i = 0; i < Preds.size(); i++) {
     BasicBlock *PredBB = Preds[i].first;
     BasicBlock *SplitBlock = DuplicateInstructionsInSplitBetween(

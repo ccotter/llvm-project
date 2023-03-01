@@ -11,6 +11,8 @@
 //===---------------------------------------------------------------------===//
 
 #include "ResourceScriptParser.h"
+
+#include <array>
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -186,10 +188,10 @@ Expected<IntWithNotMask> RCParser::parseIntExpr1() {
 
 Expected<IntWithNotMask> RCParser::parseIntExpr2() {
   // Exp2 ::= -Exp2 || ~Exp2 || not Expr2 || Int || (Exp1).
-  static const char ErrorMsg[] = "'-', '~', integer or '('";
+  static const std::array<char, 25> ErrorMsg = { "'-', '~', integer or '('" };
 
   if (isEof())
-    return getExpectedError(ErrorMsg);
+    return getExpectedError(ErrorMsg.begin());
 
   switch (look().kind()) {
   case Kind::Minus: {
@@ -216,13 +218,13 @@ Expected<IntWithNotMask> RCParser::parseIntExpr2() {
 
   case Kind::Identifier: {
     if (!read().value().equals_insensitive("not"))
-      return getExpectedError(ErrorMsg, true);
+      return getExpectedError(ErrorMsg.begin(), true);
     ASSIGN_OR_RETURN(Result, parseIntExpr2());
     return IntWithNotMask(0, (*Result).getValue());
   }
 
   default:
-    return getExpectedError(ErrorMsg);
+    return getExpectedError(ErrorMsg.begin());
   }
 }
 

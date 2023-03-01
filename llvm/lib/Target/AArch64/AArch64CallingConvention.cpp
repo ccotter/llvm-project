@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64CallingConvention.h"
+
+#include <array>
 #include "AArch64.h"
 #include "AArch64InstrInfo.h"
 #include "AArch64Subtarget.h"
@@ -59,7 +61,7 @@ static bool finishStackBlock(SmallVectorImpl<CCValAssign> &PendingMembers,
     // CCAssignFn again we want it to behave as if all remaining registers are
     // allocated. This will force the code to pass the tuple indirectly in
     // accordance with the PCS.
-    bool RegsAllocated[8];
+    std::array<bool, 8> RegsAllocated;
     for (int I = 0; I < 8; I++) {
       RegsAllocated[I] = State.isAllocated(ZRegList[I]);
       State.AllocateReg(ZRegList[I]);

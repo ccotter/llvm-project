@@ -16,6 +16,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ScopedPrinter.h"
 
+#include <array>
 #include <ctime>
 
 using namespace llvm;
@@ -98,11 +99,11 @@ void XCOFFDumper::printFileHeaders() {
     // tests will let us know.
     time_t TimeDate = TimeStamp;
 
-    char FormattedTime[21] = {};
+    std::array<char, 21> FormattedTime = { {} };
     size_t BytesWritten =
-        strftime(FormattedTime, 21, "%Y-%m-%dT%H:%M:%SZ", gmtime(&TimeDate));
+        strftime(FormattedTime.begin(), 21, "%Y-%m-%dT%H:%M:%SZ", gmtime(&TimeDate));
     if (BytesWritten)
-      W.printHex("TimeStamp", FormattedTime, TimeStamp);
+      W.printHex("TimeStamp", FormattedTime.begin(), TimeStamp);
     else
       W.printHex("Timestamp", TimeStamp);
   } else {

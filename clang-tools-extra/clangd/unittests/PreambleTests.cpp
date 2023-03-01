@@ -24,6 +24,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -92,7 +93,7 @@ collectPatchedIncludes(llvm::StringRef ModifiedContents,
 // with all the contents.
 TEST(PreamblePatchTest, IncludeParsing) {
   // We expect any line with a point to show up in the patch.
-  llvm::StringRef Cases[] = {
+  std::array<llvm::StringRef, 5> Cases = { {
       // Only preamble
       R"cpp(^#include "a.h")cpp",
       // Both preamble and mainfile
@@ -120,7 +121,7 @@ TEST(PreamblePatchTest, IncludeParsing) {
       R"cpp(
         ^#include "a.h"
         #/**/include <b.h>)cpp",
-  };
+  } };
 
   for (const auto &Case : Cases) {
     Annotations Test(Case);

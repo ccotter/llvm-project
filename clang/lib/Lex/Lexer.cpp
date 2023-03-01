@@ -39,6 +39,7 @@
 #include "llvm/Support/Unicode.h"
 #include "llvm/Support/UnicodeCharRanges.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -2022,7 +2023,7 @@ const char *Lexer::LexUDSuffix(Token &Result, const char *CurPtr,
       // valid suffix for a string literal or a numeric literal (this could be
       // the 'operator""if' defining a numeric literal operator).
       const unsigned MaxStandardSuffixLength = 3;
-      char Buffer[MaxStandardSuffixLength] = { C };
+      std::array<char, MaxStandardSuffixLength> Buffer = { { C } };
       unsigned Consumed = Size;
       unsigned Chars = 1;
       while (true) {
@@ -2030,7 +2031,7 @@ const char *Lexer::LexUDSuffix(Token &Result, const char *CurPtr,
         char Next = getCharAndSizeNoWarn(CurPtr + Consumed, NextSize, LangOpts);
         if (!isAsciiIdentifierContinue(Next)) {
           // End of suffix. Check whether this is on the allowed list.
-          const StringRef CompleteSuffix(Buffer, Chars);
+          const StringRef CompleteSuffix(Buffer.begin(), Chars);
           IsUDSuffix =
               StringLiteralParser::isValidUDSuffix(LangOpts, CompleteSuffix);
           break;

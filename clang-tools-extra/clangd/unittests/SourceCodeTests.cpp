@@ -19,6 +19,7 @@
 #include "llvm/Testing/Support/Error.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <tuple>
 
 namespace clang {
@@ -74,7 +75,7 @@ TEST(SourceCodeTests, lspLength) {
 TEST(SourceCodeTests, lspLengthBadUTF8) {
   // Results are not well-defined if source file isn't valid UTF-8.
   // However we shouldn't crash or return something totally wild.
-  const char *BadUTF8[] = {"\xa0", "\xff\xff\xff\xff\xff"};
+  std::array<const char *, 2>BadUTF8 = { {"\xa0", "\xff\xff\xff\xff\xff"} };
 
   for (OffsetEncoding Encoding :
        {OffsetEncoding::UTF8, OffsetEncoding::UTF16, OffsetEncoding::UTF32}) {

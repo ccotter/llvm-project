@@ -38,6 +38,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <memory>
 
 using namespace llvm;
@@ -4308,7 +4309,7 @@ bool X86AsmParser::MatchAndEmitATTInstruction(SMLoc IDLoc, unsigned &Opcode,
   // If we had multiple suffix matches, then identify this as an ambiguous
   // match.
   if (NumSuccessfulMatches > 1) {
-    char MatchChars[4];
+    std::array<char, 4> MatchChars;
     unsigned NumMatches = 0;
     for (unsigned I = 0, E = std::size(Match); I != E; ++I)
       if (Match[I] == Match_Success)
@@ -4441,7 +4442,7 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
   // Allow some instructions to have implicitly pointer-sized operands.  This is
   // compatible with gas.
   if (UnsizedMemOp) {
-    static const char *const PtrSizedInstrs[] = {"call", "jmp", "push"};
+    static const std::array<const char *, 3>PtrSizedInstrs = { {"call", "jmp", "push"} };
     for (const char *Instr : PtrSizedInstrs) {
       if (Mnemonic == Instr) {
         UnsizedMemOp->Mem.Size = getPointerWidth();
@@ -4483,7 +4484,7 @@ bool X86AsmParser::MatchAndEmitIntelInstruction(SMLoc IDLoc, unsigned &Opcode,
   // operand size.  In Intel assembly, the size is not part of the instruction
   // mnemonic.
   if (UnsizedMemOp && UnsizedMemOp->isMemUnsized()) {
-    static const unsigned MopSizes[] = {8, 16, 32, 64, 80, 128, 256, 512};
+    static const std::array<unsigned, 8> MopSizes = { {8, 16, 32, 64, 80, 128, 256, 512} };
     for (unsigned Size : MopSizes) {
       UnsizedMemOp->Mem.Size = Size;
       uint64_t ErrorInfoIgnore;

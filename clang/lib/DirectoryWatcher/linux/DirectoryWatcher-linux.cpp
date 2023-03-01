@@ -16,6 +16,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Path.h"
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -74,10 +75,10 @@ struct SemaphorePipe {
   bool OwnsFDs;
 
   static std::optional<SemaphorePipe> create() {
-    int InotifyPollingStopperFDs[2];
-    if (pipe2(InotifyPollingStopperFDs, O_CLOEXEC) == -1)
+    std::array<int, 2> InotifyPollingStopperFDs;
+    if (pipe2(InotifyPollingStopperFDs.begin(), O_CLOEXEC) == -1)
       return std::nullopt;
-    return SemaphorePipe(InotifyPollingStopperFDs);
+    return SemaphorePipe(InotifyPollingStopperFDs.begin());
   }
 };
 

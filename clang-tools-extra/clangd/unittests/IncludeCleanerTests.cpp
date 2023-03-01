@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "Annotations.h"
 #include "Config.h"
 #include "IncludeCleaner.h"
@@ -37,7 +39,7 @@ TEST(IncludeCleaner, ReferencedLocations) {
     std::string HeaderCode;
     std::string MainCode;
   };
-  TestCase Cases[] = {
+  std::array<TestCase, 41> Cases = { {
       // DeclRefExpr
       {
           "int ^x();",
@@ -244,7 +246,7 @@ TEST(IncludeCleaner, ReferencedLocations) {
           "enum class ^Color : char {};",
           "Color *c;",
       },
-  };
+  } };
   for (const TestCase &T : Cases) {
     TestTU TU;
     TU.Code = T.MainCode;

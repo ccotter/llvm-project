@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "R600ISelLowering.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600Defines.h"
@@ -181,7 +183,7 @@ R600TargetLowering::R600TargetLowering(const TargetMachine &TM,
 
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
 
-  const MVT ScalarIntVTs[] = { MVT::i32, MVT::i64 };
+  const std::array<MVT, 2> ScalarIntVTs = { { MVT::i32, MVT::i64 } };
   for (MVT VT : ScalarIntVTs)
     setOperationAction({ISD::ADDC, ISD::SUBC, ISD::ADDE, ISD::SUBE}, VT,
                        Expand);
@@ -1591,7 +1593,7 @@ static SDValue ReorganizeVector(SelectionDAG &DAG, SDValue VectorEntry,
   EVT EltTy = VectorEntry.getValueType().getVectorElementType();
 
   SDValue NewBldVec[4];
-  bool isUnmovable[4] = {false, false, false, false};
+  std::array<bool, 4> isUnmovable = { {false, false, false, false} };
   for (unsigned i = 0; i < 4; i++)
     NewBldVec[i] = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, EltTy, VectorEntry,
                                DAG.getIntPtrConstant(i, DL));
@@ -1664,7 +1666,7 @@ SDValue R600TargetLowering::constBufferLoad(LoadSDNode *LoadNode, int Block,
 
   int ConstantBlock = ConstantAddressBlock(Block);
 
-  SDValue Slots[4];
+  std::array<SDValue, 4> Slots;
   for (unsigned i = 0; i < 4; i++) {
     // We want Const position encoded with the following formula :
     // (((512 + (kc_bank << 12) + const_index) << 2) + chan)
@@ -1681,7 +1683,7 @@ SDValue R600TargetLowering::constBufferLoad(LoadSDNode *LoadNode, int Block,
     NewVT = VT;
     NumElements = VT.getVectorNumElements();
   }
-  SDValue Result = DAG.getBuildVector(NewVT, DL, makeArrayRef(Slots, NumElements));
+  SDValue Result = DAG.getBuildVector(NewVT, DL, makeArrayRef(Slots.begin(), NumElements));
   if (!VT.isVector()) {
     Result = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, MVT::i32, Result,
                          DAG.getConstant(0, DL, MVT::i32));
@@ -1957,7 +1959,7 @@ bool R600TargetLowering::FoldOperand(SDNode *ParentNode, unsigned SrcIdx,
       return false;
 
     // Gather constants values
-    int SrcIndices[] = {
+    std::array SrcIndices = {
       TII->getOperandIdx(Opcode, R600::OpName::src0),
       TII->getOperandIdx(Opcode, R600::OpName::src1),
       TII->getOperandIdx(Opcode, R600::OpName::src2),
@@ -2067,7 +2069,7 @@ SDNode *R600TargetLowering::PostISelFolding(MachineSDNode *Node,
   std::vector<SDValue> Ops(Node->op_begin(), Node->op_end());
 
   if (Opcode == R600::DOT_4) {
-    int OperandIdx[] = {
+    std::array OperandIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0_X),
       TII->getOperandIdx(Opcode, R600::OpName::src0_Y),
       TII->getOperandIdx(Opcode, R600::OpName::src0_Z),
@@ -2077,7 +2079,7 @@ SDNode *R600TargetLowering::PostISelFolding(MachineSDNode *Node,
       TII->getOperandIdx(Opcode, R600::OpName::src1_Z),
       TII->getOperandIdx(Opcode, R600::OpName::src1_W)
         };
-    int NegIdx[] = {
+    std::array NegIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0_neg_X),
       TII->getOperandIdx(Opcode, R600::OpName::src0_neg_Y),
       TII->getOperandIdx(Opcode, R600::OpName::src0_neg_Z),
@@ -2087,7 +2089,7 @@ SDNode *R600TargetLowering::PostISelFolding(MachineSDNode *Node,
       TII->getOperandIdx(Opcode, R600::OpName::src1_neg_Z),
       TII->getOperandIdx(Opcode, R600::OpName::src1_neg_W)
     };
-    int AbsIdx[] = {
+    std::array AbsIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0_abs_X),
       TII->getOperandIdx(Opcode, R600::OpName::src0_abs_Y),
       TII->getOperandIdx(Opcode, R600::OpName::src0_abs_Z),
@@ -2120,17 +2122,17 @@ SDNode *R600TargetLowering::PostISelFolding(MachineSDNode *Node,
   } else {
     if (!TII->hasInstrModifiers(Opcode))
       return Node;
-    int OperandIdx[] = {
+    std::array OperandIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0),
       TII->getOperandIdx(Opcode, R600::OpName::src1),
       TII->getOperandIdx(Opcode, R600::OpName::src2)
     };
-    int NegIdx[] = {
+    std::array NegIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0_neg),
       TII->getOperandIdx(Opcode, R600::OpName::src1_neg),
       TII->getOperandIdx(Opcode, R600::OpName::src2_neg)
     };
-    int AbsIdx[] = {
+    std::array AbsIdx = {
       TII->getOperandIdx(Opcode, R600::OpName::src0_abs),
       TII->getOperandIdx(Opcode, R600::OpName::src1_abs),
       -1

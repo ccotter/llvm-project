@@ -80,6 +80,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Vectorize.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdlib>
 #include <tuple>
@@ -930,7 +931,7 @@ bool Vectorizer::vectorizeInstructions(ArrayRef<Instruction *> Instrs) {
   LLVM_DEBUG(dbgs() << "LSV: Vectorizing " << Instrs.size()
                     << " instructions.\n");
   SmallVector<int, 16> Heads, Tails;
-  int ConsecutiveChain[64];
+  std::array<int, 64> ConsecutiveChain;
 
   // Do a quadratic search on all of the given loads/stores and find all of the
   // pairs of loads/stores that follow each other.

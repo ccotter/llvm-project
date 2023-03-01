@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -652,8 +654,8 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
 
 Value *SCEVExpander::expandAddToGEP(const SCEV *Op, PointerType *PTy, Type *Ty,
                                     Value *V) {
-  const SCEV *const Ops[1] = {Op};
-  return expandAddToGEP(Ops, Ops + 1, PTy, Ty, V);
+  const std::array<const SCEV *, 1>Ops = { {Op} };
+  return expandAddToGEP(Ops.begin(), Ops.begin() + 1, PTy, Ty, V);
 }
 
 /// PickMostRelevantLoop - Given two loops pick the one that's most relevant for

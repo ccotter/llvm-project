@@ -38,6 +38,7 @@
 #include "llvm/Support/MachineValueType.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetParser.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -4187,7 +4188,7 @@ bool AMDGPUAsmParser::validateSOPLiteral(const MCInst &Inst) const {
   const int Src0Idx = AMDGPU::getNamedOperandIdx(Opcode, AMDGPU::OpName::src0);
   const int Src1Idx = AMDGPU::getNamedOperandIdx(Opcode, AMDGPU::OpName::src1);
 
-  const int OpIndices[] = { Src0Idx, Src1Idx };
+  const std::array OpIndices = { Src0Idx, Src1Idx };
 
   unsigned NumExprs = 0;
   unsigned NumLiterals = 0;
@@ -6451,7 +6452,7 @@ void AMDGPUAsmParser::cvtDSImpl(MCInst &Inst, const OperandVector &Operands,
 void AMDGPUAsmParser::cvtExp(MCInst &Inst, const OperandVector &Operands) {
   OptionalImmIndexMap OptionalIdx;
 
-  unsigned OperandIdx[4];
+  std::array<unsigned, 4> OperandIdx;
   unsigned EnMask = 0;
   int SrcIdx = 0;
 
@@ -7383,8 +7384,8 @@ bool
 AMDGPUAsmParser::parseSwizzleQuadPerm(int64_t &Imm) {
   using namespace llvm::AMDGPU::Swizzle;
 
-  int64_t Lane[LANE_NUM];
-  if (parseSwizzleOperands(LANE_NUM, Lane, 0, LANE_MAX,
+  std::array<int64_t, LANE_NUM> Lane;
+  if (parseSwizzleOperands(LANE_NUM, Lane.begin(), 0, LANE_MAX,
                            "expected a 2-bit lane id")) {
     Imm = QUAD_PERM_ENC;
     for (unsigned I = 0; I < LANE_NUM; ++I) {
@@ -8039,9 +8040,9 @@ void cvtVOP3DstOpSelOnly(MCInst &Inst) {
     return;
 
   int SrcNum;
-  const int Ops[] = { AMDGPU::OpName::src0,
+  const std::array<int, 3> Ops = { { AMDGPU::OpName::src0,
                       AMDGPU::OpName::src1,
-                      AMDGPU::OpName::src2 };
+                      AMDGPU::OpName::src2 } };
   for (SrcNum = 0; SrcNum < 3 && AMDGPU::hasNamedOperand(Opc, Ops[SrcNum]);
        ++SrcNum)
     ;
@@ -8151,12 +8152,12 @@ void AMDGPUAsmParser::cvtVINTERP(MCInst &Inst, const OperandVector &Operands)
   if (OpSelIdx == -1)
     return;
 
-  const int Ops[] = { AMDGPU::OpName::src0,
+  const std::array<int, 3> Ops = { { AMDGPU::OpName::src0,
                       AMDGPU::OpName::src1,
-                      AMDGPU::OpName::src2 };
-  const int ModOps[] = { AMDGPU::OpName::src0_modifiers,
+                      AMDGPU::OpName::src2 } };
+  const std::array<int, 3> ModOps = { { AMDGPU::OpName::src0_modifiers,
                          AMDGPU::OpName::src1_modifiers,
-                         AMDGPU::OpName::src2_modifiers };
+                         AMDGPU::OpName::src2_modifiers } };
 
   unsigned OpSel = Inst.getOperand(OpSelIdx).getImm();
 
@@ -8267,12 +8268,12 @@ void AMDGPUAsmParser::cvtVOP3P(MCInst &Inst, const OperandVector &Operands,
     addOptionalImmOperand(Inst, Operands, OptIdx, AMDGPUOperand::ImmTyNegHi);
   }
 
-  const int Ops[] = { AMDGPU::OpName::src0,
+  const std::array<int, 3> Ops = { { AMDGPU::OpName::src0,
                       AMDGPU::OpName::src1,
-                      AMDGPU::OpName::src2 };
-  const int ModOps[] = { AMDGPU::OpName::src0_modifiers,
+                      AMDGPU::OpName::src2 } };
+  const std::array<int, 3> ModOps = { { AMDGPU::OpName::src0_modifiers,
                          AMDGPU::OpName::src1_modifiers,
-                         AMDGPU::OpName::src2_modifiers };
+                         AMDGPU::OpName::src2_modifiers } };
 
   unsigned OpSel = 0;
   unsigned OpSelHi = 0;
@@ -8506,7 +8507,7 @@ OperandMatchResultTy AMDGPUAsmParser::parseDPP8(OperandVector &Operands) {
 
   // dpp8:[%d,%d,%d,%d,%d,%d,%d,%d]
 
-  int64_t Sels[8];
+  std::array<int64_t, 8> Sels;
 
   if (!skipToken(AsmToken::LBrac, "expected an opening square bracket"))
     return MatchOperand_ParseFail;

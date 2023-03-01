@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/Chrono.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Format.h"
@@ -42,9 +44,9 @@ static inline struct tm getStructTM(TimePoint<> TP) {
 
 raw_ostream &operator<<(raw_ostream &OS, TimePoint<> TP) {
   struct tm LT = getStructTM(TP);
-  char Buffer[sizeof("YYYY-MM-DD HH:MM:SS")];
-  strftime(Buffer, sizeof(Buffer), "%Y-%m-%d %H:%M:%S", &LT);
-  return OS << Buffer << '.'
+  std::array<char, sizeof("YYYY-MM-DD HH:MM:SS")> Buffer;
+  strftime(Buffer.begin(), sizeof(Buffer), "%Y-%m-%d %H:%M:%S", &LT);
+  return OS << Buffer.begin() << '.'
             << format("%.9lu",
                       long((TP.time_since_epoch() % std::chrono::seconds(1))
                                .count()));
@@ -85,9 +87,9 @@ void format_provider<TimePoint<>>::format(const TimePoint<> &T, raw_ostream &OS,
     FStream << Style[I];
   }
   FStream.flush();
-  char Buffer[256];  // Should be enough for anywhen.
-  size_t Len = strftime(Buffer, sizeof(Buffer), Format.c_str(), &LT);
-  OS << (Len ? Buffer : "BAD-DATE-FORMAT");
+  std::array<char, 256> Buffer;  // Should be enough for anywhen.
+  size_t Len = strftime(Buffer.begin(), sizeof(Buffer), Format.c_str(), &LT);
+  OS << (Len ? Buffer.begin() : "BAD-DATE-FORMAT");
 }
 
 } // namespace llvm

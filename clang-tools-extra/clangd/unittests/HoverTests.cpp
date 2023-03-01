@@ -19,6 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -1269,7 +1270,7 @@ void fun() {
 }
 
 TEST(Hover, NoHover) {
-  llvm::StringRef Tests[] = {
+  std::array<llvm::StringRef, 13> Tests = { {
       "^int main() {}",
       "void foo() {^}",
       // FIXME: "decltype(auto)" should be a single hover
@@ -1302,7 +1303,7 @@ TEST(Hover, NoHover) {
       "auto x = ^42.0i;",
       "auto x = ^42;",
       "auto x = ^nullptr;",
-  };
+  } };
 
   for (const auto &Test : Tests) {
     SCOPED_TRACE(Test);

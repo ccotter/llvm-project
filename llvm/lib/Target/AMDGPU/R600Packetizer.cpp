@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600.h"
 #include "R600Subtarget.h"
@@ -122,11 +124,11 @@ private:
 
   void substitutePV(MachineInstr &MI, const DenseMap<unsigned, unsigned> &PVs)
       const {
-    unsigned Ops[] = {
+    std::array<unsigned, 3> Ops = { {
       R600::OpName::src0,
       R600::OpName::src1,
       R600::OpName::src2
-    };
+    } };
     for (unsigned Op : Ops) {
       int OperandIdx = TII->getOperandIdx(MI.getOpcode(), Op);
       if (OperandIdx < 0)

@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TreeTransform.h"
 #include "UsedDeclVisitor.h"
 #include "clang/AST/ASTConsumer.h"
@@ -1825,7 +1827,7 @@ static ExprResult BuildCookedLiteralOperatorCall(Sema &S, Scope *Scope,
                                                  SourceLocation LitEndLoc) {
   assert(Args.size() <= 2 && "too many arguments for literal operator");
 
-  QualType ArgTy[2];
+  std::array<QualType, 2> ArgTy;
   for (unsigned ArgIdx = 0; ArgIdx != Args.size(); ++ArgIdx) {
     ArgTy[ArgIdx] = Args[ArgIdx]->getType();
     if (ArgTy[ArgIdx]->isArrayType())
@@ -1838,7 +1840,7 @@ static ExprResult BuildCookedLiteralOperatorCall(Sema &S, Scope *Scope,
   OpNameInfo.setCXXLiteralOperatorNameLoc(UDSuffixLoc);
 
   LookupResult R(S, OpName, UDSuffixLoc, Sema::LookupOrdinaryName);
-  if (S.LookupLiteralOperator(Scope, R, llvm::makeArrayRef(ArgTy, Args.size()),
+  if (S.LookupLiteralOperator(Scope, R, llvm::makeArrayRef(ArgTy.begin(), Args.size()),
                               /*AllowRaw*/ false, /*AllowTemplate*/ false,
                               /*AllowStringTemplatePack*/ false,
                               /*DiagnoseMissing*/ true) == Sema::LOLR_Error)

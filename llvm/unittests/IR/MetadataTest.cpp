@@ -22,6 +22,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <optional>
 using namespace llvm;
 
@@ -130,7 +131,7 @@ typedef MetadataTest MDStringTest;
 // Test that construction of MDString with different value produces different
 // MDString objects, even with the same string pointer and nulls in the string.
 TEST_F(MDStringTest, CreateDifferent) {
-  char x[3] = { 'f', 0, 'A' };
+  std::array<char, 3> x = { { 'f', 0, 'A' } };
   MDString *s1 = MDString::get(Context, StringRef(&x[0], 3));
   x[2] = 'B';
   MDString *s2 = MDString::get(Context, StringRef(&x[0], 3));
@@ -140,8 +141,8 @@ TEST_F(MDStringTest, CreateDifferent) {
 // Test that creation of MDStrings with the same string contents produces the
 // same MDString object, even with different pointers.
 TEST_F(MDStringTest, CreateSame) {
-  char x[4] = { 'a', 'b', 'c', 'X' };
-  char y[4] = { 'a', 'b', 'c', 'Y' };
+  std::array<char, 4> x = { { 'a', 'b', 'c', 'X' } };
+  std::array<char, 4> y = { { 'a', 'b', 'c', 'Y' } };
 
   MDString *s1 = MDString::get(Context, StringRef(&x[0], 3));
   MDString *s2 = MDString::get(Context, StringRef(&y[0], 3));
@@ -150,9 +151,9 @@ TEST_F(MDStringTest, CreateSame) {
 
 // Test that MDString prints out the string we fed it.
 TEST_F(MDStringTest, PrintingSimple) {
-  char str[14] = "testing 1 2 3";
+  std::array<char, 14> str = { "testing 1 2 3" };
   MDString *s = MDString::get(Context, StringRef(&str[0], 13));
-  strncpy(str, "aaaaaaaaaaaaa", 14);
+  strncpy(str.begin(), "aaaaaaaaaaaaa", 14);
 
   std::string Str;
   raw_string_ostream oss(Str);
@@ -162,8 +163,8 @@ TEST_F(MDStringTest, PrintingSimple) {
 
 // Test printing of MDString with non-printable characters.
 TEST_F(MDStringTest, PrintingComplex) {
-  char str[5] = {0, '\n', '"', '\\', (char)-1};
-  MDString *s = MDString::get(Context, StringRef(str+0, 5));
+  std::array<char, 5> str = { {0, '\n', '"', '\\', (char)-1} };
+  MDString *s = MDString::get(Context, StringRef(str.begin()+0, 5));
   std::string Str;
   raw_string_ostream oss(Str);
   s->print(oss);
@@ -174,8 +175,8 @@ typedef MetadataTest MDNodeTest;
 
 // Test the two constructors, and containing other Constants.
 TEST_F(MDNodeTest, Simple) {
-  char x[3] = { 'a', 'b', 'c' };
-  char y[3] = { '1', '2', '3' };
+  std::array<char, 3> x = { { 'a', 'b', 'c' } };
+  std::array<char, 3> y = { { '1', '2', '3' } };
 
   MDString *s1 = MDString::get(Context, StringRef(&x[0], 3));
   MDString *s2 = MDString::get(Context, StringRef(&y[0], 3));
@@ -279,7 +280,7 @@ TEST_F(MDNodeTest, Print) {
     OS << ", ";
     S->printAsOperand(OS);
     OS << ", null";
-    MDNode *Nodes[] = {N0, N1, N2};
+    std::array Nodes = {N0, N1, N2};
     for (auto *Node : Nodes)
       OS << ", <" << (void *)Node << ">";
     OS << "}";

@@ -15,6 +15,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 
 using namespace llvm;
@@ -49,7 +50,7 @@ auto OmnipotentCharCXX = MMTuple(
 
 
 TEST(TBAAMetadataTest, BasicTypes) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 207> TestProgram = { R"**(
     void func(char *CP, short *SP, int *IP, long long *LP, void **VPP,
               int **IPP) {
       *CP = 4;
@@ -59,11 +60,11 @@ TEST(TBAAMetadataTest, BasicTypes) {
       *VPP = CP;
       *IPP = IP;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   const Instruction *I = match(BB,
@@ -137,7 +138,7 @@ TEST(TBAAMetadataTest, BasicTypes) {
 }
 
 TEST(TBAAMetadataTest, CFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 328> TestProgram = { R"**(
     struct ABC {
        short f16;
        int f32;
@@ -155,12 +156,12 @@ TEST(TBAAMetadataTest, CFields) {
       A->f32_2 = 77;
       A->f64_2 = 604;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.C11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto StructABC = MMTuple(
@@ -261,7 +262,7 @@ TEST(TBAAMetadataTest, CFields) {
 }
 
 TEST(TBAAMetadataTest, CTypedefFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 275> TestProgram = { R"**(
     typedef struct {
        short f16;
        int f32;
@@ -277,12 +278,12 @@ TEST(TBAAMetadataTest, CTypedefFields) {
       B->value_f32 = 44;
       B->value_f16 = 111;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.C11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto NamelessStruct = MMTuple(
@@ -354,7 +355,7 @@ TEST(TBAAMetadataTest, CTypedefFields) {
 }
 
 TEST(TBAAMetadataTest, CTypedefFields2) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 251> TestProgram = { R"**(
     typedef struct {
        short f16;
        int f32;
@@ -370,12 +371,12 @@ TEST(TBAAMetadataTest, CTypedefFields2) {
       B->f32 = 44;
       B->f16 = 111;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.C11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto NamelessStruct = MMTuple(
@@ -448,7 +449,7 @@ TEST(TBAAMetadataTest, CTypedefFields2) {
 }
 
 TEST(TBAAMetadataTest, CTypedefFields3) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 251> TestProgram = { R"**(
     typedef struct {
        short f16;
        int f32;
@@ -464,12 +465,12 @@ TEST(TBAAMetadataTest, CTypedefFields3) {
       B->f32 = 44;
       B->f16 = 111;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.C11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto NamelessStruct1 = MMTuple(
@@ -548,7 +549,7 @@ TEST(TBAAMetadataTest, CTypedefFields3) {
 }
 
 TEST(TBAAMetadataTest, CXXFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 328> TestProgram = { R"**(
     struct ABC {
        short f16;
        int f32;
@@ -566,13 +567,13 @@ TEST(TBAAMetadataTest, CXXFields) {
       A->f32_2 = 77;
       A->f64_2 = 604;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto StructABC = MMTuple(
@@ -673,7 +674,7 @@ TEST(TBAAMetadataTest, CXXFields) {
 }
 
 TEST(TBAAMetadataTest, CXXTypedefFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 275> TestProgram = { R"**(
     typedef struct {
        short f16;
        int f32;
@@ -689,13 +690,13 @@ TEST(TBAAMetadataTest, CXXTypedefFields) {
       B->value_f32 = 44;
       B->value_f16 = 111;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto StructABC = MMTuple(
@@ -774,7 +775,7 @@ TEST(TBAAMetadataTest, CXXTypedefFields) {
 }
 
 TEST(TBAAMetadataTest, StructureFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 217> TestProgram = { R"**(
     struct Inner {
       int f32;
     };
@@ -790,13 +791,13 @@ TEST(TBAAMetadataTest, StructureFields) {
       S->b1.f32 = 35;
       S->b2.f32 = 77;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto StructInner = MMTuple(
@@ -857,7 +858,7 @@ TEST(TBAAMetadataTest, StructureFields) {
 }
 
 TEST(TBAAMetadataTest, ArrayFields) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 210> TestProgram = { R"**(
     struct Inner {
       int f32;
     };
@@ -872,13 +873,13 @@ TEST(TBAAMetadataTest, ArrayFields) {
       S->b1[0].f32 = 35;
       S->b1[1].f32 = 77;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto StructInner = MMTuple(
@@ -937,7 +938,7 @@ TEST(TBAAMetadataTest, ArrayFields) {
 }
 
 TEST(TBAAMetadataTest, BaseClass) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 205> TestProgram = { R"**(
     struct Base {
       int f32;
     };
@@ -951,13 +952,13 @@ TEST(TBAAMetadataTest, BaseClass) {
       D->f16 = 35;
       D->f32 = 77;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto ClassBase = MMTuple(
@@ -1011,7 +1012,7 @@ TEST(TBAAMetadataTest, BaseClass) {
 }
 
 TEST(TBAAMetadataTest, PolymorphicClass) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 278> TestProgram = { R"**(
     struct Base {
       virtual void m1(int *) = 0;
       int f32;
@@ -1027,13 +1028,13 @@ TEST(TBAAMetadataTest, PolymorphicClass) {
       D->f16 = 35;
       D->f32 = 77;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto ClassBase = MMTuple(
@@ -1087,7 +1088,7 @@ TEST(TBAAMetadataTest, PolymorphicClass) {
 }
 
 TEST(TBAAMetadataTest, VirtualBase) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 213> TestProgram = { R"**(
     struct Base {
       int f32;
     };
@@ -1101,13 +1102,13 @@ TEST(TBAAMetadataTest, VirtualBase) {
       D->f16 = 35;
       D->f32 = 77;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto ClassBase = MMTuple(
@@ -1176,7 +1177,7 @@ TEST(TBAAMetadataTest, VirtualBase) {
 }
 
 TEST(TBAAMetadataTest, TemplSpec) {
-  const char TestProgram[] = R"**(
+  const std::array<char, 175> TestProgram = { R"**(
     template<typename T1, typename T2>
     struct ABC {
       T1 f1;
@@ -1187,13 +1188,13 @@ TEST(TBAAMetadataTest, TemplSpec) {
       p->f1 = 12.1;
       p->f2 = 44;
     }
-  )**";
+  )**" };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TBAATestCompiler Compiler(LO, TBAATestCompiler::getCommonCodeGenOpts());
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
   const BasicBlock *BB = Compiler.compile();
 
   auto SpecABC = MMTuple(

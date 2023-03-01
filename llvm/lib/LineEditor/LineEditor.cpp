@@ -13,6 +13,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdio>
 #ifdef HAVE_LIBEDIT
@@ -297,15 +298,15 @@ Optional<std::string> LineEditor::readLine() const {
 
   std::string Line;
   do {
-    char Buf[64];
-    char *Res = ::fgets(Buf, sizeof(Buf), Data->In);
+    std::array<char, 64> Buf;
+    char *Res = ::fgets(Buf.begin(), sizeof(Buf), Data->In);
     if (!Res) {
       if (Line.empty())
         return std::nullopt;
       else
         return Line;
     }
-    Line.append(Buf);
+    Line.append(Buf.begin());
   } while (Line.empty() ||
            (Line[Line.size() - 1] != '\n' && Line[Line.size() - 1] != '\r'));
 

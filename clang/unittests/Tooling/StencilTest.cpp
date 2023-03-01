@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Tooling/Transformer/Stencil.h"
 #include "clang/AST/ASTTypeTraits.h"
 #include "clang/AST/Expr.h"
@@ -32,7 +34,7 @@ using MatchResult = MatchFinder::MatchResult;
 // Create a valid translation-unit from a statement.
 static std::string wrapSnippet(StringRef ExtraPreface,
                                StringRef StatementCode) {
-  constexpr char Preface[] = R"cc(
+  constexpr std::array<char, 290> Preface = { R"cc(
     namespace N { class C {}; }
     namespace { class AnonC {}; }
     struct S { int Field; };
@@ -44,8 +46,8 @@ static std::string wrapSnippet(StringRef ExtraPreface,
     };
     }
     template<class T> T desugar() { return T(); };
-  )cc";
-  return (Preface + ExtraPreface + "auto stencil_test_snippet = []{" +
+  )cc" };
+  return (Preface.begin() + ExtraPreface + "auto stencil_test_snippet = []{" +
           StatementCode + "};")
       .str();
 }

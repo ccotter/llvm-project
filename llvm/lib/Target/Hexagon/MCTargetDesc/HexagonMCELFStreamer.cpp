@@ -33,6 +33,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 
@@ -90,7 +91,7 @@ void HexagonMCELFStreamer::HexagonMCEmitCommonSymbol(MCSymbol *Symbol,
                                                      Align ByteAlignment,
                                                      unsigned AccessSize) {
   getAssembler().registerSymbol(*Symbol);
-  StringRef sbss[4] = {".sbss.1", ".sbss.2", ".sbss.4", ".sbss.8"};
+  std::array<StringRef, 4> sbss = { {".sbss.1", ".sbss.2", ".sbss.4", ".sbss.8"} };
 
   auto ELFSymbol = cast<MCSymbolELF>(Symbol);
   if (!ELFSymbol->isBindingSet()) {

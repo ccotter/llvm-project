@@ -33,6 +33,7 @@
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <array>
 #include <map>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -484,7 +485,7 @@ static Expected<std::vector<MemberData>>
 computeMemberData(raw_ostream &StringTable, raw_ostream &SymNames,
                   object::Archive::Kind Kind, bool Thin, bool Deterministic,
                   bool NeedSymbols, ArrayRef<NewArchiveMember> NewMembers) {
-  static char PaddingData[8] = {'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};
+  static std::array<char, 8> PaddingData = { {'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'} };
 
   uint64_t Pos =
       isAIXBigArchive(Kind) ? sizeof(object::BigArchive::FixLenHdr) : 0;
@@ -565,7 +566,7 @@ computeMemberData(raw_ostream &StringTable, raw_ostream &SymNames,
         isDarwin(Kind) ? offsetToAlignment(Data.size(), Align(8)) : 0;
     unsigned TailPadding =
         offsetToAlignment(Data.size() + MemberPadding, Align(2));
-    StringRef Padding = StringRef(PaddingData, MemberPadding + TailPadding);
+    StringRef Padding = StringRef(PaddingData.begin(), MemberPadding + TailPadding);
 
     sys::TimePoint<std::chrono::seconds> ModTime;
     if (UniqueTimestamps)

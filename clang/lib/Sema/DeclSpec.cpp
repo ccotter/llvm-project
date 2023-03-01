@@ -25,6 +25,7 @@
 #include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
+#include <array>
 #include <cstring>
 using namespace clang;
 
@@ -1136,11 +1137,11 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
        TypeAltiVecVector || TypeAltiVecPixel || TypeAltiVecBool ||
        TypeQualifiers)) {
     const unsigned NumLocs = 9;
-    SourceLocation ExtraLocs[NumLocs] = {
+    std::array<SourceLocation, NumLocs> ExtraLocs = { {
         TSWRange.getBegin(), TSCLoc,       TSSLoc,
         AltiVecLoc,          TQ_constLoc,  TQ_restrictLoc,
-        TQ_volatileLoc,      TQ_atomicLoc, TQ_unalignedLoc};
-    FixItHint Hints[NumLocs];
+        TQ_volatileLoc,      TQ_atomicLoc, TQ_unalignedLoc} };
+    std::array<FixItHint, NumLocs> Hints;
     SourceLocation FirstLoc;
     for (unsigned I = 0; I != NumLocs; ++I) {
       if (ExtraLocs[I].isValid()) {

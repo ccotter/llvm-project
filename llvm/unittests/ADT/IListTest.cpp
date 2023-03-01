@@ -10,6 +10,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ilist_node.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <ostream>
 
 using namespace llvm;
@@ -44,7 +45,7 @@ TEST(IListTest, Basic) {
 }
 
 TEST(IListTest, cloneFrom) {
-  Node L1Nodes[] = {Node(0), Node(1)};
+  std::array<Node, 2> L1Nodes = { {Node(0), Node(1)} };
   Node L2Nodes[] = {Node(0), Node(1)};
   ilist<Node> L1, L2, L3;
 

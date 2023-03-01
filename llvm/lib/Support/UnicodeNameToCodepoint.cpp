@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -261,7 +263,7 @@ constexpr const uint32_t TCount = 28;
 static std::size_t findSyllable(StringRef Name, bool Strict,
                                 char &PreviousInName, int &Pos, int Column) {
   assert(Column == 0 || Column == 1 || Column == 2);
-  static std::size_t CountPerColumn[] = {LCount, VCount, TCount};
+  static std::array<std::size_t, 3> CountPerColumn = { {LCount, VCount, TCount} };
   char NeedleStart = 0;
   int Len = -1;
   int Prev = PreviousInName;

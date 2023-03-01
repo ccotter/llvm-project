@@ -58,6 +58,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -7697,15 +7698,15 @@ MasmParser::evaluateBuiltinTextMacro(BuiltinSymbol Symbol, SMLoc StartLoc) {
     return {};
   case BI_DATE: {
     // Current local date, formatted MM/DD/YY
-    char TmpBuffer[sizeof("mm/dd/yy")];
-    const size_t Len = strftime(TmpBuffer, sizeof(TmpBuffer), "%D", &TM);
-    return std::string(TmpBuffer, Len);
+    std::array<char, sizeof("mm/dd/yy")> TmpBuffer;
+    const size_t Len = strftime(TmpBuffer.begin(), sizeof(TmpBuffer), "%D", &TM);
+    return std::string(TmpBuffer.begin(), Len);
   }
   case BI_TIME: {
     // Current local time, formatted HH:MM:SS (24-hour clock)
-    char TmpBuffer[sizeof("hh:mm:ss")];
-    const size_t Len = strftime(TmpBuffer, sizeof(TmpBuffer), "%T", &TM);
-    return std::string(TmpBuffer, Len);
+    std::array<char, sizeof("hh:mm:ss")> TmpBuffer;
+    const size_t Len = strftime(TmpBuffer.begin(), sizeof(TmpBuffer), "%T", &TM);
+    return std::string(TmpBuffer.begin(), Len);
   }
   case BI_FILECUR:
     return SrcMgr

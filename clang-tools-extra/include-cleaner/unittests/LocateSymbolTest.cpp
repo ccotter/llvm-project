@@ -18,6 +18,7 @@
 #include "llvm/Testing/Support/Annotations.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -98,11 +99,11 @@ public:
 TEST(LocateSymbol, Decl) {
   // Looks for decl with name 'foo' and performs locateSymbol on it.
   // Expects all the locations in the case to be returned as a location.
-  const llvm::StringLiteral Cases[] = {
+  const std::array<llvm::StringLiteral, 3> Cases = { {
       "struct ^foo; struct ^foo {};",
       "namespace ns { void ^foo(); void ^foo() {} }",
       "enum class ^foo; enum class ^foo {};",
-  };
+  } };
 
   for (auto &Case : Cases) {
     SCOPED_TRACE(Case);

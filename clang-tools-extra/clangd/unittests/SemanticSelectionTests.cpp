@@ -17,6 +17,7 @@
 #include "llvm/Support/Error.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <vector>
 
 namespace clang {
@@ -50,7 +51,7 @@ gatherFoldingRanges(llvm::ArrayRef<FoldingRange> FoldingRanges) {
 }
 
 TEST(SemanticSelection, All) {
-  const char *Tests[] = {
+  std::array<const char *, 16>Tests = { {
       R"cpp( // Single statement in a function body.
         [[void func() [[{
           [[[[int v = [[1^00]]]];]]
@@ -151,7 +152,7 @@ TEST(SemanticSelection, All) {
         }]]
       )cpp",
 
-  };
+  } };
 
   for (const char *Test : Tests) {
     auto T = Annotations(Test);
@@ -197,7 +198,7 @@ TEST(SemanticSelection, RunViaClangdServer) {
 }
 
 TEST(FoldingRanges, ASTAll) {
-  const char *Tests[] = {
+  std::array<const char *, 3>Tests = { {
       R"cpp(
         #define FOO int foo() {\
           int Variable = 42; \
@@ -255,7 +256,7 @@ TEST(FoldingRanges, ASTAll) {
           void getFooBar() { }
         };
       )cpp",
-  };
+  } };
   for (const char *Test : Tests) {
     auto T = Annotations(Test);
     auto AST = TestTU::withCode(T.code()).build();
@@ -266,7 +267,7 @@ TEST(FoldingRanges, ASTAll) {
 }
 
 TEST(FoldingRanges, PseudoParserWithoutLineFoldings) {
-  const char *Tests[] = {
+  std::array<const char *, 6>Tests = { {
       R"cpp(
         #define FOO int foo() {\
           int Variable = 42; \
@@ -370,7 +371,7 @@ TEST(FoldingRanges, PseudoParserWithoutLineFoldings) {
         //[[ foo
         /* bar */]]
       )cpp",
-  };
+  } };
   for (const char *Test : Tests) {
     auto T = Annotations(Test);
     EXPECT_THAT(gatherFoldingRanges(llvm::cantFail(getFoldingRanges(
@@ -381,7 +382,7 @@ TEST(FoldingRanges, PseudoParserWithoutLineFoldings) {
 }
 
 TEST(FoldingRanges, PseudoParserLineFoldingsOnly) {
-  const char *Tests[] = {
+  std::array<const char *, 3>Tests = { {
       R"cpp(
         void func(int a) {[[
             a++;]]
@@ -435,7 +436,7 @@ TEST(FoldingRanges, PseudoParserLineFoldingsOnly) {
       // template <[[typename foo, class bar]]> struct baz {};
       // )cpp",
 
-  };
+  } };
   auto StripColumns = [](const std::vector<Range> &Ranges) {
     std::vector<Range> Res;
     for (Range R : Ranges) {

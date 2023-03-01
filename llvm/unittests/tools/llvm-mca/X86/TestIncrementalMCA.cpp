@@ -8,6 +8,7 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <unordered_map>
 
 using namespace llvm;
@@ -71,8 +72,8 @@ TEST_F(X86TestBase, TestResumablePipeline) {
   ASSERT_TRUE(BaselineObj) << "Does not contain SummaryView result";
 
   // Compare the results.
-  constexpr const char *Fields[] = {"Instructions", "TotalCycles", "TotaluOps",
-                                    "BlockRThroughput"};
+  constexpr std::array<const char *, 4>Fields = { {"Instructions", "TotalCycles", "TotaluOps",
+                                    "BlockRThroughput"} };
   for (const auto *F : Fields) {
     auto V = ResultObj->getInteger(F);
     auto BV = BaselineObj->getInteger(F);
@@ -176,8 +177,8 @@ TEST_F(X86TestBase, TestInstructionRecycling) {
   ASSERT_TRUE(BaselineObj) << "Does not contain SummaryView result";
 
   // Compare the results.
-  constexpr const char *Fields[] = {"Instructions", "TotalCycles", "TotaluOps",
-                                    "BlockRThroughput"};
+  constexpr std::array<const char *, 4>Fields = { {"Instructions", "TotalCycles", "TotaluOps",
+                                    "BlockRThroughput"} };
   for (const auto *F : Fields) {
     auto V = ResultObj->getInteger(F);
     auto BV = BaselineObj->getInteger(F);

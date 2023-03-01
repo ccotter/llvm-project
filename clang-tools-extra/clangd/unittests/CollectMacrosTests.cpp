@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+#include <array>
+
 #include "AST.h"
 #include "Annotations.h"
 #include "CollectMacros.h"
@@ -26,7 +28,7 @@ TEST(CollectMainFileMacros, SelectedMacros) {
   // name(integer). If there are N different symbols then they must be named
   // from 1 to N. Macros for which SymbolID cannot be computed must be named
   // "Unknown".
-  const char *Tests[] = {
+  std::array<const char *, 6>Tests = { {
       R"cpp(// Macros: Cursor on definition.
         #define $1[[FOO]](x,y) (x + y)
         int main() { int x = $1[[FOO]]($1[[FOO]](3, 4), $1[[FOO]](5, 6)); }
@@ -72,7 +74,7 @@ TEST(CollectMainFileMacros, SelectedMacros) {
         #define $2[[FOO]] BAR
         #define $3[[BAR]] 1
         int A = $2[[FOO]];
-      )cpp"};
+      )cpp"} };
   for (const char *Test : Tests) {
     Annotations T(Test);
     auto AST = TestTU::withCode(T.code()).build();

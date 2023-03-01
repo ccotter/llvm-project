@@ -71,6 +71,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <utility>
@@ -670,8 +671,8 @@ bool RAGreedy::addSplitConstraints(InterferenceCache::Cursor Intf,
 bool RAGreedy::addThroughConstraints(InterferenceCache::Cursor Intf,
                                      ArrayRef<unsigned> Blocks) {
   const unsigned GroupSize = 8;
-  SpillPlacement::BlockConstraint BCS[GroupSize];
-  unsigned TBS[GroupSize];
+  std::array<SpillPlacement::BlockConstraint, GroupSize> BCS;
+  std::array<unsigned, GroupSize> TBS;
   unsigned B = 0, T = 0;
 
   for (unsigned Number : Blocks) {
@@ -681,7 +682,7 @@ bool RAGreedy::addThroughConstraints(InterferenceCache::Cursor Intf,
       assert(T < GroupSize && "Array overflow");
       TBS[T] = Number;
       if (++T == GroupSize) {
-        SpillPlacer->addLinks(makeArrayRef(TBS, T));
+        SpillPlacer->addLinks(makeArrayRef(TBS.begin(), T));
         T = 0;
       }
       continue;
@@ -710,13 +711,13 @@ bool RAGreedy::addThroughConstraints(InterferenceCache::Cursor Intf,
       BCS[B].Exit = SpillPlacement::PrefSpill;
 
     if (++B == GroupSize) {
-      SpillPlacer->addConstraints(makeArrayRef(BCS, B));
+      SpillPlacer->addConstraints(makeArrayRef(BCS.begin(), B));
       B = 0;
     }
   }
 
-  SpillPlacer->addConstraints(makeArrayRef(BCS, B));
-  SpillPlacer->addLinks(makeArrayRef(TBS, T));
+  SpillPlacer->addConstraints(makeArrayRef(BCS.begin(), B));
+  SpillPlacer->addLinks(makeArrayRef(TBS.begin(), T));
   return true;
 }
 

@@ -35,6 +35,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetOptions.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -2931,7 +2932,7 @@ void ARMDAGToDAGISel::SelectCDE_CXxD(SDNode *N, uint16_t Opcode,
   // CDE instruction is a register pair. We need to extract the two subregisters
   // and replace all uses of the original outputs with the extracted
   // subregisters.
-  uint16_t SubRegs[2] = {ARM::gsub_0, ARM::gsub_1};
+  std::array<uint16_t, 2> SubRegs = { {ARM::gsub_0, ARM::gsub_1} };
   if (IsBigEndian)
     std::swap(SubRegs[0], SubRegs[1]);
 
@@ -4271,9 +4272,9 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
   case ARMISD::VZIP: {
     EVT VT = N->getValueType(0);
     // vzip.32 Dd, Dm is a pseudo-instruction expanded to vtrn.32 Dd, Dm.
-    unsigned Opc64[] = {ARM::VZIPd8, ARM::VZIPd16, ARM::VTRNd32};
-    unsigned Opc128[] = {ARM::VZIPq8, ARM::VZIPq16, ARM::VZIPq32};
-    unsigned Opc = getVectorShuffleOpcode(VT, Opc64, Opc128);
+    std::array<unsigned, 3> Opc64 = { {ARM::VZIPd8, ARM::VZIPd16, ARM::VTRNd32} };
+    std::array<unsigned, 3> Opc128 = { {ARM::VZIPq8, ARM::VZIPq16, ARM::VZIPq32} };
+    unsigned Opc = getVectorShuffleOpcode(VT, Opc64.begin(), Opc128.begin());
     SDValue Pred = getAL(CurDAG, dl);
     SDValue PredReg = CurDAG->getRegister(0, MVT::i32);
     SDValue Ops[] = {N->getOperand(0), N->getOperand(1), Pred, PredReg};
@@ -4283,9 +4284,9 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
   case ARMISD::VUZP: {
     EVT VT = N->getValueType(0);
     // vuzp.32 Dd, Dm is a pseudo-instruction expanded to vtrn.32 Dd, Dm.
-    unsigned Opc64[] = {ARM::VUZPd8, ARM::VUZPd16, ARM::VTRNd32};
-    unsigned Opc128[] = {ARM::VUZPq8, ARM::VUZPq16, ARM::VUZPq32};
-    unsigned Opc = getVectorShuffleOpcode(VT, Opc64, Opc128);
+    std::array<unsigned, 3> Opc64 = { {ARM::VUZPd8, ARM::VUZPd16, ARM::VTRNd32} };
+    std::array<unsigned, 3> Opc128 = { {ARM::VUZPq8, ARM::VUZPq16, ARM::VUZPq32} };
+    unsigned Opc = getVectorShuffleOpcode(VT, Opc64.begin(), Opc128.begin());
     SDValue Pred = getAL(CurDAG, dl);
     SDValue PredReg = CurDAG->getRegister(0, MVT::i32);
     SDValue Ops[] = {N->getOperand(0), N->getOperand(1), Pred, PredReg};
@@ -4294,9 +4295,9 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
   }
   case ARMISD::VTRN: {
     EVT VT = N->getValueType(0);
-    unsigned Opc64[] = {ARM::VTRNd8, ARM::VTRNd16, ARM::VTRNd32};
-    unsigned Opc128[] = {ARM::VTRNq8, ARM::VTRNq16, ARM::VTRNq32};
-    unsigned Opc = getVectorShuffleOpcode(VT, Opc64, Opc128);
+    std::array<unsigned, 3> Opc64 = { {ARM::VTRNd8, ARM::VTRNd16, ARM::VTRNd32} };
+    std::array<unsigned, 3> Opc128 = { {ARM::VTRNq8, ARM::VTRNq16, ARM::VTRNq32} };
+    unsigned Opc = getVectorShuffleOpcode(VT, Opc64.begin(), Opc128.begin());
     SDValue Pred = getAL(CurDAG, dl);
     SDValue PredReg = CurDAG->getRegister(0, MVT::i32);
     SDValue Ops[] = {N->getOperand(0), N->getOperand(1), Pred, PredReg};
@@ -4327,115 +4328,115 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
   }
 
   case ARMISD::VLD1DUP: {
-    static const uint16_t DOpcodes[] = { ARM::VLD1DUPd8, ARM::VLD1DUPd16,
-                                         ARM::VLD1DUPd32 };
-    static const uint16_t QOpcodes[] = { ARM::VLD1DUPq8, ARM::VLD1DUPq16,
-                                         ARM::VLD1DUPq32 };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 1, DOpcodes, QOpcodes);
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD1DUPd8, ARM::VLD1DUPd16,
+                                         ARM::VLD1DUPd32 } };
+    static const std::array<uint16_t, 3> QOpcodes = { { ARM::VLD1DUPq8, ARM::VLD1DUPq16,
+                                         ARM::VLD1DUPq32 } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 1, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VLD2DUP: {
-    static const uint16_t Opcodes[] = { ARM::VLD2DUPd8, ARM::VLD2DUPd16,
-                                        ARM::VLD2DUPd32 };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 2, Opcodes);
+    static const std::array<uint16_t, 3> Opcodes = { { ARM::VLD2DUPd8, ARM::VLD2DUPd16,
+                                        ARM::VLD2DUPd32 } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 2, Opcodes.begin());
     return;
   }
 
   case ARMISD::VLD3DUP: {
-    static const uint16_t Opcodes[] = { ARM::VLD3DUPd8Pseudo,
+    static const std::array<uint16_t, 3> Opcodes = { { ARM::VLD3DUPd8Pseudo,
                                         ARM::VLD3DUPd16Pseudo,
-                                        ARM::VLD3DUPd32Pseudo };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 3, Opcodes);
+                                        ARM::VLD3DUPd32Pseudo } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 3, Opcodes.begin());
     return;
   }
 
   case ARMISD::VLD4DUP: {
-    static const uint16_t Opcodes[] = { ARM::VLD4DUPd8Pseudo,
+    static const std::array<uint16_t, 3> Opcodes = { { ARM::VLD4DUPd8Pseudo,
                                         ARM::VLD4DUPd16Pseudo,
-                                        ARM::VLD4DUPd32Pseudo };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 4, Opcodes);
+                                        ARM::VLD4DUPd32Pseudo } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, false, 4, Opcodes.begin());
     return;
   }
 
   case ARMISD::VLD1DUP_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD1DUPd8wb_fixed,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD1DUPd8wb_fixed,
                                          ARM::VLD1DUPd16wb_fixed,
-                                         ARM::VLD1DUPd32wb_fixed };
-    static const uint16_t QOpcodes[] = { ARM::VLD1DUPq8wb_fixed,
+                                         ARM::VLD1DUPd32wb_fixed } };
+    static const std::array<uint16_t, 3> QOpcodes = { { ARM::VLD1DUPq8wb_fixed,
                                          ARM::VLD1DUPq16wb_fixed,
-                                         ARM::VLD1DUPq32wb_fixed };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 1, DOpcodes, QOpcodes);
+                                         ARM::VLD1DUPq32wb_fixed } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 1, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VLD2DUP_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD2DUPd8wb_fixed,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD2DUPd8wb_fixed,
                                          ARM::VLD2DUPd16wb_fixed,
                                          ARM::VLD2DUPd32wb_fixed,
-                                         ARM::VLD1q64wb_fixed };
-    static const uint16_t QOpcodes0[] = { ARM::VLD2DUPq8EvenPseudo,
+                                         ARM::VLD1q64wb_fixed } };
+    static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD2DUPq8EvenPseudo,
                                           ARM::VLD2DUPq16EvenPseudo,
-                                          ARM::VLD2DUPq32EvenPseudo };
-    static const uint16_t QOpcodes1[] = { ARM::VLD2DUPq8OddPseudoWB_fixed,
+                                          ARM::VLD2DUPq32EvenPseudo } };
+    static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD2DUPq8OddPseudoWB_fixed,
                                           ARM::VLD2DUPq16OddPseudoWB_fixed,
-                                          ARM::VLD2DUPq32OddPseudoWB_fixed };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 2, DOpcodes, QOpcodes0, QOpcodes1);
+                                          ARM::VLD2DUPq32OddPseudoWB_fixed } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 2, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     return;
   }
 
   case ARMISD::VLD3DUP_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD3DUPd8Pseudo_UPD,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD3DUPd8Pseudo_UPD,
                                          ARM::VLD3DUPd16Pseudo_UPD,
                                          ARM::VLD3DUPd32Pseudo_UPD,
-                                         ARM::VLD1d64TPseudoWB_fixed };
-    static const uint16_t QOpcodes0[] = { ARM::VLD3DUPq8EvenPseudo,
+                                         ARM::VLD1d64TPseudoWB_fixed } };
+    static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD3DUPq8EvenPseudo,
                                           ARM::VLD3DUPq16EvenPseudo,
-                                          ARM::VLD3DUPq32EvenPseudo };
-    static const uint16_t QOpcodes1[] = { ARM::VLD3DUPq8OddPseudo_UPD,
+                                          ARM::VLD3DUPq32EvenPseudo } };
+    static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD3DUPq8OddPseudo_UPD,
                                           ARM::VLD3DUPq16OddPseudo_UPD,
-                                          ARM::VLD3DUPq32OddPseudo_UPD };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                          ARM::VLD3DUPq32OddPseudo_UPD } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     return;
   }
 
   case ARMISD::VLD4DUP_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD4DUPd8Pseudo_UPD,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD4DUPd8Pseudo_UPD,
                                          ARM::VLD4DUPd16Pseudo_UPD,
                                          ARM::VLD4DUPd32Pseudo_UPD,
-                                         ARM::VLD1d64QPseudoWB_fixed };
-    static const uint16_t QOpcodes0[] = { ARM::VLD4DUPq8EvenPseudo,
+                                         ARM::VLD1d64QPseudoWB_fixed } };
+    static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD4DUPq8EvenPseudo,
                                           ARM::VLD4DUPq16EvenPseudo,
-                                          ARM::VLD4DUPq32EvenPseudo };
-    static const uint16_t QOpcodes1[] = { ARM::VLD4DUPq8OddPseudo_UPD,
+                                          ARM::VLD4DUPq32EvenPseudo } };
+    static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD4DUPq8OddPseudo_UPD,
                                           ARM::VLD4DUPq16OddPseudo_UPD,
-                                          ARM::VLD4DUPq32OddPseudo_UPD };
-    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                          ARM::VLD4DUPq32OddPseudo_UPD } };
+    SelectVLDDup(N, /* IsIntrinsic= */ false, true, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     return;
   }
 
   case ARMISD::VLD1_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD1d8wb_fixed,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD1d8wb_fixed,
                                          ARM::VLD1d16wb_fixed,
                                          ARM::VLD1d32wb_fixed,
-                                         ARM::VLD1d64wb_fixed };
-    static const uint16_t QOpcodes[] = { ARM::VLD1q8wb_fixed,
+                                         ARM::VLD1d64wb_fixed } };
+    static const std::array<uint16_t, 4> QOpcodes = { { ARM::VLD1q8wb_fixed,
                                          ARM::VLD1q16wb_fixed,
                                          ARM::VLD1q32wb_fixed,
-                                         ARM::VLD1q64wb_fixed };
-    SelectVLD(N, true, 1, DOpcodes, QOpcodes, nullptr);
+                                         ARM::VLD1q64wb_fixed } };
+    SelectVLD(N, true, 1, DOpcodes.begin(), QOpcodes.begin(), nullptr);
     return;
   }
 
   case ARMISD::VLD2_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VLD2d8wb_fixed, ARM::VLD2d16wb_fixed, ARM::VLD2d32wb_fixed,
-          ARM::VLD1q64wb_fixed};
-      static const uint16_t QOpcodes[] = {ARM::VLD2q8PseudoWB_fixed,
+          ARM::VLD1q64wb_fixed} };
+      static const std::array<uint16_t, 3> QOpcodes = { {ARM::VLD2q8PseudoWB_fixed,
                                           ARM::VLD2q16PseudoWB_fixed,
-                                          ARM::VLD2q32PseudoWB_fixed};
-      SelectVLD(N, true, 2, DOpcodes, QOpcodes, nullptr);
+                                          ARM::VLD2q32PseudoWB_fixed} };
+      SelectVLD(N, true, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
     } else {
       static const uint16_t Opcodes8[] = {ARM::MVE_VLD20_8,
                                           ARM::MVE_VLD21_8_wb};
@@ -4443,39 +4444,39 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
                                            ARM::MVE_VLD21_16_wb};
       static const uint16_t Opcodes32[] = {ARM::MVE_VLD20_32,
                                            ARM::MVE_VLD21_32_wb};
-      static const uint16_t *const Opcodes[] = {Opcodes8, Opcodes16, Opcodes32};
-      SelectMVE_VLD(N, 2, Opcodes, true);
+      static const std::array<const uint16_t *, 3>Opcodes = { {Opcodes8, Opcodes16, Opcodes32} };
+      SelectMVE_VLD(N, 2, Opcodes.begin(), true);
     }
     return;
   }
 
   case ARMISD::VLD3_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD3d8Pseudo_UPD,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD3d8Pseudo_UPD,
                                          ARM::VLD3d16Pseudo_UPD,
                                          ARM::VLD3d32Pseudo_UPD,
-                                         ARM::VLD1d64TPseudoWB_fixed};
-    static const uint16_t QOpcodes0[] = { ARM::VLD3q8Pseudo_UPD,
+                                         ARM::VLD1d64TPseudoWB_fixed} };
+    static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD3q8Pseudo_UPD,
                                           ARM::VLD3q16Pseudo_UPD,
-                                          ARM::VLD3q32Pseudo_UPD };
-    static const uint16_t QOpcodes1[] = { ARM::VLD3q8oddPseudo_UPD,
+                                          ARM::VLD3q32Pseudo_UPD } };
+    static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD3q8oddPseudo_UPD,
                                           ARM::VLD3q16oddPseudo_UPD,
-                                          ARM::VLD3q32oddPseudo_UPD };
-    SelectVLD(N, true, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                          ARM::VLD3q32oddPseudo_UPD } };
+    SelectVLD(N, true, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     return;
   }
 
   case ARMISD::VLD4_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VLD4d8Pseudo_UPD, ARM::VLD4d16Pseudo_UPD, ARM::VLD4d32Pseudo_UPD,
-          ARM::VLD1d64QPseudoWB_fixed};
-      static const uint16_t QOpcodes0[] = {ARM::VLD4q8Pseudo_UPD,
+          ARM::VLD1d64QPseudoWB_fixed} };
+      static const std::array<uint16_t, 3> QOpcodes0 = { {ARM::VLD4q8Pseudo_UPD,
                                            ARM::VLD4q16Pseudo_UPD,
-                                           ARM::VLD4q32Pseudo_UPD};
-      static const uint16_t QOpcodes1[] = {ARM::VLD4q8oddPseudo_UPD,
+                                           ARM::VLD4q32Pseudo_UPD} };
+      static const std::array<uint16_t, 3> QOpcodes1 = { {ARM::VLD4q8oddPseudo_UPD,
                                            ARM::VLD4q16oddPseudo_UPD,
-                                           ARM::VLD4q32oddPseudo_UPD};
-      SelectVLD(N, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                           ARM::VLD4q32oddPseudo_UPD} };
+      SelectVLD(N, true, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     } else {
       static const uint16_t Opcodes8[] = {ARM::MVE_VLD40_8, ARM::MVE_VLD41_8,
                                           ARM::MVE_VLD42_8,
@@ -4486,21 +4487,21 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
       static const uint16_t Opcodes32[] = {ARM::MVE_VLD40_32, ARM::MVE_VLD41_32,
                                            ARM::MVE_VLD42_32,
                                            ARM::MVE_VLD43_32_wb};
-      static const uint16_t *const Opcodes[] = {Opcodes8, Opcodes16, Opcodes32};
-      SelectMVE_VLD(N, 4, Opcodes, true);
+      static const std::array<const uint16_t *, 3>Opcodes = { {Opcodes8, Opcodes16, Opcodes32} };
+      SelectMVE_VLD(N, 4, Opcodes.begin(), true);
     }
     return;
   }
 
   case ARMISD::VLD1x2_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VLD1q8wb_fixed, ARM::VLD1q16wb_fixed, ARM::VLD1q32wb_fixed,
-          ARM::VLD1q64wb_fixed};
-      static const uint16_t QOpcodes[] = {
+          ARM::VLD1q64wb_fixed} };
+      static const std::array<uint16_t, 4> QOpcodes = { {
           ARM::VLD1d8QPseudoWB_fixed, ARM::VLD1d16QPseudoWB_fixed,
-          ARM::VLD1d32QPseudoWB_fixed, ARM::VLD1d64QPseudoWB_fixed};
-      SelectVLD(N, true, 2, DOpcodes, QOpcodes, nullptr);
+          ARM::VLD1d32QPseudoWB_fixed, ARM::VLD1d64QPseudoWB_fixed} };
+      SelectVLD(N, true, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
     break;
@@ -4508,16 +4509,16 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
   case ARMISD::VLD1x3_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VLD1d8TPseudoWB_fixed, ARM::VLD1d16TPseudoWB_fixed,
-          ARM::VLD1d32TPseudoWB_fixed, ARM::VLD1d64TPseudoWB_fixed};
-      static const uint16_t QOpcodes0[] = {
+          ARM::VLD1d32TPseudoWB_fixed, ARM::VLD1d64TPseudoWB_fixed} };
+      static const std::array<uint16_t, 4> QOpcodes0 = { {
           ARM::VLD1q8LowTPseudo_UPD, ARM::VLD1q16LowTPseudo_UPD,
-          ARM::VLD1q32LowTPseudo_UPD, ARM::VLD1q64LowTPseudo_UPD};
-      static const uint16_t QOpcodes1[] = {
+          ARM::VLD1q32LowTPseudo_UPD, ARM::VLD1q64LowTPseudo_UPD} };
+      static const std::array<uint16_t, 4> QOpcodes1 = { {
           ARM::VLD1q8HighTPseudo_UPD, ARM::VLD1q16HighTPseudo_UPD,
-          ARM::VLD1q32HighTPseudo_UPD, ARM::VLD1q64HighTPseudo_UPD};
-      SelectVLD(N, true, 3, DOpcodes, QOpcodes0, QOpcodes1);
+          ARM::VLD1q32HighTPseudo_UPD, ARM::VLD1q64HighTPseudo_UPD} };
+      SelectVLD(N, true, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
     break;
@@ -4525,105 +4526,105 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
   case ARMISD::VLD1x4_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VLD1d8QPseudoWB_fixed, ARM::VLD1d16QPseudoWB_fixed,
-          ARM::VLD1d32QPseudoWB_fixed, ARM::VLD1d64QPseudoWB_fixed};
-      static const uint16_t QOpcodes0[] = {
+          ARM::VLD1d32QPseudoWB_fixed, ARM::VLD1d64QPseudoWB_fixed} };
+      static const std::array<uint16_t, 4> QOpcodes0 = { {
           ARM::VLD1q8LowQPseudo_UPD, ARM::VLD1q16LowQPseudo_UPD,
-          ARM::VLD1q32LowQPseudo_UPD, ARM::VLD1q64LowQPseudo_UPD};
-      static const uint16_t QOpcodes1[] = {
+          ARM::VLD1q32LowQPseudo_UPD, ARM::VLD1q64LowQPseudo_UPD} };
+      static const std::array<uint16_t, 4> QOpcodes1 = { {
           ARM::VLD1q8HighQPseudo_UPD, ARM::VLD1q16HighQPseudo_UPD,
-          ARM::VLD1q32HighQPseudo_UPD, ARM::VLD1q64HighQPseudo_UPD};
-      SelectVLD(N, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
+          ARM::VLD1q32HighQPseudo_UPD, ARM::VLD1q64HighQPseudo_UPD} };
+      SelectVLD(N, true, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
     break;
   }
 
   case ARMISD::VLD2LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD2LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD2LNd8Pseudo_UPD,
                                          ARM::VLD2LNd16Pseudo_UPD,
-                                         ARM::VLD2LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VLD2LNq16Pseudo_UPD,
-                                         ARM::VLD2LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, true, true, 2, DOpcodes, QOpcodes);
+                                         ARM::VLD2LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD2LNq16Pseudo_UPD,
+                                         ARM::VLD2LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, true, true, 2, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VLD3LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD3LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD3LNd8Pseudo_UPD,
                                          ARM::VLD3LNd16Pseudo_UPD,
-                                         ARM::VLD3LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VLD3LNq16Pseudo_UPD,
-                                         ARM::VLD3LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, true, true, 3, DOpcodes, QOpcodes);
+                                         ARM::VLD3LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD3LNq16Pseudo_UPD,
+                                         ARM::VLD3LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, true, true, 3, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VLD4LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VLD4LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD4LNd8Pseudo_UPD,
                                          ARM::VLD4LNd16Pseudo_UPD,
-                                         ARM::VLD4LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VLD4LNq16Pseudo_UPD,
-                                         ARM::VLD4LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, true, true, 4, DOpcodes, QOpcodes);
+                                         ARM::VLD4LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD4LNq16Pseudo_UPD,
+                                         ARM::VLD4LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, true, true, 4, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VST1_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VST1d8wb_fixed,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8wb_fixed,
                                          ARM::VST1d16wb_fixed,
                                          ARM::VST1d32wb_fixed,
-                                         ARM::VST1d64wb_fixed };
-    static const uint16_t QOpcodes[] = { ARM::VST1q8wb_fixed,
+                                         ARM::VST1d64wb_fixed } };
+    static const std::array<uint16_t, 4> QOpcodes = { { ARM::VST1q8wb_fixed,
                                          ARM::VST1q16wb_fixed,
                                          ARM::VST1q32wb_fixed,
-                                         ARM::VST1q64wb_fixed };
-    SelectVST(N, true, 1, DOpcodes, QOpcodes, nullptr);
+                                         ARM::VST1q64wb_fixed } };
+    SelectVST(N, true, 1, DOpcodes.begin(), QOpcodes.begin(), nullptr);
     return;
   }
 
   case ARMISD::VST2_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VST2d8wb_fixed, ARM::VST2d16wb_fixed, ARM::VST2d32wb_fixed,
-          ARM::VST1q64wb_fixed};
-      static const uint16_t QOpcodes[] = {ARM::VST2q8PseudoWB_fixed,
+          ARM::VST1q64wb_fixed} };
+      static const std::array<uint16_t, 3> QOpcodes = { {ARM::VST2q8PseudoWB_fixed,
                                           ARM::VST2q16PseudoWB_fixed,
-                                          ARM::VST2q32PseudoWB_fixed};
-      SelectVST(N, true, 2, DOpcodes, QOpcodes, nullptr);
+                                          ARM::VST2q32PseudoWB_fixed} };
+      SelectVST(N, true, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
     break;
   }
 
   case ARMISD::VST3_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VST3d8Pseudo_UPD,
+    static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST3d8Pseudo_UPD,
                                          ARM::VST3d16Pseudo_UPD,
                                          ARM::VST3d32Pseudo_UPD,
-                                         ARM::VST1d64TPseudoWB_fixed};
-    static const uint16_t QOpcodes0[] = { ARM::VST3q8Pseudo_UPD,
+                                         ARM::VST1d64TPseudoWB_fixed} };
+    static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VST3q8Pseudo_UPD,
                                           ARM::VST3q16Pseudo_UPD,
-                                          ARM::VST3q32Pseudo_UPD };
-    static const uint16_t QOpcodes1[] = { ARM::VST3q8oddPseudo_UPD,
+                                          ARM::VST3q32Pseudo_UPD } };
+    static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VST3q8oddPseudo_UPD,
                                           ARM::VST3q16oddPseudo_UPD,
-                                          ARM::VST3q32oddPseudo_UPD };
-    SelectVST(N, true, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                          ARM::VST3q32oddPseudo_UPD } };
+    SelectVST(N, true, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
     return;
   }
 
   case ARMISD::VST4_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = {
+      static const std::array<uint16_t, 4> DOpcodes = { {
           ARM::VST4d8Pseudo_UPD, ARM::VST4d16Pseudo_UPD, ARM::VST4d32Pseudo_UPD,
-          ARM::VST1d64QPseudoWB_fixed};
-      static const uint16_t QOpcodes0[] = {ARM::VST4q8Pseudo_UPD,
+          ARM::VST1d64QPseudoWB_fixed} };
+      static const std::array<uint16_t, 3> QOpcodes0 = { {ARM::VST4q8Pseudo_UPD,
                                            ARM::VST4q16Pseudo_UPD,
-                                           ARM::VST4q32Pseudo_UPD};
-      static const uint16_t QOpcodes1[] = {ARM::VST4q8oddPseudo_UPD,
+                                           ARM::VST4q32Pseudo_UPD} };
+      static const std::array<uint16_t, 3> QOpcodes1 = { {ARM::VST4q8oddPseudo_UPD,
                                            ARM::VST4q16oddPseudo_UPD,
-                                           ARM::VST4q32oddPseudo_UPD};
-      SelectVST(N, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                           ARM::VST4q32oddPseudo_UPD} };
+      SelectVST(N, true, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
     break;
@@ -4631,15 +4632,15 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
   case ARMISD::VST1x2_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = { ARM::VST1q8wb_fixed,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1q8wb_fixed,
                                            ARM::VST1q16wb_fixed,
                                            ARM::VST1q32wb_fixed,
-                                           ARM::VST1q64wb_fixed};
-      static const uint16_t QOpcodes[] = { ARM::VST1d8QPseudoWB_fixed,
+                                           ARM::VST1q64wb_fixed} };
+      static const std::array<uint16_t, 4> QOpcodes = { { ARM::VST1d8QPseudoWB_fixed,
                                            ARM::VST1d16QPseudoWB_fixed,
                                            ARM::VST1d32QPseudoWB_fixed,
-                                           ARM::VST1d64QPseudoWB_fixed };
-      SelectVST(N, true, 2, DOpcodes, QOpcodes, nullptr);
+                                           ARM::VST1d64QPseudoWB_fixed } };
+      SelectVST(N, true, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
     break;
@@ -4647,19 +4648,19 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
   case ARMISD::VST1x3_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = { ARM::VST1d8TPseudoWB_fixed,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8TPseudoWB_fixed,
                                            ARM::VST1d16TPseudoWB_fixed,
                                            ARM::VST1d32TPseudoWB_fixed,
-                                           ARM::VST1d64TPseudoWB_fixed };
-      static const uint16_t QOpcodes0[] = { ARM::VST1q8LowTPseudo_UPD,
+                                           ARM::VST1d64TPseudoWB_fixed } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VST1q8LowTPseudo_UPD,
                                             ARM::VST1q16LowTPseudo_UPD,
                                             ARM::VST1q32LowTPseudo_UPD,
-                                            ARM::VST1q64LowTPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST1q8HighTPseudo_UPD,
+                                            ARM::VST1q64LowTPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VST1q8HighTPseudo_UPD,
                                             ARM::VST1q16HighTPseudo_UPD,
                                             ARM::VST1q32HighTPseudo_UPD,
-                                            ARM::VST1q64HighTPseudo_UPD };
-      SelectVST(N, true, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST1q64HighTPseudo_UPD } };
+      SelectVST(N, true, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
     break;
@@ -4667,50 +4668,50 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
   case ARMISD::VST1x4_UPD: {
     if (Subtarget->hasNEON()) {
-      static const uint16_t DOpcodes[] = { ARM::VST1d8QPseudoWB_fixed,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8QPseudoWB_fixed,
                                            ARM::VST1d16QPseudoWB_fixed,
                                            ARM::VST1d32QPseudoWB_fixed,
-                                           ARM::VST1d64QPseudoWB_fixed };
-      static const uint16_t QOpcodes0[] = { ARM::VST1q8LowQPseudo_UPD,
+                                           ARM::VST1d64QPseudoWB_fixed } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VST1q8LowQPseudo_UPD,
                                             ARM::VST1q16LowQPseudo_UPD,
                                             ARM::VST1q32LowQPseudo_UPD,
-                                            ARM::VST1q64LowQPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST1q8HighQPseudo_UPD,
+                                            ARM::VST1q64LowQPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VST1q8HighQPseudo_UPD,
                                             ARM::VST1q16HighQPseudo_UPD,
                                             ARM::VST1q32HighQPseudo_UPD,
-                                            ARM::VST1q64HighQPseudo_UPD };
-      SelectVST(N, true, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST1q64HighQPseudo_UPD } };
+      SelectVST(N, true, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
     break;
   }
   case ARMISD::VST2LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VST2LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST2LNd8Pseudo_UPD,
                                          ARM::VST2LNd16Pseudo_UPD,
-                                         ARM::VST2LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VST2LNq16Pseudo_UPD,
-                                         ARM::VST2LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, false, true, 2, DOpcodes, QOpcodes);
+                                         ARM::VST2LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST2LNq16Pseudo_UPD,
+                                         ARM::VST2LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, false, true, 2, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VST3LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VST3LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST3LNd8Pseudo_UPD,
                                          ARM::VST3LNd16Pseudo_UPD,
-                                         ARM::VST3LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VST3LNq16Pseudo_UPD,
-                                         ARM::VST3LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, false, true, 3, DOpcodes, QOpcodes);
+                                         ARM::VST3LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST3LNq16Pseudo_UPD,
+                                         ARM::VST3LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, false, true, 3, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
   case ARMISD::VST4LN_UPD: {
-    static const uint16_t DOpcodes[] = { ARM::VST4LNd8Pseudo_UPD,
+    static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST4LNd8Pseudo_UPD,
                                          ARM::VST4LNd16Pseudo_UPD,
-                                         ARM::VST4LNd32Pseudo_UPD };
-    static const uint16_t QOpcodes[] = { ARM::VST4LNq16Pseudo_UPD,
-                                         ARM::VST4LNq32Pseudo_UPD };
-    SelectVLDSTLane(N, false, true, 4, DOpcodes, QOpcodes);
+                                         ARM::VST4LNd32Pseudo_UPD } };
+    static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST4LNq16Pseudo_UPD,
+                                         ARM::VST4LNq32Pseudo_UPD } };
+    SelectVLDSTLane(N, false, true, 4, DOpcodes.begin(), QOpcodes.begin());
     return;
   }
 
@@ -4853,302 +4854,302 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
     }
 
     case Intrinsic::arm_neon_vld1: {
-      static const uint16_t DOpcodes[] = { ARM::VLD1d8, ARM::VLD1d16,
-                                           ARM::VLD1d32, ARM::VLD1d64 };
-      static const uint16_t QOpcodes[] = { ARM::VLD1q8, ARM::VLD1q16,
-                                           ARM::VLD1q32, ARM::VLD1q64};
-      SelectVLD(N, false, 1, DOpcodes, QOpcodes, nullptr);
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD1d8, ARM::VLD1d16,
+                                           ARM::VLD1d32, ARM::VLD1d64 } };
+      static const std::array<uint16_t, 4> QOpcodes = { { ARM::VLD1q8, ARM::VLD1q16,
+                                           ARM::VLD1q32, ARM::VLD1q64} };
+      SelectVLD(N, false, 1, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vld1x2: {
-      static const uint16_t DOpcodes[] = { ARM::VLD1q8, ARM::VLD1q16,
-                                           ARM::VLD1q32, ARM::VLD1q64 };
-      static const uint16_t QOpcodes[] = { ARM::VLD1d8QPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD1q8, ARM::VLD1q16,
+                                           ARM::VLD1q32, ARM::VLD1q64 } };
+      static const std::array<uint16_t, 4> QOpcodes = { { ARM::VLD1d8QPseudo,
                                            ARM::VLD1d16QPseudo,
                                            ARM::VLD1d32QPseudo,
-                                           ARM::VLD1d64QPseudo };
-      SelectVLD(N, false, 2, DOpcodes, QOpcodes, nullptr);
+                                           ARM::VLD1d64QPseudo } };
+      SelectVLD(N, false, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vld1x3: {
-      static const uint16_t DOpcodes[] = { ARM::VLD1d8TPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD1d8TPseudo,
                                            ARM::VLD1d16TPseudo,
                                            ARM::VLD1d32TPseudo,
-                                           ARM::VLD1d64TPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD1q8LowTPseudo_UPD,
+                                           ARM::VLD1d64TPseudo } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VLD1q8LowTPseudo_UPD,
                                             ARM::VLD1q16LowTPseudo_UPD,
                                             ARM::VLD1q32LowTPseudo_UPD,
-                                            ARM::VLD1q64LowTPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VLD1q8HighTPseudo,
+                                            ARM::VLD1q64LowTPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VLD1q8HighTPseudo,
                                             ARM::VLD1q16HighTPseudo,
                                             ARM::VLD1q32HighTPseudo,
-                                            ARM::VLD1q64HighTPseudo };
-      SelectVLD(N, false, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VLD1q64HighTPseudo } };
+      SelectVLD(N, false, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld1x4: {
-      static const uint16_t DOpcodes[] = { ARM::VLD1d8QPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD1d8QPseudo,
                                            ARM::VLD1d16QPseudo,
                                            ARM::VLD1d32QPseudo,
-                                           ARM::VLD1d64QPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD1q8LowQPseudo_UPD,
+                                           ARM::VLD1d64QPseudo } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VLD1q8LowQPseudo_UPD,
                                             ARM::VLD1q16LowQPseudo_UPD,
                                             ARM::VLD1q32LowQPseudo_UPD,
-                                            ARM::VLD1q64LowQPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VLD1q8HighQPseudo,
+                                            ARM::VLD1q64LowQPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VLD1q8HighQPseudo,
                                             ARM::VLD1q16HighQPseudo,
                                             ARM::VLD1q32HighQPseudo,
-                                            ARM::VLD1q64HighQPseudo };
-      SelectVLD(N, false, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VLD1q64HighQPseudo } };
+      SelectVLD(N, false, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld2: {
-      static const uint16_t DOpcodes[] = { ARM::VLD2d8, ARM::VLD2d16,
-                                           ARM::VLD2d32, ARM::VLD1q64 };
-      static const uint16_t QOpcodes[] = { ARM::VLD2q8Pseudo, ARM::VLD2q16Pseudo,
-                                           ARM::VLD2q32Pseudo };
-      SelectVLD(N, false, 2, DOpcodes, QOpcodes, nullptr);
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD2d8, ARM::VLD2d16,
+                                           ARM::VLD2d32, ARM::VLD1q64 } };
+      static const std::array<uint16_t, 3> QOpcodes = { { ARM::VLD2q8Pseudo, ARM::VLD2q16Pseudo,
+                                           ARM::VLD2q32Pseudo } };
+      SelectVLD(N, false, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vld3: {
-      static const uint16_t DOpcodes[] = { ARM::VLD3d8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD3d8Pseudo,
                                            ARM::VLD3d16Pseudo,
                                            ARM::VLD3d32Pseudo,
-                                           ARM::VLD1d64TPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD3q8Pseudo_UPD,
+                                           ARM::VLD1d64TPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD3q8Pseudo_UPD,
                                             ARM::VLD3q16Pseudo_UPD,
-                                            ARM::VLD3q32Pseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VLD3q8oddPseudo,
+                                            ARM::VLD3q32Pseudo_UPD } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD3q8oddPseudo,
                                             ARM::VLD3q16oddPseudo,
-                                            ARM::VLD3q32oddPseudo };
-      SelectVLD(N, false, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VLD3q32oddPseudo } };
+      SelectVLD(N, false, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld4: {
-      static const uint16_t DOpcodes[] = { ARM::VLD4d8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD4d8Pseudo,
                                            ARM::VLD4d16Pseudo,
                                            ARM::VLD4d32Pseudo,
-                                           ARM::VLD1d64QPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD4q8Pseudo_UPD,
+                                           ARM::VLD1d64QPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD4q8Pseudo_UPD,
                                             ARM::VLD4q16Pseudo_UPD,
-                                            ARM::VLD4q32Pseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VLD4q8oddPseudo,
+                                            ARM::VLD4q32Pseudo_UPD } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD4q8oddPseudo,
                                             ARM::VLD4q16oddPseudo,
-                                            ARM::VLD4q32oddPseudo };
-      SelectVLD(N, false, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VLD4q32oddPseudo } };
+      SelectVLD(N, false, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld2dup: {
-      static const uint16_t DOpcodes[] = { ARM::VLD2DUPd8, ARM::VLD2DUPd16,
-                                           ARM::VLD2DUPd32, ARM::VLD1q64 };
-      static const uint16_t QOpcodes0[] = { ARM::VLD2DUPq8EvenPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD2DUPd8, ARM::VLD2DUPd16,
+                                           ARM::VLD2DUPd32, ARM::VLD1q64 } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD2DUPq8EvenPseudo,
                                             ARM::VLD2DUPq16EvenPseudo,
-                                            ARM::VLD2DUPq32EvenPseudo };
-      static const uint16_t QOpcodes1[] = { ARM::VLD2DUPq8OddPseudo,
+                                            ARM::VLD2DUPq32EvenPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD2DUPq8OddPseudo,
                                             ARM::VLD2DUPq16OddPseudo,
-                                            ARM::VLD2DUPq32OddPseudo };
+                                            ARM::VLD2DUPq32OddPseudo } };
       SelectVLDDup(N, /* IsIntrinsic= */ true, false, 2,
-                   DOpcodes, QOpcodes0, QOpcodes1);
+                   DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld3dup: {
-      static const uint16_t DOpcodes[] = { ARM::VLD3DUPd8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD3DUPd8Pseudo,
                                            ARM::VLD3DUPd16Pseudo,
                                            ARM::VLD3DUPd32Pseudo,
-                                           ARM::VLD1d64TPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD3DUPq8EvenPseudo,
+                                           ARM::VLD1d64TPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD3DUPq8EvenPseudo,
                                             ARM::VLD3DUPq16EvenPseudo,
-                                            ARM::VLD3DUPq32EvenPseudo };
-      static const uint16_t QOpcodes1[] = { ARM::VLD3DUPq8OddPseudo,
+                                            ARM::VLD3DUPq32EvenPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD3DUPq8OddPseudo,
                                             ARM::VLD3DUPq16OddPseudo,
-                                            ARM::VLD3DUPq32OddPseudo };
+                                            ARM::VLD3DUPq32OddPseudo } };
       SelectVLDDup(N, /* IsIntrinsic= */ true, false, 3,
-                   DOpcodes, QOpcodes0, QOpcodes1);
+                   DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld4dup: {
-      static const uint16_t DOpcodes[] = { ARM::VLD4DUPd8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VLD4DUPd8Pseudo,
                                            ARM::VLD4DUPd16Pseudo,
                                            ARM::VLD4DUPd32Pseudo,
-                                           ARM::VLD1d64QPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VLD4DUPq8EvenPseudo,
+                                           ARM::VLD1d64QPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VLD4DUPq8EvenPseudo,
                                             ARM::VLD4DUPq16EvenPseudo,
-                                            ARM::VLD4DUPq32EvenPseudo };
-      static const uint16_t QOpcodes1[] = { ARM::VLD4DUPq8OddPseudo,
+                                            ARM::VLD4DUPq32EvenPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VLD4DUPq8OddPseudo,
                                             ARM::VLD4DUPq16OddPseudo,
-                                            ARM::VLD4DUPq32OddPseudo };
+                                            ARM::VLD4DUPq32OddPseudo } };
       SelectVLDDup(N, /* IsIntrinsic= */ true, false, 4,
-                   DOpcodes, QOpcodes0, QOpcodes1);
+                   DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld2lane: {
-      static const uint16_t DOpcodes[] = { ARM::VLD2LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD2LNd8Pseudo,
                                            ARM::VLD2LNd16Pseudo,
-                                           ARM::VLD2LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VLD2LNq16Pseudo,
-                                           ARM::VLD2LNq32Pseudo };
-      SelectVLDSTLane(N, true, false, 2, DOpcodes, QOpcodes);
+                                           ARM::VLD2LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD2LNq16Pseudo,
+                                           ARM::VLD2LNq32Pseudo } };
+      SelectVLDSTLane(N, true, false, 2, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld3lane: {
-      static const uint16_t DOpcodes[] = { ARM::VLD3LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD3LNd8Pseudo,
                                            ARM::VLD3LNd16Pseudo,
-                                           ARM::VLD3LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VLD3LNq16Pseudo,
-                                           ARM::VLD3LNq32Pseudo };
-      SelectVLDSTLane(N, true, false, 3, DOpcodes, QOpcodes);
+                                           ARM::VLD3LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD3LNq16Pseudo,
+                                           ARM::VLD3LNq32Pseudo } };
+      SelectVLDSTLane(N, true, false, 3, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vld4lane: {
-      static const uint16_t DOpcodes[] = { ARM::VLD4LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VLD4LNd8Pseudo,
                                            ARM::VLD4LNd16Pseudo,
-                                           ARM::VLD4LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VLD4LNq16Pseudo,
-                                           ARM::VLD4LNq32Pseudo };
-      SelectVLDSTLane(N, true, false, 4, DOpcodes, QOpcodes);
+                                           ARM::VLD4LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VLD4LNq16Pseudo,
+                                           ARM::VLD4LNq32Pseudo } };
+      SelectVLDSTLane(N, true, false, 4, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst1: {
-      static const uint16_t DOpcodes[] = { ARM::VST1d8, ARM::VST1d16,
-                                           ARM::VST1d32, ARM::VST1d64 };
-      static const uint16_t QOpcodes[] = { ARM::VST1q8, ARM::VST1q16,
-                                           ARM::VST1q32, ARM::VST1q64 };
-      SelectVST(N, false, 1, DOpcodes, QOpcodes, nullptr);
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8, ARM::VST1d16,
+                                           ARM::VST1d32, ARM::VST1d64 } };
+      static const std::array<uint16_t, 4> QOpcodes = { { ARM::VST1q8, ARM::VST1q16,
+                                           ARM::VST1q32, ARM::VST1q64 } };
+      SelectVST(N, false, 1, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vst1x2: {
-      static const uint16_t DOpcodes[] = { ARM::VST1q8, ARM::VST1q16,
-                                           ARM::VST1q32, ARM::VST1q64 };
-      static const uint16_t QOpcodes[] = { ARM::VST1d8QPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1q8, ARM::VST1q16,
+                                           ARM::VST1q32, ARM::VST1q64 } };
+      static const std::array<uint16_t, 4> QOpcodes = { { ARM::VST1d8QPseudo,
                                            ARM::VST1d16QPseudo,
                                            ARM::VST1d32QPseudo,
-                                           ARM::VST1d64QPseudo };
-      SelectVST(N, false, 2, DOpcodes, QOpcodes, nullptr);
+                                           ARM::VST1d64QPseudo } };
+      SelectVST(N, false, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vst1x3: {
-      static const uint16_t DOpcodes[] = { ARM::VST1d8TPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8TPseudo,
                                            ARM::VST1d16TPseudo,
                                            ARM::VST1d32TPseudo,
-                                           ARM::VST1d64TPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VST1q8LowTPseudo_UPD,
+                                           ARM::VST1d64TPseudo } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VST1q8LowTPseudo_UPD,
                                             ARM::VST1q16LowTPseudo_UPD,
                                             ARM::VST1q32LowTPseudo_UPD,
-                                            ARM::VST1q64LowTPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST1q8HighTPseudo,
+                                            ARM::VST1q64LowTPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VST1q8HighTPseudo,
                                             ARM::VST1q16HighTPseudo,
                                             ARM::VST1q32HighTPseudo,
-                                            ARM::VST1q64HighTPseudo };
-      SelectVST(N, false, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST1q64HighTPseudo } };
+      SelectVST(N, false, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst1x4: {
-      static const uint16_t DOpcodes[] = { ARM::VST1d8QPseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST1d8QPseudo,
                                            ARM::VST1d16QPseudo,
                                            ARM::VST1d32QPseudo,
-                                           ARM::VST1d64QPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VST1q8LowQPseudo_UPD,
+                                           ARM::VST1d64QPseudo } };
+      static const std::array<uint16_t, 4> QOpcodes0 = { { ARM::VST1q8LowQPseudo_UPD,
                                             ARM::VST1q16LowQPseudo_UPD,
                                             ARM::VST1q32LowQPseudo_UPD,
-                                            ARM::VST1q64LowQPseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST1q8HighQPseudo,
+                                            ARM::VST1q64LowQPseudo_UPD } };
+      static const std::array<uint16_t, 4> QOpcodes1 = { { ARM::VST1q8HighQPseudo,
                                             ARM::VST1q16HighQPseudo,
                                             ARM::VST1q32HighQPseudo,
-                                            ARM::VST1q64HighQPseudo };
-      SelectVST(N, false, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST1q64HighQPseudo } };
+      SelectVST(N, false, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst2: {
-      static const uint16_t DOpcodes[] = { ARM::VST2d8, ARM::VST2d16,
-                                           ARM::VST2d32, ARM::VST1q64 };
-      static const uint16_t QOpcodes[] = { ARM::VST2q8Pseudo, ARM::VST2q16Pseudo,
-                                           ARM::VST2q32Pseudo };
-      SelectVST(N, false, 2, DOpcodes, QOpcodes, nullptr);
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST2d8, ARM::VST2d16,
+                                           ARM::VST2d32, ARM::VST1q64 } };
+      static const std::array<uint16_t, 3> QOpcodes = { { ARM::VST2q8Pseudo, ARM::VST2q16Pseudo,
+                                           ARM::VST2q32Pseudo } };
+      SelectVST(N, false, 2, DOpcodes.begin(), QOpcodes.begin(), nullptr);
       return;
     }
 
     case Intrinsic::arm_neon_vst3: {
-      static const uint16_t DOpcodes[] = { ARM::VST3d8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST3d8Pseudo,
                                            ARM::VST3d16Pseudo,
                                            ARM::VST3d32Pseudo,
-                                           ARM::VST1d64TPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VST3q8Pseudo_UPD,
+                                           ARM::VST1d64TPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VST3q8Pseudo_UPD,
                                             ARM::VST3q16Pseudo_UPD,
-                                            ARM::VST3q32Pseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST3q8oddPseudo,
+                                            ARM::VST3q32Pseudo_UPD } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VST3q8oddPseudo,
                                             ARM::VST3q16oddPseudo,
-                                            ARM::VST3q32oddPseudo };
-      SelectVST(N, false, 3, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST3q32oddPseudo } };
+      SelectVST(N, false, 3, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst4: {
-      static const uint16_t DOpcodes[] = { ARM::VST4d8Pseudo,
+      static const std::array<uint16_t, 4> DOpcodes = { { ARM::VST4d8Pseudo,
                                            ARM::VST4d16Pseudo,
                                            ARM::VST4d32Pseudo,
-                                           ARM::VST1d64QPseudo };
-      static const uint16_t QOpcodes0[] = { ARM::VST4q8Pseudo_UPD,
+                                           ARM::VST1d64QPseudo } };
+      static const std::array<uint16_t, 3> QOpcodes0 = { { ARM::VST4q8Pseudo_UPD,
                                             ARM::VST4q16Pseudo_UPD,
-                                            ARM::VST4q32Pseudo_UPD };
-      static const uint16_t QOpcodes1[] = { ARM::VST4q8oddPseudo,
+                                            ARM::VST4q32Pseudo_UPD } };
+      static const std::array<uint16_t, 3> QOpcodes1 = { { ARM::VST4q8oddPseudo,
                                             ARM::VST4q16oddPseudo,
-                                            ARM::VST4q32oddPseudo };
-      SelectVST(N, false, 4, DOpcodes, QOpcodes0, QOpcodes1);
+                                            ARM::VST4q32oddPseudo } };
+      SelectVST(N, false, 4, DOpcodes.begin(), QOpcodes0.begin(), QOpcodes1.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst2lane: {
-      static const uint16_t DOpcodes[] = { ARM::VST2LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST2LNd8Pseudo,
                                            ARM::VST2LNd16Pseudo,
-                                           ARM::VST2LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VST2LNq16Pseudo,
-                                           ARM::VST2LNq32Pseudo };
-      SelectVLDSTLane(N, false, false, 2, DOpcodes, QOpcodes);
+                                           ARM::VST2LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST2LNq16Pseudo,
+                                           ARM::VST2LNq32Pseudo } };
+      SelectVLDSTLane(N, false, false, 2, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst3lane: {
-      static const uint16_t DOpcodes[] = { ARM::VST3LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST3LNd8Pseudo,
                                            ARM::VST3LNd16Pseudo,
-                                           ARM::VST3LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VST3LNq16Pseudo,
-                                           ARM::VST3LNq32Pseudo };
-      SelectVLDSTLane(N, false, false, 3, DOpcodes, QOpcodes);
+                                           ARM::VST3LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST3LNq16Pseudo,
+                                           ARM::VST3LNq32Pseudo } };
+      SelectVLDSTLane(N, false, false, 3, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_neon_vst4lane: {
-      static const uint16_t DOpcodes[] = { ARM::VST4LNd8Pseudo,
+      static const std::array<uint16_t, 3> DOpcodes = { { ARM::VST4LNd8Pseudo,
                                            ARM::VST4LNd16Pseudo,
-                                           ARM::VST4LNd32Pseudo };
-      static const uint16_t QOpcodes[] = { ARM::VST4LNq16Pseudo,
-                                           ARM::VST4LNq32Pseudo };
-      SelectVLDSTLane(N, false, false, 4, DOpcodes, QOpcodes);
+                                           ARM::VST4LNd32Pseudo } };
+      static const std::array<uint16_t, 2> QOpcodes = { { ARM::VST4LNq16Pseudo,
+                                           ARM::VST4LNq32Pseudo } };
+      SelectVLDSTLane(N, false, false, 4, DOpcodes.begin(), QOpcodes.begin());
       return;
     }
 
     case Intrinsic::arm_mve_vldr_gather_base_wb:
     case Intrinsic::arm_mve_vldr_gather_base_wb_predicated: {
-      static const uint16_t Opcodes[] = {ARM::MVE_VLDRWU32_qi_pre,
-                                         ARM::MVE_VLDRDU64_qi_pre};
-      SelectMVE_WB(N, Opcodes,
+      static const std::array<uint16_t, 2> Opcodes = { {ARM::MVE_VLDRWU32_qi_pre,
+                                         ARM::MVE_VLDRDU64_qi_pre} };
+      SelectMVE_WB(N, Opcodes.begin(),
                    IntNo == Intrinsic::arm_mve_vldr_gather_base_wb_predicated);
       return;
     }
@@ -5159,8 +5160,8 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
                                            ARM::MVE_VLD21_16};
       static const uint16_t Opcodes32[] = {ARM::MVE_VLD20_32,
                                            ARM::MVE_VLD21_32};
-      static const uint16_t *const Opcodes[] = {Opcodes8, Opcodes16, Opcodes32};
-      SelectMVE_VLD(N, 2, Opcodes, false);
+      static const std::array<const uint16_t *, 3>Opcodes = { {Opcodes8, Opcodes16, Opcodes32} };
+      SelectMVE_VLD(N, 2, Opcodes.begin(), false);
       return;
     }
 
@@ -5173,8 +5174,8 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
       static const uint16_t Opcodes32[] = {ARM::MVE_VLD40_32, ARM::MVE_VLD41_32,
                                            ARM::MVE_VLD42_32,
                                            ARM::MVE_VLD43_32};
-      static const uint16_t *const Opcodes[] = {Opcodes8, Opcodes16, Opcodes32};
-      SelectMVE_VLD(N, 4, Opcodes, false);
+      static const std::array<const uint16_t *, 3>Opcodes = { {Opcodes8, Opcodes16, Opcodes32} };
+      SelectMVE_VLD(N, 4, Opcodes.begin(), false);
       return;
     }
     }
@@ -5246,11 +5247,11 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
 
     case Intrinsic::arm_mve_vmlldava:
     case Intrinsic::arm_mve_vmlldava_predicated: {
-      static const uint16_t OpcodesU[] = {
+      static const std::array<uint16_t, 4> OpcodesU = { {
           ARM::MVE_VMLALDAVu16,   ARM::MVE_VMLALDAVu32,
           ARM::MVE_VMLALDAVau16,  ARM::MVE_VMLALDAVau32,
-      };
-      static const uint16_t OpcodesS[] = {
+      } };
+      static const std::array<uint16_t, 16> OpcodesS = { {
           ARM::MVE_VMLALDAVs16,   ARM::MVE_VMLALDAVs32,
           ARM::MVE_VMLALDAVas16,  ARM::MVE_VMLALDAVas32,
           ARM::MVE_VMLALDAVxs16,  ARM::MVE_VMLALDAVxs32,
@@ -5259,64 +5260,64 @@ void ARMDAGToDAGISel::Select(SDNode *N) {
           ARM::MVE_VMLSLDAVas16,  ARM::MVE_VMLSLDAVas32,
           ARM::MVE_VMLSLDAVxs16,  ARM::MVE_VMLSLDAVxs32,
           ARM::MVE_VMLSLDAVaxs16, ARM::MVE_VMLSLDAVaxs32,
-      };
+      } };
       SelectMVE_VMLLDAV(N, IntNo == Intrinsic::arm_mve_vmlldava_predicated,
-                        OpcodesS, OpcodesU);
+                        OpcodesS.begin(), OpcodesU.begin());
       return;
     }
 
     case Intrinsic::arm_mve_vrmlldavha:
     case Intrinsic::arm_mve_vrmlldavha_predicated: {
-      static const uint16_t OpcodesU[] = {
+      static const std::array<uint16_t, 2> OpcodesU = { {
           ARM::MVE_VRMLALDAVHu32,  ARM::MVE_VRMLALDAVHau32,
-      };
-      static const uint16_t OpcodesS[] = {
+      } };
+      static const std::array<uint16_t, 8> OpcodesS = { {
           ARM::MVE_VRMLALDAVHs32,  ARM::MVE_VRMLALDAVHas32,
           ARM::MVE_VRMLALDAVHxs32, ARM::MVE_VRMLALDAVHaxs32,
           ARM::MVE_VRMLSLDAVHs32,  ARM::MVE_VRMLSLDAVHas32,
           ARM::MVE_VRMLSLDAVHxs32, ARM::MVE_VRMLSLDAVHaxs32,
-      };
+      } };
       SelectMVE_VRMLLDAVH(N, IntNo == Intrinsic::arm_mve_vrmlldavha_predicated,
-                          OpcodesS, OpcodesU);
+                          OpcodesS.begin(), OpcodesU.begin());
       return;
     }
 
     case Intrinsic::arm_mve_vidup:
     case Intrinsic::arm_mve_vidup_predicated: {
-      static const uint16_t Opcodes[] = {
+      static const std::array<uint16_t, 3> Opcodes = { {
           ARM::MVE_VIDUPu8, ARM::MVE_VIDUPu16, ARM::MVE_VIDUPu32,
-      };
-      SelectMVE_VxDUP(N, Opcodes, false,
+      } };
+      SelectMVE_VxDUP(N, Opcodes.begin(), false,
                       IntNo == Intrinsic::arm_mve_vidup_predicated);
       return;
     }
 
     case Intrinsic::arm_mve_vddup:
     case Intrinsic::arm_mve_vddup_predicated: {
-      static const uint16_t Opcodes[] = {
+      static const std::array<uint16_t, 3> Opcodes = { {
           ARM::MVE_VDDUPu8, ARM::MVE_VDDUPu16, ARM::MVE_VDDUPu32,
-      };
-      SelectMVE_VxDUP(N, Opcodes, false,
+      } };
+      SelectMVE_VxDUP(N, Opcodes.begin(), false,
                       IntNo == Intrinsic::arm_mve_vddup_predicated);
       return;
     }
 
     case Intrinsic::arm_mve_viwdup:
     case Intrinsic::arm_mve_viwdup_predicated: {
-      static const uint16_t Opcodes[] = {
+      static const std::array<uint16_t, 3> Opcodes = { {
           ARM::MVE_VIWDUPu8, ARM::MVE_VIWDUPu16, ARM::MVE_VIWDUPu32,
-      };
-      SelectMVE_VxDUP(N, Opcodes, true,
+      } };
+      SelectMVE_VxDUP(N, Opcodes.begin(), true,
                       IntNo == Intrinsic::arm_mve_viwdup_predicated);
       return;
     }
 
     case Intrinsic::arm_mve_vdwdup:
     case Intrinsic::arm_mve_vdwdup_predicated: {
-      static const uint16_t Opcodes[] = {
+      static const std::array<uint16_t, 3> Opcodes = { {
           ARM::MVE_VDWDUPu8, ARM::MVE_VDWDUPu16, ARM::MVE_VDWDUPu32,
-      };
-      SelectMVE_VxDUP(N, Opcodes, true,
+      } };
+      SelectMVE_VxDUP(N, Opcodes.begin(), true,
                       IntNo == Intrinsic::arm_mve_vdwdup_predicated);
       return;
     }
@@ -5628,8 +5629,8 @@ bool ARMDAGToDAGISel::tryWriteRegister(SDNode *N){
       assert(Ops.size() == 3 &&
               "Invalid number of fields in special register string.");
       Opcode = IsThumb2 ? ARM::t2MCRR : ARM::MCRR;
-      SDValue WriteValue[] = { N->getOperand(2), N->getOperand(3) };
-      Ops.insert(Ops.begin()+2, WriteValue, WriteValue+2);
+      std::array WriteValue = { N->getOperand(2), N->getOperand(3) };
+      Ops.insert(Ops.begin()+2, WriteValue.begin(), WriteValue.begin()+2);
     }
 
     Ops.push_back(getAL(CurDAG, DL));

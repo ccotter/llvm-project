@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -116,8 +118,8 @@ bool LowerEmuTLS::addEmuTlsVar(Module &M, const GlobalVariable *GV) {
   IntegerType *WordType = DL.getIntPtrType(C);
   PointerType *InitPtrType = InitValue ?
       PointerType::getUnqual(InitValue->getType()) : VoidPtrType;
-  Type *ElementTypes[4] = {WordType, WordType, VoidPtrType, InitPtrType};
-  ArrayRef<Type*> ElementTypeArray(ElementTypes, 4);
+  std::array<Type *, 4>ElementTypes = { {WordType, WordType, VoidPtrType, InitPtrType} };
+  ArrayRef<Type*> ElementTypeArray(ElementTypes.begin(), 4);
   StructType *EmuTlsVarType = StructType::create(ElementTypeArray);
   EmuTlsVar = cast<GlobalVariable>(
       M.getOrInsertGlobal(EmuTlsVarName, EmuTlsVarType));
@@ -144,11 +146,11 @@ bool LowerEmuTLS::addEmuTlsVar(Module &M, const GlobalVariable *GV) {
   }
 
   // Define "__emutls_v.*" with initializer and alignment.
-  Constant *ElementValues[4] = {
+  std::array<Constant *, 4>ElementValues = { {
       ConstantInt::get(WordType, DL.getTypeStoreSize(GVType)),
       ConstantInt::get(WordType, GVAlignment.value()), NullPtr,
-      EmuTlsTmplVar ? EmuTlsTmplVar : NullPtr};
-  ArrayRef<Constant*> ElementValueArray(ElementValues, 4);
+      EmuTlsTmplVar ? EmuTlsTmplVar : NullPtr} };
+  ArrayRef<Constant*> ElementValueArray(ElementValues.begin(), 4);
   EmuTlsVar->setInitializer(
       ConstantStruct::get(EmuTlsVarType, ElementValueArray));
   Align MaxAlignment =

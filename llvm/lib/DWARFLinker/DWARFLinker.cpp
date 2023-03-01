@@ -31,6 +31,7 @@
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ThreadPool.h"
+#include <array>
 #include <vector>
 
 namespace llvm {
@@ -1020,15 +1021,15 @@ void DWARFLinker::DIECloner::cloneExpression(
           Linker.reportWarning(
               "base type ref doesn't point to DW_TAG_base_type.", File);
       }
-      uint8_t ULEB[16];
-      unsigned RealSize = encodeULEB128(Offset, ULEB, ULEBsize);
+      std::array<uint8_t, 16> ULEB;
+      unsigned RealSize = encodeULEB128(Offset, ULEB.begin(), ULEBsize);
       if (RealSize > ULEBsize) {
         // Emit the generic type as a fallback.
-        RealSize = encodeULEB128(0, ULEB, ULEBsize);
+        RealSize = encodeULEB128(0, ULEB.begin(), ULEBsize);
         Linker.reportWarning("base type ref doesn't fit.", File);
       }
       assert(RealSize == ULEBsize && "padding failed");
-      ArrayRef<uint8_t> ULEBbytes(ULEB, ULEBsize);
+      ArrayRef<uint8_t> ULEBbytes(ULEB.begin(), ULEBsize);
       OutputBuffer.append(ULEBbytes.begin(), ULEBbytes.end());
     } else {
       // Copy over everything else unmodified.

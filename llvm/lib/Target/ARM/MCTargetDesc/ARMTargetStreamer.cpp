@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "llvm/MC/ConstantPools.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -52,7 +54,7 @@ void ARMTargetStreamer::reset() {}
 
 void ARMTargetStreamer::emitInst(uint32_t Inst, char Suffix) {
   unsigned Size;
-  char Buffer[4];
+  std::array<char, 4> Buffer;
   const bool LittleEndian = getStreamer().getContext().getAsmInfo()->isLittleEndian();
 
   switch (Suffix) {
@@ -82,7 +84,7 @@ void ARMTargetStreamer::emitInst(uint32_t Inst, char Suffix) {
   default:
     llvm_unreachable("Invalid Suffix");
   }
-  getStreamer().emitBytes(StringRef(Buffer, Size));
+  getStreamer().emitBytes(StringRef(Buffer.begin(), Size));
 }
 
 // The remaining callbacks should be handled separately by each

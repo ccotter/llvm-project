@@ -23,6 +23,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cmath>
 #include <optional>
 
@@ -1166,7 +1167,7 @@ APInt APInt::sqrt() const {
   // Use a fast table for some small values. This also gets rid of some
   // rounding errors in libc sqrt for small values.
   if (magnitude <= 5) {
-    static const uint8_t results[32] = {
+    static const std::array<uint8_t, 32> results = { {
       /*     0 */ 0,
       /*  1- 2 */ 1, 1,
       /*  3- 6 */ 2, 2, 2, 2,
@@ -1174,7 +1175,7 @@ APInt APInt::sqrt() const {
       /* 13-20 */ 4, 4, 4, 4, 4, 4, 4, 4,
       /* 21-30 */ 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
       /*    31 */ 6
-    };
+    } };
     return APInt(BitWidth, results[ (isSingleWord() ? U.VAL : U.pVal[0]) ]);
   }
 
@@ -1250,8 +1251,8 @@ APInt APInt::multiplicativeInverse(const APInt& modulo) const {
   // inverse exists, but may not suffice for the general extended Euclidean
   // algorithm.
 
-  APInt r[2] = { modulo, *this };
-  APInt t[2] = { APInt(BitWidth, 0), APInt(BitWidth, 1) };
+  std::array<APInt, 2> r = { { modulo, *this } };
+  std::array<APInt, 2> t = { { APInt(BitWidth, 0), APInt(BitWidth, 1) } };
   APInt q(BitWidth, 0);
 
   unsigned i;
@@ -1461,7 +1462,7 @@ void APInt::divide(const WordType *LHS, unsigned lhsWords, const WordType *RHS,
 
   // Allocate space for the temporary values we need either on the stack, if
   // it will fit, or on the heap if it won't.
-  uint32_t SPACE[128];
+  std::array<uint32_t, 128> SPACE;
   uint32_t *U = nullptr;
   uint32_t *V = nullptr;
   uint32_t *Q = nullptr;
@@ -2173,7 +2174,7 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
     return;
   }
 
-  static const char Digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  static const std::array<char, 37> Digits = { "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
 
   if (isSingleWord()) {
     char Buffer[65];

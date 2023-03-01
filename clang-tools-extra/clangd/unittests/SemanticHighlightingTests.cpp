@@ -19,6 +19,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "gmock/gmock.h"
 #include <algorithm>
+#include <array>
 
 namespace clang {
 namespace clangd {
@@ -103,7 +104,7 @@ constexpr static uint32_t ScopeModifierMask =
     1 << unsigned(HighlightingModifier::GlobalScope);
 
 TEST(SemanticHighlighting, GetsCorrectTokens) {
-  const char *TestCases[] = {
+  std::array<const char *, 57>TestCases = { {
       R"cpp(
       struct $Class_def[[AS]] {
         double $Field_decl[[SomeMember]];
@@ -942,7 +943,7 @@ sizeof...($TemplateParameter[[Elements]]);
           auto $LocalVariable_def[[s]] = $Operator[[new]] $Class[[Foo]]<$TemplateParameter[[T]]>();
           $Operator[[delete]] $LocalVariable[[s]];
         }
-      )cpp"};
+      )cpp"} };
   for (const auto &TestCase : TestCases)
     // Mask off scope modifiers to keep the tests manageable.
     // They're tested separately.
@@ -993,7 +994,7 @@ sizeof...($TemplateParameter[[Elements]]);
 }
 
 TEST(SemanticHighlighting, ScopeModifiers) {
-  const char *TestCases[] = {
+  std::array<const char *, 7>TestCases = { {
       R"cpp(
         static int $Variable_fileScope[[x]];
         namespace $Namespace_globalScope[[ns]] {
@@ -1037,7 +1038,7 @@ TEST(SemanticHighlighting, ScopeModifiers) {
         #define $Macro_globalScope[[X]] 1
         int $Variable_globalScope[[Y]] = $Macro_globalScope[[X]];
       )cpp",
-  };
+  } };
 
   for (const char *Test : TestCases)
     checkHighlightings(Test, {}, ScopeModifierMask);

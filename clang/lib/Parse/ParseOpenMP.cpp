@@ -10,6 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/OpenMPClause.h"
 #include "clang/AST/StmtOpenMP.h"
@@ -4041,8 +4043,8 @@ static bool ParseReductionId(Parser &P, CXXScopeSpec &ReductionIdScopeSpec,
     }
     if (OOK != OO_None) {
       SourceLocation OpLoc = P.ConsumeToken();
-      SourceLocation SymbolLocations[] = {OpLoc, OpLoc, SourceLocation()};
-      ReductionId.setOperatorFunctionId(OpLoc, OOK, SymbolLocations);
+      std::array SymbolLocations = {OpLoc, OpLoc, SourceLocation()};
+      ReductionId.setOperatorFunctionId(OpLoc, OOK, SymbolLocations.begin());
       return false;
     }
   }

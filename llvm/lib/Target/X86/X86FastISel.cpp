@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "X86.h"
 #include "X86CallingConv.h"
 #include "X86InstrBuilder.h"
@@ -2923,9 +2925,9 @@ bool X86FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     // FastISel doesn't have a pattern for all X86::MUL*r and X86::IMUL*r. Emit
     // it manually.
     if (BaseOpc == X86ISD::UMUL && !ResultReg) {
-      static const uint16_t MULOpc[] =
-        { X86::MUL8r, X86::MUL16r, X86::MUL32r, X86::MUL64r };
-      static const MCPhysReg Reg[] = { X86::AL, X86::AX, X86::EAX, X86::RAX };
+      static const std::array<uint16_t, 4> MULOpc =
+        { { X86::MUL8r, X86::MUL16r, X86::MUL32r, X86::MUL64r } };
+      static const std::array<MCPhysReg, 4> Reg = { { X86::AL, X86::AX, X86::EAX, X86::RAX } };
       // First copy the first operand into RAX, which is an implicit input to
       // the X86::MUL*r instruction.
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, MIMD,
@@ -2934,8 +2936,8 @@ bool X86FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
       ResultReg = fastEmitInst_r(MULOpc[VT.SimpleTy-MVT::i8],
                                  TLI.getRegClassFor(VT), RHSReg);
     } else if (BaseOpc == X86ISD::SMUL && !ResultReg) {
-      static const uint16_t MULOpc[] =
-        { X86::IMUL8r, X86::IMUL16rr, X86::IMUL32rr, X86::IMUL64rr };
+      static const std::array<uint16_t, 4> MULOpc =
+        { { X86::IMUL8r, X86::IMUL16rr, X86::IMUL32rr, X86::IMUL64rr } };
       if (VT == MVT::i8) {
         // Copy the first operand into AL, which is an implicit input to the
         // X86::IMUL8r instruction.
@@ -3094,16 +3096,16 @@ bool X86FastISel::fastLowerArguments() {
       return false;
   }
 
-  static const MCPhysReg GPR32ArgRegs[] = {
+  static const std::array<MCPhysReg, 6> GPR32ArgRegs = { {
     X86::EDI, X86::ESI, X86::EDX, X86::ECX, X86::R8D, X86::R9D
-  };
-  static const MCPhysReg GPR64ArgRegs[] = {
+  } };
+  static const std::array<MCPhysReg, 6> GPR64ArgRegs = { {
     X86::RDI, X86::RSI, X86::RDX, X86::RCX, X86::R8 , X86::R9
-  };
-  static const MCPhysReg XMMArgRegs[] = {
+  } };
+  static const std::array<MCPhysReg, 8> XMMArgRegs = { {
     X86::XMM0, X86::XMM1, X86::XMM2, X86::XMM3,
     X86::XMM4, X86::XMM5, X86::XMM6, X86::XMM7
-  };
+  } };
 
   unsigned GPRIdx = 0;
   unsigned FPRIdx = 0;

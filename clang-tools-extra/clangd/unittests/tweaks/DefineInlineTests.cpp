@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TweakTesting.h"
 #include "TestFS.h"
 #include "gmock/gmock.h"
@@ -427,7 +429,7 @@ TEST_F(DefineInlineTest, TransformDependentTypes) {
 
 TEST_F(DefineInlineTest, TransformFunctionTempls) {
   // Check we select correct specialization decl.
-  std::pair<llvm::StringRef, llvm::StringRef> Cases[] = {
+  std::array<std::pair<llvm::StringRef, llvm::StringRef>, 3> Cases = { {
       {R"cpp(
           template <typename T>
           void foo(T p);
@@ -504,7 +506,7 @@ TEST_F(DefineInlineTest, TransformFunctionTempls) {
           void foo<int>(int p);
 
           )cpp"},
-  };
+  } };
   for (const auto &Case : Cases)
     EXPECT_EQ(apply(Case.first), Case.second) << Case.first;
 }

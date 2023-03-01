@@ -37,6 +37,7 @@
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -1575,7 +1576,7 @@ std::string DotCfgDiffNode::getBodyContent() const {
   if (Colour == CommonColour) {
     assert(Data[1] && "Expected Data[1] to be set.");
 
-    StringRef SR[2];
+    std::array<StringRef, 2> SR;
     for (unsigned I = 0; I < 2; ++I) {
       SR[I] = Data[I]->getBody();
       // drop initial '\n' if present

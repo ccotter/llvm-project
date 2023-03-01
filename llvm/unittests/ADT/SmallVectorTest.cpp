@@ -14,6 +14,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Compiler.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <list>
 #include <stdarg.h>
 
@@ -733,12 +734,12 @@ TYPED_TEST(SmallVectorTest, InsertRepeatedEmptyTest) {
 TYPED_TEST(SmallVectorTest, InsertRangeTest) {
   SCOPED_TRACE("InsertRangeTest");
   auto &V = this->theVector;
-  Constructable Arr[3] =
-    { Constructable(77), Constructable(77), Constructable(77) };
+  std::array<Constructable, 3> Arr =
+    { { Constructable(77), Constructable(77), Constructable(77) } };
 
   makeSequence(V, 1, 3);
   Constructable::reset();
-  auto I = V.insert(V.begin() + 1, Arr, Arr + 3);
+  auto I = V.insert(V.begin() + 1, Arr.begin(), Arr.begin() + 3);
   // Move construct the top 3 elements into newly allocated space.
   // Possibly move the whole sequence into new space first.
   // FIXME: This is inefficient, we shouldn't move things into newly allocated
@@ -758,14 +759,14 @@ TYPED_TEST(SmallVectorTest, InsertRangeTest) {
 TYPED_TEST(SmallVectorTest, InsertRangeAtEndTest) {
   SCOPED_TRACE("InsertRangeTest");
   auto &V = this->theVector;
-  Constructable Arr[3] =
-    { Constructable(77), Constructable(77), Constructable(77) };
+  std::array<Constructable, 3> Arr =
+    { { Constructable(77), Constructable(77), Constructable(77) } };
 
   makeSequence(V, 1, 3);
 
   // Insert at end.
   Constructable::reset();
-  auto I = V.insert(V.end(), Arr, Arr + 3);
+  auto I = V.insert(V.end(), Arr.begin(), Arr.begin() + 3);
   // Copy construct the 3 elements into new space at the top.
   EXPECT_EQ(3, Constructable::getNumCopyConstructorCalls());
   // Don't copy/move anything else.

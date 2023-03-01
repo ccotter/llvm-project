@@ -36,6 +36,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <tuple>
@@ -595,7 +596,7 @@ static void writeFragment(raw_ostream &OS, const MCAssembler &Asm,
     uint64_t V = FF.getValue();
     unsigned VSize = FF.getValueSize();
     const unsigned MaxChunkSize = 16;
-    char Data[MaxChunkSize];
+    std::array<char, MaxChunkSize> Data;
     assert(0 < VSize && VSize <= MaxChunkSize && "Illegal fragment fill size");
     // Duplicate V into Data as byte vector to reduce number of
     // writes done. As such, do endian conversion here.
@@ -612,14 +613,14 @@ static void writeFragment(raw_ostream &OS, const MCAssembler &Asm,
     const unsigned ChunkSize = VSize * NumPerChunk;
 
     // Do copies by chunk.
-    StringRef Ref(Data, ChunkSize);
+    StringRef Ref(Data.begin(), ChunkSize);
     for (uint64_t I = 0, E = FragmentSize / ChunkSize; I != E; ++I)
       OS << Ref;
 
     // do remainder if needed.
     unsigned TrailingCount = FragmentSize % ChunkSize;
     if (TrailingCount)
-      OS.write(Data, TrailingCount);
+      OS.write(Data.begin(), TrailingCount);
     break;
   }
 

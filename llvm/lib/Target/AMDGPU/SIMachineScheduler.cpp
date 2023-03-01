@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIMachineScheduler.h"
+
+#include <array>
 #include "SIInstrInfo.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/CodeGen/LiveIntervals.h"
@@ -1932,9 +1934,9 @@ void SIScheduleDAGMI::schedule()
   // if VGPR usage is extremely high, try other good performing variants
   // which could lead to lower VGPR usage
   if (Best.MaxVGPRUsage > 180) {
-    static const std::pair<SISchedulerBlockCreatorVariant,
-                           SISchedulerBlockSchedulerVariant>
-        Variants[] = {
+    static const std::array<std::pair<SISchedulerBlockCreatorVariant,
+                           SISchedulerBlockSchedulerVariant>, 3>
+        Variants = { {
       { LatenciesAlone, BlockRegUsageLatency },
 //      { LatenciesAlone, BlockRegUsage },
       { LatenciesGrouped, BlockLatencyRegUsage },
@@ -1943,7 +1945,7 @@ void SIScheduleDAGMI::schedule()
       { LatenciesAlonePlusConsecutive, BlockLatencyRegUsage },
 //      { LatenciesAlonePlusConsecutive, BlockRegUsageLatency },
 //      { LatenciesAlonePlusConsecutive, BlockRegUsage }
-    };
+    } };
     for (std::pair<SISchedulerBlockCreatorVariant, SISchedulerBlockSchedulerVariant> v : Variants) {
       Temp = Scheduler.scheduleVariant(v.first, v.second);
       if (Temp.MaxVGPRUsage < Best.MaxVGPRUsage)
@@ -1953,9 +1955,9 @@ void SIScheduleDAGMI::schedule()
   // if VGPR usage is still extremely high, we may spill. Try other variants
   // which are less performing, but that could lead to lower VGPR usage.
   if (Best.MaxVGPRUsage > 200) {
-    static const std::pair<SISchedulerBlockCreatorVariant,
-                           SISchedulerBlockSchedulerVariant>
-        Variants[] = {
+    static const std::array<std::pair<SISchedulerBlockCreatorVariant,
+                           SISchedulerBlockSchedulerVariant>, 5>
+        Variants = { {
 //      { LatenciesAlone, BlockRegUsageLatency },
       { LatenciesAlone, BlockRegUsage },
 //      { LatenciesGrouped, BlockLatencyRegUsage },
@@ -1964,7 +1966,7 @@ void SIScheduleDAGMI::schedule()
 //      { LatenciesAlonePlusConsecutive, BlockLatencyRegUsage },
       { LatenciesAlonePlusConsecutive, BlockRegUsageLatency },
       { LatenciesAlonePlusConsecutive, BlockRegUsage }
-    };
+    } };
     for (std::pair<SISchedulerBlockCreatorVariant, SISchedulerBlockSchedulerVariant> v : Variants) {
       Temp = Scheduler.scheduleVariant(v.first, v.second);
       if (Temp.MaxVGPRUsage < Best.MaxVGPRUsage)

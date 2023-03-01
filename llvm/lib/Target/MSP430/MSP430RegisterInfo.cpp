@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MSP430RegisterInfo.h"
+
+#include <array>
 #include "MSP430.h"
 #include "MSP430MachineFunctionInfo.h"
 #include "MSP430TargetMachine.h"
@@ -38,35 +40,35 @@ const MCPhysReg*
 MSP430RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   const MSP430FrameLowering *TFI = getFrameLowering(*MF);
   const Function* F = &MF->getFunction();
-  static const MCPhysReg CalleeSavedRegs[] = {
+  static const std::array<MCPhysReg, 8> CalleeSavedRegs = { {
     MSP430::R4, MSP430::R5, MSP430::R6, MSP430::R7,
     MSP430::R8, MSP430::R9, MSP430::R10,
     0
-  };
-  static const MCPhysReg CalleeSavedRegsFP[] = {
+  } };
+  static const std::array<MCPhysReg, 7> CalleeSavedRegsFP = { {
     MSP430::R5, MSP430::R6, MSP430::R7,
     MSP430::R8, MSP430::R9, MSP430::R10,
     0
-  };
-  static const MCPhysReg CalleeSavedRegsIntr[] = {
+  } };
+  static const std::array<MCPhysReg, 13> CalleeSavedRegsIntr = { {
     MSP430::R4,  MSP430::R5,  MSP430::R6,  MSP430::R7,
     MSP430::R8,  MSP430::R9,  MSP430::R10, MSP430::R11,
     MSP430::R12, MSP430::R13, MSP430::R14, MSP430::R15,
     0
-  };
-  static const MCPhysReg CalleeSavedRegsIntrFP[] = {
+  } };
+  static const std::array<MCPhysReg, 12> CalleeSavedRegsIntrFP = { {
     MSP430::R5,  MSP430::R6,  MSP430::R7,
     MSP430::R8,  MSP430::R9,  MSP430::R10, MSP430::R11,
     MSP430::R12, MSP430::R13, MSP430::R14, MSP430::R15,
     0
-  };
+  } };
 
   if (TFI->hasFP(*MF))
     return (F->getCallingConv() == CallingConv::MSP430_INTR ?
-            CalleeSavedRegsIntrFP : CalleeSavedRegsFP);
+            CalleeSavedRegsIntrFP.begin() : CalleeSavedRegsFP.begin());
   else
     return (F->getCallingConv() == CallingConv::MSP430_INTR ?
-            CalleeSavedRegsIntr : CalleeSavedRegs);
+            CalleeSavedRegsIntr.begin() : CalleeSavedRegs.begin());
 
 }
 

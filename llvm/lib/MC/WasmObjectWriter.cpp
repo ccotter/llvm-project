@@ -180,16 +180,16 @@ static void writePatchableS64(raw_pwrite_stream &Stream, int64_t Value,
 // Write Value as a plain integer value at offset Offset in Stream.
 static void patchI32(raw_pwrite_stream &Stream, uint32_t Value,
                      uint64_t Offset) {
-  uint8_t Buffer[4];
-  support::endian::write32le(Buffer, Value);
-  Stream.pwrite((char *)Buffer, sizeof(Buffer), Offset);
+  std::array<uint8_t, 4> Buffer;
+  support::endian::write32le(Buffer.begin(), Value);
+  Stream.pwrite((char *)Buffer.begin(), sizeof(Buffer), Offset);
 }
 
 static void patchI64(raw_pwrite_stream &Stream, uint64_t Value,
                      uint64_t Offset) {
-  uint8_t Buffer[8];
-  support::endian::write64le(Buffer, Value);
-  Stream.pwrite((char *)Buffer, sizeof(Buffer), Offset);
+  std::array<uint8_t, 8> Buffer;
+  support::endian::write64le(Buffer.begin(), Value);
+  Stream.pwrite((char *)Buffer.begin(), sizeof(Buffer), Offset);
 }
 
 bool isDwoSection(const MCSection &Sec) {
@@ -314,15 +314,15 @@ private:
   void writeStringWithAlignment(const StringRef Str, unsigned Alignment);
 
   void writeI32(int32_t val) {
-    char Buffer[4];
-    support::endian::write32le(Buffer, val);
-    W->OS.write(Buffer, sizeof(Buffer));
+    std::array<char, 4> Buffer;
+    support::endian::write32le(Buffer.begin(), val);
+    W->OS.write(Buffer.begin(), sizeof(Buffer));
   }
 
   void writeI64(int64_t val) {
-    char Buffer[8];
-    support::endian::write64le(Buffer, val);
-    W->OS.write(Buffer, sizeof(Buffer));
+    std::array<char, 8> Buffer;
+    support::endian::write64le(Buffer.begin(), val);
+    W->OS.write(Buffer.begin(), sizeof(Buffer));
   }
 
   void writeValueType(wasm::ValType Ty) { W->OS << static_cast<char>(Ty); }

@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
@@ -559,7 +561,7 @@ void ModuleSummaryIndex::exportToDot(
     // 3 - writeonly reference
     // Other value: (hotness - 4).
     TypeOrHotness += 4;
-    static const char *EdgeAttrs[] = {
+    static std::array<const char *, 9>EdgeAttrs = { {
         " [style=dotted]; // alias",
         " [style=dashed]; // ref",
         " [style=dashed,color=forestgreen]; // const-ref",
@@ -568,7 +570,7 @@ void ModuleSummaryIndex::exportToDot(
         " [color=blue]; // call (hotness : Cold)",
         " // call (hotness : None)",
         " [color=brown]; // call (hotness : Hot)",
-        " [style=bold,color=red]; // call (hotness : Critical)"};
+        " [style=bold,color=red]; // call (hotness : Critical)"} };
 
     assert(static_cast<size_t>(TypeOrHotness) < std::size(EdgeAttrs));
     OS << Pfx << NodeId(SrcMod, SrcId) << " -> " << NodeId(DstMod, DstId)

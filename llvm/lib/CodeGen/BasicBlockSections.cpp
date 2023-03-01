@@ -78,6 +78,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -291,12 +292,12 @@ static bool hasInstrProfHashMismatch(MachineFunction &MF) {
   if (!BBSectionsDetectSourceDrift)
     return false;
 
-  const char MetadataName[] = "instr_prof_hash_mismatch";
+  const std::array<char, 25> MetadataName = { "instr_prof_hash_mismatch" };
   auto *Existing = MF.getFunction().getMetadata(LLVMContext::MD_annotation);
   if (Existing) {
     MDTuple *Tuple = cast<MDTuple>(Existing);
     for (const auto &N : Tuple->operands())
-      if (cast<MDString>(N.get())->getString() == MetadataName)
+      if (cast<MDString>(N.get())->getString() == MetadataName.begin())
         return true;
   }
 

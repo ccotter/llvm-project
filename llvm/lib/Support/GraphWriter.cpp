@@ -30,6 +30,7 @@
 #include "llvm/Support/CommandLine.h"
 #endif
 
+#include <array>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -89,10 +90,10 @@ std::string llvm::DOT::EscapeString(const std::string &Label) {
 /// from a reasonable number of colors.
 StringRef llvm::DOT::getColorString(unsigned ColorNumber) {
   static const int NumColors = 20;
-  static const char* Colors[NumColors] = {
+  static std::array<const char*, NumColors> Colors = { {
     "aaaaaa", "aa0000", "00aa00", "aa5500", "0055ff", "aa00aa", "00aaaa",
     "555555", "ff5555", "55ff55", "ffff55", "5555ff", "ff55ff", "55ffff",
-    "ffaaaa", "aaffaa", "ffffaa", "aaaaff", "ffaaff", "aaffff"};
+    "ffaaaa", "aaffaa", "ffffaa", "aaaaff", "ffaaff", "aaffff"} };
   return Colors[ColorNumber % NumColors];
 }
 

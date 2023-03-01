@@ -11,6 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/BinaryFormat/XCOFF.h"
 #include "llvm/MC/StringTableBuilder.h"
@@ -82,11 +84,11 @@ private:
 };
 
 static void writeName(StringRef StrName, support::endian::Writer W) {
-  char Name[XCOFF::NameSize];
-  memset(Name, 0, XCOFF::NameSize);
-  char SrcName[] = "";
-  memcpy(Name, StrName.size() ? StrName.data() : SrcName, StrName.size());
-  ArrayRef<char> NameRef(Name, XCOFF::NameSize);
+  std::array<char, XCOFF::NameSize> Name;
+  memset(Name.begin(), 0, XCOFF::NameSize);
+  std::array<char, 1> SrcName = { "" };
+  memcpy(Name.begin(), StrName.size() ? StrName.data() : SrcName.begin(), StrName.size());
+  ArrayRef<char> NameRef(Name.begin(), XCOFF::NameSize);
   W.write(NameRef);
 }
 

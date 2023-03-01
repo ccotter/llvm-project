@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
@@ -20,10 +22,10 @@ TEST(formatted_raw_ostreamTest, Test_Tell) {
   SmallString<128> A;
   raw_svector_ostream B(A);
   formatted_raw_ostream C(B);
-  char tmp[100] = "";
+  std::array<char, 100> tmp = { "" };
 
   for (unsigned i = 0; i != 3; ++i) {
-    C.write(tmp, 100);
+    C.write(tmp.begin(), 100);
 
     EXPECT_EQ(100*(i+1), (unsigned) C.tell());
   }

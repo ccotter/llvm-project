@@ -45,6 +45,7 @@
 #include "llvm/Support/MachineValueType.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -994,9 +995,9 @@ SDValue SelectionDAGBuilder::LowerAsSTATEPOINT(
   // Call: ch,glue = CALL ...
   // Statepoint: [gc relocates],ch,glue = STATEPOINT ...
   unsigned NumSinkValues = SinkNode->getNumValues();
-  SDValue StatepointValues[2] = {SDValue(SinkNode, NumSinkValues - 2),
-                                 SDValue(SinkNode, NumSinkValues - 1)};
-  DAG.ReplaceAllUsesWith(CallNode, StatepointValues);
+  std::array<SDValue, 2> StatepointValues = { {SDValue(SinkNode, NumSinkValues - 2),
+                                 SDValue(SinkNode, NumSinkValues - 1)} };
+  DAG.ReplaceAllUsesWith(CallNode, StatepointValues.begin());
   // Remove original call node
   DAG.DeleteNode(CallNode);
 

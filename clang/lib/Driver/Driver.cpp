@@ -94,6 +94,7 @@
 #include "llvm/Support/StringSaver.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstdlib> // ::getenv
 #include <map>
 #include <memory>
@@ -4323,8 +4324,8 @@ Action *Driver::BuildOffloadingActions(Compilation &C,
   ActionList OffloadActions;
   OffloadAction::DeviceDependences DDeps;
 
-  const Action::OffloadKind OffloadKinds[] = {
-      Action::OFK_OpenMP, Action::OFK_Cuda, Action::OFK_HIP};
+  const std::array<Action::OffloadKind, 3> OffloadKinds = { {
+      Action::OFK_OpenMP, Action::OFK_Cuda, Action::OFK_HIP} };
 
   for (Action::OffloadKind Kind : OffloadKinds) {
     SmallVector<const ToolChain *, 2> ToolChains;

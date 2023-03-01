@@ -21,6 +21,7 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Testing/Support/Error.h"
+#include <array>
 #include <string>
 
 using namespace llvm;
@@ -145,8 +146,8 @@ protected:
       LLVMJITEvaluatedSymbol Sym = {Addr, Flags};
       LLVMOrcRetainSymbolStringPoolEntry(Element.Name);
       LLVMOrcCSymbolMapPair Pair = {Element.Name, Sym};
-      LLVMOrcCSymbolMapPair Pairs[] = {Pair};
-      LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs, 1);
+      std::array Pairs = {Pair};
+      LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs.begin(), 1);
       LLVMErrorRef Err = LLVMOrcJITDylibDefine(JD, MU);
       if (Err)
         return Err;
@@ -259,8 +260,8 @@ TEST_F(OrcCAPITestBase, MaterializationUnitCreation) {
       (LLVMOrcJITTargetAddress)(&materializationUnitFn);
   LLVMJITEvaluatedSymbol Sym = {Addr, Flags};
   LLVMOrcCSymbolMapPair Pair = {Name, Sym};
-  LLVMOrcCSymbolMapPair Pairs[] = {Pair};
-  LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs, 1);
+  std::array Pairs = {Pair};
+  LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs.begin(), 1);
   if (LLVMErrorRef E = LLVMOrcJITDylibDefine(MainDylib, MU))
     FAIL() << "Unexpected error while adding \"test\" symbol (triple = "
            << TargetTriple << "): " << toString(E);
@@ -342,47 +343,47 @@ TEST_F(OrcCAPITestBase, ExecutionSessionLookup_Success) {
   // Add exported symbols "Foo" and "Bar" to Main JITDylib.
   LLVMOrcRetainSymbolStringPoolEntry(Foo);
   LLVMOrcRetainSymbolStringPoolEntry(Bar);
-  LLVMOrcCSymbolMapPair MainJDPairs[] = {
+  std::array<LLVMOrcCSymbolMapPair, 2> MainJDPairs = { {
       {Foo, {0x1, {LLVMJITSymbolGenericFlagsExported, 0}}},
-      {Bar, {0x2, {LLVMJITSymbolGenericFlagsNone, 0}}}};
+      {Bar, {0x2, {LLVMJITSymbolGenericFlagsNone, 0}}}} };
   LLVMOrcMaterializationUnitRef MainJDMU =
-      LLVMOrcAbsoluteSymbols(MainJDPairs, 2);
+      LLVMOrcAbsoluteSymbols(MainJDPairs.begin(), 2);
   if (LLVMErrorRef E = LLVMOrcJITDylibDefine(MainDylib, MainJDMU))
     FAIL() << "Unexpected error while adding MainDylib symbols (triple = "
            << TargetTriple << "): " << toString(E);
 
   // Add non-exported symbol "Baz" to ExtraJD.
   LLVMOrcRetainSymbolStringPoolEntry(Baz);
-  LLVMOrcCSymbolMapPair ExtraJDPairs[] = {
-      {Baz, {0x3, {LLVMJITSymbolGenericFlagsNone, 0}}}};
+  std::array<LLVMOrcCSymbolMapPair, 1> ExtraJDPairs = { {
+      {Baz, {0x3, {LLVMJITSymbolGenericFlagsNone, 0}}}} };
   LLVMOrcMaterializationUnitRef ExtraJDMU =
-      LLVMOrcAbsoluteSymbols(ExtraJDPairs, 1);
+      LLVMOrcAbsoluteSymbols(ExtraJDPairs.begin(), 1);
   if (LLVMErrorRef E = LLVMOrcJITDylibDefine(ExtraJD, ExtraJDMU))
     FAIL() << "Unexpected error while adding ExtraJD symbols (triple = "
            << TargetTriple << "): " << toString(E);
 
   // Create expected mapping for result:
-  LLVMOrcCSymbolMapPair ExpectedMapping[] = {
+  std::array<LLVMOrcCSymbolMapPair, 2> ExpectedMapping = { {
       {Foo, {0x1, {LLVMJITSymbolGenericFlagsExported, 0}}},
-      {Baz, {0x3, {LLVMJITSymbolGenericFlagsNone, 0}}}};
-  H.ExpectedMapping = ExpectedMapping;
+      {Baz, {0x3, {LLVMJITSymbolGenericFlagsNone, 0}}}} };
+  H.ExpectedMapping = ExpectedMapping.begin();
   H.NumExpectedPairs = 2;
 
   // Issue the lookup. We're using the default same-thread dispatch, so the
   // handler should have run by the time we return from this call.
-  LLVMOrcCJITDylibSearchOrderElement SO[] = {
+  std::array<LLVMOrcCJITDylibSearchOrderElement, 2> SO = { {
       {MainDylib, LLVMOrcJITDylibLookupFlagsMatchExportedSymbolsOnly},
-      {ExtraJD, LLVMOrcJITDylibLookupFlagsMatchAllSymbols}};
+      {ExtraJD, LLVMOrcJITDylibLookupFlagsMatchAllSymbols}} };
 
   LLVMOrcRetainSymbolStringPoolEntry(Foo);
   LLVMOrcRetainSymbolStringPoolEntry(Bar);
   LLVMOrcRetainSymbolStringPoolEntry(Baz);
-  LLVMOrcCLookupSetElement LS[] = {
+  std::array<LLVMOrcCLookupSetElement, 3> LS = { {
       {Foo, LLVMOrcSymbolLookupFlagsRequiredSymbol},
       {Bar, LLVMOrcSymbolLookupFlagsWeaklyReferencedSymbol},
-      {Baz, LLVMOrcSymbolLookupFlagsRequiredSymbol}};
-  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO,
-                                2, LS, 3, executionSessionLookupHandlerCallback,
+      {Baz, LLVMOrcSymbolLookupFlagsRequiredSymbol}} };
+  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO.begin(),
+                                2, LS.begin(), 3, executionSessionLookupHandlerCallback,
                                 &H);
 
   EXPECT_TRUE(H.CallbackReceived) << "Lookup callback never received";
@@ -400,12 +401,12 @@ TEST_F(OrcCAPITestBase, ExecutionSessionLookup_Failure) {
   ExecutionSessionLookupHelper H;
   H.ExpectSuccess = false;
 
-  LLVMOrcCJITDylibSearchOrderElement SO[] = {
-      {MainDylib, LLVMOrcJITDylibLookupFlagsMatchExportedSymbolsOnly}};
-  LLVMOrcCLookupSetElement LS[] = {{LLVMOrcLLJITMangleAndIntern(Jit, "Foo"),
-                                    LLVMOrcSymbolLookupFlagsRequiredSymbol}};
-  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO,
-                                1, LS, 1, executionSessionLookupHandlerCallback,
+  std::array<LLVMOrcCJITDylibSearchOrderElement, 1> SO = { {
+      {MainDylib, LLVMOrcJITDylibLookupFlagsMatchExportedSymbolsOnly}} };
+  std::array<LLVMOrcCLookupSetElement, 1> LS = { {{LLVMOrcLLJITMangleAndIntern(Jit, "Foo"),
+                                    LLVMOrcSymbolLookupFlagsRequiredSymbol}} };
+  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO.begin(),
+                                1, LS.begin(), 1, executionSessionLookupHandlerCallback,
                                 &H);
 
   EXPECT_TRUE(H.CallbackReceived) << "Lookup callback never received";
@@ -559,11 +560,11 @@ void Materialize(void *Ctx, LLVMOrcMaterializationResponsibilityRef MR) {
 
   LLVMOrcRetainSymbolStringPoolEntry(OtherSymbol);
   LLVMOrcRetainSymbolStringPoolEntry(DependencySymbol);
-  LLVMOrcCSymbolFlagsMapPair NewSymbols[] = {
+  std::array<LLVMOrcCSymbolFlagsMapPair, 2> NewSymbols = { {
       {OtherSymbol, Flags},
       {DependencySymbol, Flags},
-  };
-  LLVMOrcMaterializationResponsibilityDefineMaterializing(MR, NewSymbols, 2);
+  } };
+  LLVMOrcMaterializationResponsibilityDefineMaterializing(MR, NewSymbols.begin(), 2);
 
   LLVMOrcRetainSymbolStringPoolEntry(OtherSymbol);
   LLVMOrcMaterializationResponsibilityRef OtherMR = NULL;
@@ -688,8 +689,8 @@ static LLVMErrorRef TryToGenerateWithSuspendedLookup(
   LLVMJITEvaluatedSymbol Sym = {0x1234, {LLVMJITSymbolGenericFlagsExported, 0}};
   LLVMOrcRetainSymbolStringPoolEntry(LookupSet[0].Name);
   LLVMOrcCSymbolMapPair Pair = {LookupSet[0].Name, Sym};
-  LLVMOrcCSymbolMapPair Pairs[] = {Pair};
-  LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs, 1);
+  std::array Pairs = {Pair};
+  LLVMOrcMaterializationUnitRef MU = LLVMOrcAbsoluteSymbols(Pairs.begin(), 1);
 
   // Capture and reset LookupState to suspend the lookup. We'll continue it in
   // the SuspendedLookup testcase below.
@@ -742,13 +743,13 @@ TEST_F(OrcCAPITestBase, SuspendedLookup) {
 
   // Issue lookup. This should trigger the generator, but generation should
   // be suspended.
-  LLVMOrcCJITDylibSearchOrderElement SO[] = {
-      {MainDylib, LLVMOrcJITDylibLookupFlagsMatchExportedSymbolsOnly}};
+  std::array<LLVMOrcCJITDylibSearchOrderElement, 1> SO = { {
+      {MainDylib, LLVMOrcJITDylibLookupFlagsMatchExportedSymbolsOnly}} };
   LLVMOrcRetainSymbolStringPoolEntry(Ctx.NameToGenerate);
-  LLVMOrcCLookupSetElement LS[] = {
-      {Ctx.NameToGenerate, LLVMOrcSymbolLookupFlagsRequiredSymbol}};
-  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO,
-                                1, LS, 1,
+  std::array<LLVMOrcCLookupSetElement, 1> LS = { {
+      {Ctx.NameToGenerate, LLVMOrcSymbolLookupFlagsRequiredSymbol}} };
+  LLVMOrcExecutionSessionLookup(ExecutionSession, LLVMOrcLookupKindStatic, SO.begin(),
+                                1, LS.begin(), 1,
                                 suspendLookupTestLookupHandlerCallback, &Ctx);
 
   // Expect that we now have generator work to do.

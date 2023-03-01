@@ -126,6 +126,7 @@
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -472,7 +473,7 @@ static bool checkDiagnosticGroupMappings(DiagnosticsEngine &StoredDiags,
   // Check current mappings for new -Werror mappings, and the stored mappings
   // for cases that were explicitly mapped to *not* be errors that are now
   // errors because of options like -Werror.
-  DiagnosticsEngine *MappingSources[] = { &Diags, &StoredDiags };
+  std::array MappingSources = { &Diags, &StoredDiags };
 
   for (DiagnosticsEngine *MappingSource : MappingSources) {
     for (auto DiagIDMappingPair : MappingSource->getDiagnosticMappings()) {

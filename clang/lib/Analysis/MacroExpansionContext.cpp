@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Analysis/MacroExpansionContext.h"
 #include "llvm/Support/Debug.h"
 
@@ -189,9 +191,9 @@ static void dumpTokenInto(const Preprocessor &PP, raw_ostream &OS, Token Tok) {
   } else if (Tok.isLiteral() && !Tok.needsCleaning() && Tok.getLiteralData()) {
     OS << StringRef(Tok.getLiteralData(), Tok.getLength());
   } else {
-    char Tmp[256];
+    std::array<char, 256> Tmp;
     if (Tok.getLength() < sizeof(Tmp)) {
-      const char *TokPtr = Tmp;
+      const char *TokPtr = Tmp.begin();
       // FIXME: Might use a different overload for cleaner callsite.
       unsigned Len = PP.getSpelling(Tok, TokPtr);
       OS.write(TokPtr, Len);

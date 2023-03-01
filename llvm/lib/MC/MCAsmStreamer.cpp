@@ -36,6 +36,7 @@
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Path.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -1104,8 +1105,8 @@ static void PrintByteList(StringRef Data, raw_ostream &OS,
     return;
   case MCAsmInfo::ACLS_SingleQuotePrefix:
     printCharacterList(printOneCharacterFor([&OS](char C) {
-      const char AsmCharLitBuf[2] = {'\'', C};
-      OS << StringRef(AsmCharLitBuf, sizeof(AsmCharLitBuf));
+      const std::array<char, 2> AsmCharLitBuf = { {'\'', C} };
+      OS << StringRef(AsmCharLitBuf.begin(), sizeof(AsmCharLitBuf));
     }));
     return;
   }
@@ -1935,8 +1936,8 @@ void MCAsmStreamer::emitCFIEscape(StringRef Values) {
 void MCAsmStreamer::emitCFIGnuArgsSize(int64_t Size) {
   MCStreamer::emitCFIGnuArgsSize(Size);
 
-  uint8_t Buffer[16] = { dwarf::DW_CFA_GNU_args_size };
-  unsigned Len = encodeULEB128(Size, Buffer + 1) + 1;
+  std::array<uint8_t, 16> Buffer = { { dwarf::DW_CFA_GNU_args_size } };
+  unsigned Len = encodeULEB128(Size, Buffer.begin() + 1) + 1;
 
   PrintCFIEscape(OS, StringRef((const char *)&Buffer[0], Len));
   EmitEOL();

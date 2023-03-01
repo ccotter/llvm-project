@@ -23,6 +23,7 @@
 #include "llvm/Option/Option.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <string>
 #include <system_error>
@@ -278,10 +279,10 @@ void Compilation::initCompilationForDiagnostics() {
 
   // Remove any user specified output.  Claim any unclaimed arguments, so as
   // to avoid emitting warnings about unused args.
-  OptSpecifier OutputOpts[] = {
+  std::array<OptSpecifier, 11> OutputOpts = { {
       options::OPT_o,  options::OPT_MD, options::OPT_MMD, options::OPT_M,
       options::OPT_MM, options::OPT_MF, options::OPT_MG,  options::OPT_MJ,
-      options::OPT_MQ, options::OPT_MT, options::OPT_MV};
+      options::OPT_MQ, options::OPT_MT, options::OPT_MV} };
   for (const auto &Opt : OutputOpts) {
     if (TranslatedArgs->hasArg(Opt))
       TranslatedArgs->eraseArg(Opt);

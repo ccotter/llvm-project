@@ -27,6 +27,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
+#include <array>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -466,7 +467,7 @@ llvm::ArrayRef<ArgStripper::Rule> ArgStripper::rulesFor(llvm::StringRef Arg) {
       NextAlias[T] = Self;
     };
     // Also grab prefixes for each option, these are not fully exposed.
-    const char *const *Prefixes[DriverID::LastOption] = {nullptr};
+    std::array<const char *const *, DriverID::LastOption>Prefixes = { {nullptr} };
 #define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELP, METAVAR, VALUES)                                          \

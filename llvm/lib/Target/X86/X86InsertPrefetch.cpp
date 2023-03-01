@@ -18,6 +18,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "X86.h"
 #include "X86InstrBuilder.h"
 #include "X86InstrInfo.h"
@@ -109,12 +111,12 @@ bool X86InsertPrefetch::findPrefetchInfo(const FunctionSamples *TopSamples,
                                          Prefetches &Prefetches) const {
   assert(Prefetches.empty() &&
          "Expected caller passed empty PrefetchInfo vector.");
-  static constexpr std::pair<StringLiteral, unsigned> HintTypes[] = {
+  static constexpr std::array<std::pair<StringLiteral, unsigned>, 4> HintTypes = { {
       {"_nta_", X86::PREFETCHNTA},
       {"_t0_", X86::PREFETCHT0},
       {"_t1_", X86::PREFETCHT1},
       {"_t2_", X86::PREFETCHT2},
-  };
+  } };
   static const char *SerializedPrefetchPrefix = "__prefetch";
 
   const ErrorOr<PrefetchHints> T = getPrefetchHints(TopSamples, MI);

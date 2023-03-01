@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600Defines.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -107,17 +109,17 @@ void R600MCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
   } else if (IS_TEX(Desc)) {
       int64_t Sampler = MI.getOperand(14).getImm();
 
-      int64_t SrcSelect[4] = {
+      std::array<int64_t, 4> SrcSelect = { {
         MI.getOperand(2).getImm(),
         MI.getOperand(3).getImm(),
         MI.getOperand(4).getImm(),
         MI.getOperand(5).getImm()
-      };
-      int64_t Offsets[3] = {
+      } };
+      std::array<int64_t, 3> Offsets = { {
         MI.getOperand(6).getImm() & 0x1F,
         MI.getOperand(7).getImm() & 0x1F,
         MI.getOperand(8).getImm() & 0x1F
-      };
+      } };
 
       uint64_t Word01 = getBinaryCodeForInstr(MI, Fixups, STI);
       uint32_t Word2 = Sampler << 15 | SrcSelect[ELEMENT_X] << 20 |

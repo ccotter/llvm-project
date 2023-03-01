@@ -27,6 +27,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
+#include <array>
 #include <memory>
 
 using namespace llvm;
@@ -319,7 +320,7 @@ DecodeStatus AArch64Disassembler::getInstruction(MCInst &MI, uint64_t &Size,
   uint32_t Insn =
       (Bytes[3] << 24) | (Bytes[2] << 16) | (Bytes[1] << 8) | (Bytes[0] << 0);
 
-  const uint8_t *Tables[] = {DecoderTable32, DecoderTableFallback32};
+  std::array<const uint8_t *, 2>Tables = { {DecoderTable32, DecoderTableFallback32} };
 
   for (const auto *Table : Tables) {
     DecodeStatus Result =

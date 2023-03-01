@@ -10,6 +10,7 @@
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <limits>
 #include <vector>
 using namespace llvm;
@@ -43,10 +44,10 @@ namespace {
 
 TEST(ArrayRefTest, AllocatorCopy) {
   BumpPtrAllocator Alloc;
-  static const uint16_t Words1[] = { 1, 4, 200, 37 };
-  ArrayRef<uint16_t> Array1 = makeArrayRef(Words1, 4);
-  static const uint16_t Words2[] = { 11, 4003, 67, 64000, 13 };
-  ArrayRef<uint16_t> Array2 = makeArrayRef(Words2, 5);
+  static const std::array<uint16_t, 4> Words1 = { { 1, 4, 200, 37 } };
+  ArrayRef<uint16_t> Array1 = makeArrayRef(Words1.begin(), 4);
+  static const std::array<uint16_t, 5> Words2 = { { 11, 4003, 67, 64000, 13 } };
+  ArrayRef<uint16_t> Array2 = makeArrayRef(Words2.begin(), 5);
   ArrayRef<uint16_t> Array1c = Array1.copy(Alloc);
   ArrayRef<uint16_t> Array2c = Array2.copy(Alloc);
   EXPECT_TRUE(Array1.equals(Array1c));
@@ -184,7 +185,7 @@ TEST(ArrayRefTest, EmptyEquals) {
 }
 
 TEST(ArrayRefTest, ConstConvert) {
-  int buf[4];
+  std::array<int, 4> buf;
   for (int i = 0; i < 4; ++i)
     buf[i] = i;
 

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "ClangTidyTest.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "gtest/gtest.h"
@@ -228,13 +230,13 @@ TEST(OverlappingReplacementsTest, EndsWithCheckTest) {
 
 TEST(OverlappingReplacementTest, ReplacementsDoNotOverlap) {
   std::string Res;
-  const char Code[] =
-      R"(void f() {
+  const std::array<char, 80> Code =
+      { R"(void f() {
   int potassium = 0;
   if (true) {
     int Potato = potassium;
   }
-})";
+})" };
 
   const char CharIfFix[] =
       R"(void f() {
@@ -243,7 +245,7 @@ TEST(OverlappingReplacementTest, ReplacementsDoNotOverlap) {
     char Potato = potassium;
   }
 })";
-  Res = runCheckOnCode<UseCharCheck, IfFalseCheck>(Code);
+  Res = runCheckOnCode<UseCharCheck, IfFalseCheck>(Code.begin());
   EXPECT_EQ(CharIfFix, Res);
 
   const char StartsEndsFix[] =
@@ -253,7 +255,7 @@ TEST(OverlappingReplacementTest, ReplacementsDoNotOverlap) {
     int Pomelo = tomassium;
   }
 })";
-  Res = runCheckOnCode<StartsWithPotaCheck, EndsWithTatoCheck>(Code);
+  Res = runCheckOnCode<StartsWithPotaCheck, EndsWithTatoCheck>(Code.begin());
   EXPECT_EQ(StartsEndsFix, Res);
 
   const char CharIfStartsEndsFix[] =
@@ -264,20 +266,20 @@ TEST(OverlappingReplacementTest, ReplacementsDoNotOverlap) {
   }
 })";
   Res = runCheckOnCode<UseCharCheck, IfFalseCheck, StartsWithPotaCheck,
-                       EndsWithTatoCheck>(Code);
+                       EndsWithTatoCheck>(Code.begin());
   EXPECT_EQ(CharIfStartsEndsFix, Res);
 }
 
 TEST(OverlappingReplacementsTest, ReplacementInsideOtherReplacement) {
   std::string Res;
-  const char Code[] =
-      R"(void f() {
+  const std::array<char, 113> Code =
+      { R"(void f() {
   if (char potato = 0) {
   } else if (int a = 0) {
     char potato = 0;
     if (potato) potato;
   }
-})";
+})" };
 
   // Apply the UseCharCheck together with the IfFalseCheck.
   //
@@ -293,9 +295,9 @@ TEST(OverlappingReplacementsTest, ReplacementInsideOtherReplacement) {
     if (false) potato;
   }
 })";
-  Res = runCheckOnCode<UseCharCheck, IfFalseCheck>(Code);
+  Res = runCheckOnCode<UseCharCheck, IfFalseCheck>(Code.begin());
   EXPECT_EQ(CharIfFix, Res);
-  Res = runCheckOnCode<IfFalseCheck, UseCharCheck>(Code);
+  Res = runCheckOnCode<IfFalseCheck, UseCharCheck>(Code.begin());
   EXPECT_EQ(CharIfFix, Res);
 
   // Apply the IfFalseCheck with the StartsWithPotaCheck.
@@ -319,20 +321,20 @@ TEST(OverlappingReplacementsTest, ReplacementInsideOtherReplacement) {
     if (tomato) tomato;
   }
 })";
-  Res = runCheckOnCode<IfFalseCheck, StartsWithPotaCheck>(Code);
+  Res = runCheckOnCode<IfFalseCheck, StartsWithPotaCheck>(Code.begin());
   EXPECT_EQ(IfStartsFix, Res);
-  Res = runCheckOnCode<StartsWithPotaCheck, IfFalseCheck>(Code);
+  Res = runCheckOnCode<StartsWithPotaCheck, IfFalseCheck>(Code.begin());
   EXPECT_EQ(IfStartsFix, Res);
 }
 
 TEST(OverlappingReplacements, TwoReplacementsInsideOne) {
   std::string Res;
-  const char Code[] =
-      R"(void f() {
+  const std::array<char, 56> Code =
+      { R"(void f() {
   if (int potato = 0) {
     int a = 0;
   }
-})";
+})" };
 
   // The two smallest replacements should not be applied.
   // if (int potato = 0) {
@@ -348,21 +350,21 @@ TEST(OverlappingReplacements, TwoReplacementsInsideOne) {
     char a = 0;
   }
 })";
-  Res = runCheckOnCode<UseCharCheck, IfFalseCheck, StartsWithPotaCheck>(Code);
+  Res = runCheckOnCode<UseCharCheck, IfFalseCheck, StartsWithPotaCheck>(Code.begin());
   EXPECT_EQ(Fix, Res);
-  Res = runCheckOnCode<StartsWithPotaCheck, IfFalseCheck, UseCharCheck>(Code);
+  Res = runCheckOnCode<StartsWithPotaCheck, IfFalseCheck, UseCharCheck>(Code.begin());
   EXPECT_EQ(Fix, Res);
 }
 
 TEST(OverlappingReplacementsTest,
      ApplyAtMostOneOfTheChangesWhenPartialOverlapping) {
   std::string Res;
-  const char Code[] =
-      R"(void f() {
+  const std::array<char, 61> Code =
+      { R"(void f() {
   if (int potato = 0) {
     int a = potato;
   }
-})";
+})" };
 
   // These two replacements overlap, but none of them is completely contained
   // inside the other.
@@ -380,7 +382,7 @@ TEST(OverlappingReplacementsTest,
     int a = potato;
   }
 })";
-  Res = runCheckOnCode<IfFalseCheck, StartsWithPotaCheck>(Code);
+  Res = runCheckOnCode<IfFalseCheck, StartsWithPotaCheck>(Code.begin());
   EXPECT_EQ(IfFix, Res);
 }
 

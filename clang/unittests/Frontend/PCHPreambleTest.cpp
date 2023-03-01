@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -209,7 +211,7 @@ TEST_F(PCHPreambleTest, ReparseWithOverriddenFileDoesNotInvalidatePreamble) {
   ASSERT_TRUE(AST.get());
   ASSERT_FALSE(AST->getDiagnostics().hasErrorOccurred());
 
-  unsigned initialCounts[] = {
+  std::array initialCounts = {
     GetFileReadCount(MainName),
     GetFileReadCount(Header1),
     GetFileReadCount(Header2)

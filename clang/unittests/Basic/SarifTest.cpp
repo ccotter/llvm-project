@@ -23,6 +23,7 @@
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <array>
 
 using namespace clang;
 
@@ -350,19 +351,19 @@ TEST_F(SarifDocumentWriterTest, checkSerializingCodeflows) {
 
   constexpr unsigned int NumCases = 3;
   llvm::SmallVector<ThreadFlow, NumCases> Threadflows;
-  const char *HeaderTexts[NumCases]{("#pragma once\n"
+  std::array<const char *, NumCases>HeaderTexts{ {("#pragma once\n"
                                      "#include <foo>"),
                                     ("#ifndef FOO\n"
                                      "#define FOO\n"
                                      "#endif"),
                                     ("#ifdef FOO\n"
                                      "#undef FOO\n"
-                                     "#endif")};
-  const char *HeaderNames[NumCases]{"/test-header-1.h", "/test-header-2.h",
-                                    "/test-header-3.h"};
-  ThreadFlowImportance Importances[NumCases]{ThreadFlowImportance::Essential,
+                                     "#endif")} };
+  std::array<const char *, NumCases>HeaderNames{ {"/test-header-1.h", "/test-header-2.h",
+                                    "/test-header-3.h"} };
+  std::array<ThreadFlowImportance, NumCases> Importances{ {ThreadFlowImportance::Essential,
                                              ThreadFlowImportance::Important,
-                                             ThreadFlowImportance::Unimportant};
+                                             ThreadFlowImportance::Unimportant} };
   for (size_t Idx = 0; Idx != NumCases; ++Idx) {
     FileID FID = registerSource(HeaderNames[Idx], HeaderTexts[Idx]);
     CharSourceRange &&CSR = getFakeCharSourceRange(FID, {1, 1}, {2, 8});

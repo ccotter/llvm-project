@@ -89,6 +89,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Vectorize.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -5397,7 +5398,7 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth,
       LLVM_DEBUG(dbgs() << "SLP: added inserts bundle.\n");
 
       constexpr int NumOps = 2;
-      ValueList VectorOperands[NumOps];
+      std::array<ValueList, NumOps> VectorOperands;
       for (int I = 0; I < NumOps; ++I) {
         for (Value *V : VL)
           VectorOperands[I].push_back(cast<Instruction>(V)->getOperand(I));

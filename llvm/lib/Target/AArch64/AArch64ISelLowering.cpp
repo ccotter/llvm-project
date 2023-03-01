@@ -85,6 +85,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <cassert>
 #include <cctype>
@@ -10494,7 +10495,7 @@ SDValue AArch64TargetLowering::ReconstructShuffle(SDValue Op,
     return SDValue();
   }
 
-  SDValue ShuffleOps[] = { DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT) };
+  std::array ShuffleOps = { DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT) };
   for (unsigned i = 0; i < Sources.size(); ++i)
     ShuffleOps[i] = Sources[i].ShuffleVec;
 
@@ -10574,9 +10575,9 @@ static SDValue ReconstructTruncateFromBuildVector(SDValue V, SelectionDAG &DAG) 
   // concat together to produce 2 v8i16. These are both truncated and concat
   // together.
   SDLoc DL(V);
-  SDValue Trunc[4] = {
+  std::array<SDValue, 4> Trunc = { {
       V.getOperand(0).getOperand(0), V.getOperand(4).getOperand(0),
-      V.getOperand(8).getOperand(0), V.getOperand(12).getOperand(0)};
+      V.getOperand(8).getOperand(0), V.getOperand(12).getOperand(0)} };
   for (SDValue &V : Trunc)
     if (V.getValueType() == MVT::v4i32)
       V = DAG.getNode(ISD::TRUNCATE, DL, MVT::v4i16, V);
@@ -11519,7 +11520,7 @@ SDValue AArch64TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op,
   // the PerfectShuffle-generated table to synthesize it from other shuffles.
   unsigned NumElts = VT.getVectorNumElements();
   if (NumElts == 4) {
-    unsigned PFIndexes[4];
+    std::array<unsigned, 4> PFIndexes;
     for (unsigned i = 0; i != 4; ++i) {
       if (ShuffleMask[i] < 0)
         PFIndexes[i] = 8;
@@ -14300,12 +14301,12 @@ bool AArch64TargetLowering::lowerInterleavedLoad(
   Type *PredTy = VectorType::get(Type::getInt1Ty(LDVTy->getContext()),
                                  LDVTy->getElementCount());
 
-  static const Intrinsic::ID SVELoadIntrs[3] = {
+  static const std::array<Intrinsic::ID, 3> SVELoadIntrs = { {
       Intrinsic::aarch64_sve_ld2_sret, Intrinsic::aarch64_sve_ld3_sret,
-      Intrinsic::aarch64_sve_ld4_sret};
-  static const Intrinsic::ID NEONLoadIntrs[3] = {Intrinsic::aarch64_neon_ld2,
+      Intrinsic::aarch64_sve_ld4_sret} };
+  static const std::array<Intrinsic::ID, 3> NEONLoadIntrs = { {Intrinsic::aarch64_neon_ld2,
                                                  Intrinsic::aarch64_neon_ld3,
-                                                 Intrinsic::aarch64_neon_ld4};
+                                                 Intrinsic::aarch64_neon_ld4} };
   Function *LdNFunc;
   if (UseScalable)
     LdNFunc = Intrinsic::getDeclaration(LI->getModule(),
@@ -14497,12 +14498,12 @@ bool AArch64TargetLowering::lowerInterleavedStore(StoreInst *SI,
   Type *PredTy = VectorType::get(Type::getInt1Ty(STVTy->getContext()),
                                  STVTy->getElementCount());
 
-  static const Intrinsic::ID SVEStoreIntrs[3] = {Intrinsic::aarch64_sve_st2,
+  static const std::array<Intrinsic::ID, 3> SVEStoreIntrs = { {Intrinsic::aarch64_sve_st2,
                                                  Intrinsic::aarch64_sve_st3,
-                                                 Intrinsic::aarch64_sve_st4};
-  static const Intrinsic::ID NEONStoreIntrs[3] = {Intrinsic::aarch64_neon_st2,
+                                                 Intrinsic::aarch64_sve_st4} };
+  static const std::array<Intrinsic::ID, 3> NEONStoreIntrs = { {Intrinsic::aarch64_neon_st2,
                                                   Intrinsic::aarch64_neon_st3,
-                                                  Intrinsic::aarch64_neon_st4};
+                                                  Intrinsic::aarch64_neon_st4} };
   Function *StNFunc;
   if (UseScalable)
     StNFunc = Intrinsic::getDeclaration(SI->getModule(),
@@ -14794,10 +14795,10 @@ AArch64TargetLowering::getScratchRegisters(CallingConv::ID) const {
   // LR is a callee-save register, but we must treat it as clobbered by any call
   // site. Hence we include LR in the scratch registers, which are in turn added
   // as implicit-defs for stackmaps and patchpoints.
-  static const MCPhysReg ScratchRegs[] = {
+  static const std::array<MCPhysReg, 4> ScratchRegs = { {
     AArch64::X16, AArch64::X17, AArch64::LR, 0
-  };
-  return ScratchRegs;
+  } };
+  return ScratchRegs.begin();
 }
 
 bool
@@ -19443,14 +19444,14 @@ static SDValue performNEONPostLDSTCombine(SDNode *N,
     Ops.push_back(Inc);
 
     // Return Types.
-    EVT Tys[6];
+    std::array<EVT, 6> Tys;
     unsigned NumResultVecs = (IsStore ? 0 : NumVecs);
     unsigned n;
     for (n = 0; n < NumResultVecs; ++n)
       Tys[n] = VecTy;
     Tys[n++] = MVT::i64;  // Type of write back register
     Tys[n] = MVT::Other;  // Type of the chain
-    SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys, NumResultVecs + 2));
+    SDVTList SDTys = DAG.getVTList(makeArrayRef(Tys.begin(), NumResultVecs + 2));
 
     MemIntrinsicSDNode *MemInt = cast<MemIntrinsicSDNode>(N);
     SDValue UpdN = DAG.getMemIntrinsicNode(NewOpc, SDLoc(N), SDTys, Ops,
@@ -23676,10 +23677,10 @@ Value *AArch64TargetLowering::createComplexDeinterleavingIR(
   }
 
   if (OperationType == ComplexDeinterleavingOperation::CMulPartial) {
-    Intrinsic::ID IdMap[4] = {Intrinsic::aarch64_neon_vcmla_rot0,
+    std::array<Intrinsic::ID, 4> IdMap = { {Intrinsic::aarch64_neon_vcmla_rot0,
                               Intrinsic::aarch64_neon_vcmla_rot90,
                               Intrinsic::aarch64_neon_vcmla_rot180,
-                              Intrinsic::aarch64_neon_vcmla_rot270};
+                              Intrinsic::aarch64_neon_vcmla_rot270} };
 
     if (Accumulator == nullptr)
       Accumulator = ConstantFP::get(Ty, 0);

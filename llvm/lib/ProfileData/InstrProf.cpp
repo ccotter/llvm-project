@@ -43,6 +43,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/SwapByteOrder.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1301,32 +1302,32 @@ void OverlapStats::dump(raw_fd_ostream &OS) const {
   for (unsigned I = 0; I < IPVK_Last - IPVK_First + 1; I++) {
     if (Base.ValueCounts[I] < 1.0f && Test.ValueCounts[I] < 1.0f)
       continue;
-    char ProfileKindName[20];
+    std::array<char, 20> ProfileKindName;
     switch (I) {
     case IPVK_IndirectCallTarget:
-      strncpy(ProfileKindName, "IndirectCall", 19);
+      strncpy(ProfileKindName.begin(), "IndirectCall", 19);
       break;
     case IPVK_MemOPSize:
-      strncpy(ProfileKindName, "MemOP", 19);
+      strncpy(ProfileKindName.begin(), "MemOP", 19);
       break;
     default:
-      snprintf(ProfileKindName, 19, "VP[%d]", I);
+      snprintf(ProfileKindName.begin(), 19, "VP[%d]", I);
       break;
     }
-    OS << "  " << ProfileKindName
+    OS << "  " << ProfileKindName.begin()
        << " profile overlap: " << format("%.3f%%", Overlap.ValueCounts[I] * 100)
        << "\n";
     if (Mismatch.NumEntries)
-      OS << "  Mismatched count percentage (" << ProfileKindName
+      OS << "  Mismatched count percentage (" << ProfileKindName.begin()
          << "): " << format("%.3f%%", Mismatch.ValueCounts[I] * 100) << "\n";
     if (Unique.NumEntries)
-      OS << "  Percentage of " << ProfileKindName
+      OS << "  Percentage of " << ProfileKindName.begin()
          << " profile only in test_profile: "
          << format("%.3f%%", Unique.ValueCounts[I] * 100) << "\n";
-    OS << "  " << ProfileKindName
+    OS << "  " << ProfileKindName.begin()
        << " profile base count sum: " << format("%.0f", Base.ValueCounts[I])
        << "\n"
-       << "  " << ProfileKindName
+       << "  " << ProfileKindName.begin()
        << " profile test count sum: " << format("%.0f", Test.ValueCounts[I])
        << "\n";
   }

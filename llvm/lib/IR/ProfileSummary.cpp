@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/IR/ProfileSummary.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -79,7 +81,7 @@ Metadata *ProfileSummary::getDetailedSummaryMD(LLVMContext &Context) {
 // will decide whether to add a field for it.
 Metadata *ProfileSummary::getMD(LLVMContext &Context, bool AddPartialField,
                                 bool AddPartialProfileRatioField) {
-  const char *KindStr[3] = {"InstrProf", "CSInstrProf", "SampleProfile"};
+  std::array<const char *, 3>KindStr = { {"InstrProf", "CSInstrProf", "SampleProfile"} };
   SmallVector<Metadata *, 16> Components;
   Components.push_back(getKeyValMD(Context, "ProfileFormat", KindStr[PSK]));
   Components.push_back(getKeyValMD(Context, "TotalCount", getTotalCount()));

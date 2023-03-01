@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600.h"
 #include "R600Defines.h"
@@ -211,7 +213,7 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
           Src0 = TRI.getSubReg(Src0, SubRegIndex);
           Src1 = TRI.getSubReg(Src1, SubRegIndex);
         } else if (IsCube) {
-          static const int CubeSrcSwz[] = {2, 2, 0, 1};
+          static const std::array CubeSrcSwz = {2, 2, 0, 1};
           unsigned SubRegIndex0 = R600RegisterInfo::getSubRegFromChannel(CubeSrcSwz[Chan]);
           unsigned SubRegIndex1 = R600RegisterInfo::getSubRegFromChannel(CubeSrcSwz[3 - Chan]);
           Src1 = TRI.getSubReg(Src0, SubRegIndex1);

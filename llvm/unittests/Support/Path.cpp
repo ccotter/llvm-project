@@ -39,6 +39,8 @@
 #ifdef LLVM_ON_UNIX
 #include <pwd.h>
 #include <sys/stat.h>
+
+#include <array>
 #endif
 
 using namespace llvm;
@@ -120,7 +122,7 @@ TEST(get_separator, Works) {
 
 TEST(is_absolute_gnu, Works) {
   // Test tuple <Path, ExpectedPosixValue, ExpectedWindowsValue>.
-  const std::tuple<StringRef, bool, bool> Paths[] = {
+  const std::array<std::tuple<StringRef, bool, bool>, 13> Paths = { {
       std::make_tuple("", false, false),
       std::make_tuple("/", true, true),
       std::make_tuple("/foo", true, true),
@@ -133,7 +135,7 @@ TEST(is_absolute_gnu, Works) {
       std::make_tuple("!:", false, true),
       std::make_tuple("xx:", false, false),
       std::make_tuple("c:abc\\", false, true),
-      std::make_tuple(":", false, false)};
+      std::make_tuple(":", false, false)} };
 
   for (const auto &Path : Paths) {
     EXPECT_EQ(path::is_absolute_gnu(std::get<0>(Path), path::Style::posix),
@@ -1288,8 +1290,8 @@ TEST_F(FileSystemTest, UTF8ToUTF16DirectoryIteration) {
 
 TEST_F(FileSystemTest, Remove) {
   SmallString<64> BaseDir;
-  SmallString<64> Paths[4];
-  int fds[4];
+  std::array<SmallString<64>, 4> Paths;
+  std::array<int, 4> fds;
   ASSERT_NO_ERROR(fs::createUniqueDirectory("fs_remove", BaseDir));
 
   ASSERT_NO_ERROR(fs::create_directories(Twine(BaseDir) + "/foo/bar/baz"));
@@ -1860,8 +1862,8 @@ TEST_F(FileSystemTest, OpenAlways) {
 }
 
 TEST_F(FileSystemTest, AppendSetsCorrectFileOffset) {
-  fs::CreationDisposition Disps[] = {fs::CD_CreateAlways, fs::CD_OpenAlways,
-                                     fs::CD_OpenExisting};
+  std::array<fs::CreationDisposition, 3> Disps = { {fs::CD_CreateAlways, fs::CD_OpenAlways,
+                                     fs::CD_OpenExisting} };
 
   // Write some data and re-open it with every possible disposition (this is a
   // hack that shouldn't work, but is left for compatibility.  OF_Append
@@ -1989,10 +1991,10 @@ TEST_F(FileSystemTest, readNativeFileToEOF) {
   {
     SmallString<0> NoSmall;
     SmallString<fs::DefaultReadChunkSize + Content.size()> StaysSmall;
-    SmallVectorImpl<char> *Vectors[] = {
+    std::array<SmallVectorImpl<char> *, 2>Vectors = { {
         static_cast<SmallVectorImpl<char> *>(&NoSmall),
         static_cast<SmallVectorImpl<char> *>(&StaysSmall),
-    };
+    } };
     for (SmallVectorImpl<char> *V : Vectors) {
       ASSERT_THAT_ERROR(Read(*V, std::nullopt), Succeeded());
       ASSERT_EQ(Content, StringRef(V->begin(), V->size()));

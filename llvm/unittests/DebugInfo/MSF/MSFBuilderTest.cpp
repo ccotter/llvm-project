@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
 #include "llvm/DebugInfo/MSF/MSFCommon.h"
 #include "llvm/Testing/Support/Error.h"
@@ -264,7 +266,7 @@ TEST_F(MSFBuilderTest, TestBlockCountsWhenAddingStreams) {
   EXPECT_EQ(msf::getMinimumBlockCount(), NumUsedBlocks);
   EXPECT_EQ(0U, Msf.getNumFreeBlocks());
 
-  const uint32_t StreamSizes[] = {4000, 6193, 189723};
+  const std::array<uint32_t, 3> StreamSizes = { {4000, 6193, 189723} };
   for (int I = 0; I < 3; ++I) {
     EXPECT_THAT_EXPECTED(Msf.addStream(StreamSizes[I]), Succeeded());
     NumUsedBlocks += bytesToBlocks(StreamSizes[I], 4096);
@@ -280,7 +282,7 @@ TEST_F(MSFBuilderTest, BuildMsfLayout) {
   EXPECT_THAT_EXPECTED(ExpectedMsf, Succeeded());
   auto &Msf = *ExpectedMsf;
 
-  const uint32_t StreamSizes[] = {4000, 6193, 189723};
+  const std::array<uint32_t, 3> StreamSizes = { {4000, 6193, 189723} };
   uint32_t ExpectedNumBlocks = msf::getMinimumBlockCount();
   for (int I = 0; I < 3; ++I) {
     EXPECT_THAT_EXPECTED(Msf.addStream(StreamSizes[I]), Succeeded());

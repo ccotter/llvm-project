@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIISelLowering.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "AMDGPUInstrInfo.h"
 #include "AMDGPUTargetMachine.h"
@@ -2821,8 +2823,8 @@ void SITargetLowering::passSpecialInputs(
   // TODO: Unify with private memory register handling. This is complicated by
   // the fact that at least in kernels, the input argument is not necessarily
   // in the same location as the input.
-  static constexpr std::pair<AMDGPUFunctionArgInfo::PreloadedValue,
-                             StringLiteral> ImplicitAttrs[] = {
+  static constexpr std::array<std::pair<AMDGPUFunctionArgInfo::PreloadedValue,
+                             StringLiteral>, 8> ImplicitAttrs = { {
     {AMDGPUFunctionArgInfo::DISPATCH_PTR, "amdgpu-no-dispatch-ptr"},
     {AMDGPUFunctionArgInfo::QUEUE_PTR, "amdgpu-no-queue-ptr" },
     {AMDGPUFunctionArgInfo::IMPLICIT_ARG_PTR, "amdgpu-no-implicitarg-ptr"},
@@ -2831,7 +2833,7 @@ void SITargetLowering::passSpecialInputs(
     {AMDGPUFunctionArgInfo::WORKGROUP_ID_Y,"amdgpu-no-workgroup-id-y"},
     {AMDGPUFunctionArgInfo::WORKGROUP_ID_Z,"amdgpu-no-workgroup-id-z"},
     {AMDGPUFunctionArgInfo::LDS_KERNEL_ID,"amdgpu-no-lds-kernel-id"},
-  };
+  } };
 
   for (auto Attr : ImplicitAttrs) {
     const ArgDescriptor *OutgoingArg;
@@ -5848,7 +5850,7 @@ SDValue SITargetLowering::lowerEXTRACT_VECTOR_ELT(SDValue Op,
       assert(VecSize == 256);
 
       SDValue V2 = DAG.getBitcast(MVT::v4i64, Vec);
-      SDValue Parts[4];
+      std::array<SDValue, 4> Parts;
       for (unsigned P = 0; P < 4; ++P) {
         Parts[P] = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, SL, MVT::i64, V2,
                                DAG.getConstant(P, SL, MVT::i32));
@@ -6007,7 +6009,7 @@ SDValue SITargetLowering::lowerBUILD_VECTOR(SDValue Op,
                                      VT.getVectorNumElements() / 4);
     MVT QuarterIntVT = MVT::getIntegerVT(QuarterVT.getSizeInBits());
 
-    SmallVector<SDValue, 4> Parts[4];
+    std::array<SmallVector<SDValue, 4>, 4> Parts;
     for (unsigned I = 0, E = VT.getVectorNumElements() / 4; I != E; ++I) {
       for (unsigned P = 0; P < 4; ++P)
         Parts[P].push_back(Op.getOperand(I + P * E));
@@ -11726,7 +11728,7 @@ SDNode *SITargetLowering::adjustWritemask(MachineSDNode *&Node,
   if (D16Idx >= 0 && Node->getConstantOperandVal(D16Idx))
     return Node; // not implemented for D16
 
-  SDNode *Users[5] = { nullptr };
+  std::array<SDNode *, 5>Users = { { nullptr } };
   unsigned Lane = 0;
   unsigned DmaskIdx = AMDGPU::getNamedOperandIdx(Opcode, AMDGPU::OpName::dmask) - 1;
   unsigned OldDmask = Node->getConstantOperandVal(DmaskIdx);

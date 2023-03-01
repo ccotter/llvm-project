@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/IR/Constants.h"
 #include "llvm-c/Core.h"
 #include "llvm/AsmParser/Parser.h"
@@ -546,7 +548,7 @@ TEST(ConstantsTest, DontFoldFunctionPtrAlignUnknownAnd4) {
 TEST(ConstantsTest, FoldFunctionPtrAlign4) {
   LLVMContext Context;
   Module TheModule("TestModule", Context);
-  const char *AlignmentStrings[] = {"Fi32", "Fn32"};
+  std::array<const char *, 2>AlignmentStrings = { {"Fi32", "Fn32"} };
 
   for (unsigned AndValue = 1; AndValue <= 2; ++AndValue) {
     for (const char *AlignmentString : AlignmentStrings) {
@@ -559,7 +561,7 @@ TEST(ConstantsTest, FoldFunctionPtrAlign4) {
 TEST(ConstantsTest, DontFoldFunctionPtrAlign1) {
   LLVMContext Context;
   Module TheModule("TestModule", Context);
-  const char *AlignmentStrings[] = {"Fi8", "Fn8"};
+  std::array<const char *, 2>AlignmentStrings = { {"Fi8", "Fn8"} };
 
   for (const char *AlignmentString : AlignmentStrings) {
     TheModule.setDataLayout(AlignmentString);

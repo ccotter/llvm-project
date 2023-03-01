@@ -36,6 +36,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -1445,7 +1446,7 @@ static Instruction *foldConstantInsEltIntoShuffle(InsertElementInst &InsElt) {
     unsigned NumElts =
         cast<FixedVectorType>(InsElt.getType())->getNumElements();
 
-    uint64_t InsertIdx[2];
+    std::array<uint64_t, 2> InsertIdx;
     Constant *Val[2];
     if (!match(InsElt.getOperand(2), m_ConstantInt(InsertIdx[0])) ||
         !match(InsElt.getOperand(1), m_Constant(Val[0])) ||

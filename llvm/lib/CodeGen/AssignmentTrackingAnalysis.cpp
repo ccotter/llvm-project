@@ -22,6 +22,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <assert.h>
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <sstream>
@@ -921,7 +922,7 @@ public:
       return std::tie(Status, ID) == std::tie(Other.Status, Other.ID);
     }
     void dump(raw_ostream &OS) {
-      static const char *LUT[] = {"Known", "NoneOrPhi"};
+      static std::array<const char *, 2>LUT = { {"Known", "NoneOrPhi"} };
       OS << LUT[Status] << "(id=";
       if (ID)
         OS << ID;

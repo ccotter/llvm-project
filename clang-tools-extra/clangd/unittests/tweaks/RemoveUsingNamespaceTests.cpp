@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TweakTesting.h"
 #include "gmock/gmock-matchers.h"
 #include "gmock/gmock.h"
@@ -18,7 +20,7 @@ namespace {
 TWEAK_TEST(RemoveUsingNamespace);
 
 TEST_F(RemoveUsingNamespaceTest, All) {
-  std::pair<llvm::StringRef /*Input*/, llvm::StringRef /*Expected*/> Cases[] = {
+  std::array<std::pair<llvm::StringRef /*Input*/, llvm::StringRef /*Expected*/>, 15> Cases = { {
       {// Remove all occurrences of ns. Qualify only unqualified.
        R"cpp(
       namespace ns1 { struct vector {}; }
@@ -264,7 +266,7 @@ TEST_F(RemoveUsingNamespaceTest, All) {
       }
       
       int main() { 1.5_w; }
-    )cpp"}};
+    )cpp"}} };
   for (auto C : Cases)
     EXPECT_EQ(C.second, apply(C.first)) << C.first;
 }

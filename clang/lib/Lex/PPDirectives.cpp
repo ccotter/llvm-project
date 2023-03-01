@@ -44,6 +44,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstring>
 #include <new>
@@ -627,7 +628,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
     // Get the identifier name without trigraphs or embedded newlines.  Note
     // that we can't use Tok.getIdentifierInfo() because its lookup is disabled
     // when skipping.
-    char DirectiveBuf[20];
+    std::array<char, 20> DirectiveBuf;
     StringRef Directive;
     if (!Tok.needsCleaning() && RI.size() < 20) {
       Directive = RI;
@@ -640,8 +641,8 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation HashTokenLoc,
         if (CurLexer) CurLexer->resetExtendedTokenMode();
         continue;
       }
-      memcpy(DirectiveBuf, &DirectiveStr[0], IdLen);
-      Directive = StringRef(DirectiveBuf, IdLen);
+      memcpy(DirectiveBuf.begin(), &DirectiveStr[0], IdLen);
+      Directive = StringRef(DirectiveBuf.begin(), IdLen);
     }
 
     if (Directive.startswith("if")) {

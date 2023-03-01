@@ -26,6 +26,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cinttypes>
 #include <cstdint>
@@ -111,8 +112,8 @@ static void dumpAttribute(raw_ostream &OS, const DWARFDie &Die,
                           DIDumpOptions DumpOpts) {
   if (!Die.isValid())
     return;
-  const char BaseIndent[] = "            ";
-  OS << BaseIndent;
+  const std::array<char, 13> BaseIndent = { "            " };
+  OS << BaseIndent.begin();
   OS.indent(Indent + 2);
   dwarf::Attribute Attr = AttrValue.Attr;
   WithColor(OS, HighlightColor::Attribute) << formatv("{0}", Attr);

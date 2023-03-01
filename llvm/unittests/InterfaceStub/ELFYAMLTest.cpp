@@ -13,6 +13,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 
 using namespace llvm;
@@ -35,15 +36,15 @@ void compareByLine(StringRef LHS, StringRef RHS) {
 }
 
 TEST(ElfYamlTextAPI, YAMLReadableTBE) {
-  const char Data[] = "--- !ifs-v1\n"
+  const std::array<char, 211> Data = { "--- !ifs-v1\n"
                       "IfsVersion: 1.0\n"
                       "Target: { ObjectFormat: ELF, Arch: x86_64, Endianness: "
                       "little, BitWidth: 64 }\n"
                       "NeededLibs: [libc.so, libfoo.so, libbar.so]\n"
                       "Symbols:\n"
                       "  - { Name: foo, Type: Func, Undefined: true }\n"
-                      "...\n";
-  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data);
+                      "...\n" };
+  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data.begin());
   ASSERT_THAT_ERROR(StubOrErr.takeError(), Succeeded());
   std::unique_ptr<IFSStub> Stub = std::move(StubOrErr.get());
   EXPECT_NE(Stub.get(), nullptr);
@@ -57,8 +58,8 @@ TEST(ElfYamlTextAPI, YAMLReadableTBE) {
 }
 
 TEST(ElfYamlTextAPI, YAMLReadsTBESymbols) {
-  const char Data[] =
-      "--- !ifs-v1\n"
+  const std::array<char, 423> Data =
+      { "--- !ifs-v1\n"
       "IfsVersion: 1.0\n"
       "SoName: test.so\n"
       "Target: { ObjectFormat: ELF, Arch: x86_64, Endianness: little, "
@@ -70,8 +71,8 @@ TEST(ElfYamlTextAPI, YAMLReadsTBESymbols) {
       "  - { Name: nor, Type: NoType, Undefined: true }\n"
       "  - { Name: not, Type: File, Undefined: true, Size: 111, "
       "Weak: true, Warning: \'All fields populated!\' }\n"
-      "...\n";
-  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data);
+      "...\n" };
+  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data.begin());
   ASSERT_THAT_ERROR(StubOrErr.takeError(), Succeeded());
   std::unique_ptr<IFSStub> Stub = std::move(StubOrErr.get());
   EXPECT_NE(Stub.get(), nullptr);
@@ -124,14 +125,14 @@ TEST(ElfYamlTextAPI, YAMLReadsTBESymbols) {
 }
 
 TEST(ElfYamlTextAPI, YAMLReadsNoTBESyms) {
-  const char Data[] = "--- !ifs-v1\n"
+  const std::array<char, 139> Data = { "--- !ifs-v1\n"
                       "IfsVersion: 1.0\n"
                       "SoName: test.so\n"
                       "Target: { ObjectFormat: ELF, Arch: x86_64, Endianness: "
                       "little, BitWidth: 64 }\n"
                       "Symbols: []\n"
-                      "...\n";
-  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data);
+                      "...\n" };
+  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data.begin());
   ASSERT_THAT_ERROR(StubOrErr.takeError(), Succeeded());
   std::unique_ptr<IFSStub> Stub = std::move(StubOrErr.get());
   EXPECT_NE(Stub.get(), nullptr);
@@ -140,33 +141,33 @@ TEST(ElfYamlTextAPI, YAMLReadsNoTBESyms) {
 
 TEST(ElfYamlTextAPI, YAMLUnreadableTBE) {
   // Can't read: wrong format/version.
-  const char Data[] = "--- !tapi-tbz\n"
+  const std::array<char, 173> Data = { "--- !tapi-tbz\n"
                       "IfsVersion: z.3\n"
                       "SoName: test.so\n"
                       "Target: { ObjectFormat: ELF, Arch: x86_64, Endianness: "
                       "little, BitWidth: 64 }\n"
                       "Symbols:\n"
-                      "  foo: { Type: Func, Undefined: true }\n";
-  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data);
+                      "  foo: { Type: Func, Undefined: true }\n" };
+  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data.begin());
   ASSERT_THAT_ERROR(StubOrErr.takeError(), Failed());
 }
 
 TEST(ElfYamlTextAPI, YAMLUnsupportedVersion) {
-  const char Data[] = "--- !ifs-v1\n"
+  const std::array<char, 141> Data = { "--- !ifs-v1\n"
                       "IfsVersion: 9.9.9\n"
                       "SoName: test.so\n"
                       "Target: { ObjectFormat: ELF, Arch: x86_64, Endianness: "
                       "little, BitWidth: 64 }\n"
                       "Symbols: []\n"
-                      "...\n";
-  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data);
+                      "...\n" };
+  Expected<std::unique_ptr<IFSStub>> StubOrErr = readIFSFromBuffer(Data.begin());
   std::string ErrorMessage = toString(StubOrErr.takeError());
   EXPECT_EQ("IFS version 9.9.9 is unsupported.", ErrorMessage);
 }
 
 TEST(ElfYamlTextAPI, YAMLWritesTBESymbols) {
-  const char Expected[] =
-      "--- !ifs-v1\n"
+  const std::array<char, 344> Expected =
+      { "--- !ifs-v1\n"
       "IfsVersion:      1.0\n"
       "Target:          { ObjectFormat: ELF, Arch: AArch64, Endianness: "
       "little, BitWidth: 64 }\n"
@@ -175,7 +176,7 @@ TEST(ElfYamlTextAPI, YAMLWritesTBESymbols) {
       "  - { Name: foo, Type: NoType, Size: 99, Warning: Does nothing }\n"
       "  - { Name: nor, Type: Func, Undefined: true }\n"
       "  - { Name: not, Type: Unknown, Size: 12345678901234 }\n"
-      "...\n";
+      "...\n" };
   IFSStub Stub;
   Stub.IfsVersion = VersionTuple(1, 0);
   Stub.Target.Arch = ELF::EM_AARCH64;
@@ -221,11 +222,11 @@ TEST(ElfYamlTextAPI, YAMLWritesTBESymbols) {
   raw_string_ostream OS(Result);
   ASSERT_THAT_ERROR(writeIFSToOutputStream(OS, Moved), Succeeded());
   Result = OS.str();
-  compareByLine(Result.c_str(), Expected);
+  compareByLine(Result.c_str(), Expected.begin());
 }
 
 TEST(ElfYamlTextAPI, YAMLWritesNoTBESyms) {
-  const char Expected[] = "--- !ifs-v1\n"
+  const std::array<char, 224> Expected = { "--- !ifs-v1\n"
                           "IfsVersion:      1.0\n"
                           "SoName:          nosyms.so\n"
                           "Target:          { ObjectFormat: ELF, Arch: x86_64, "
@@ -235,7 +236,7 @@ TEST(ElfYamlTextAPI, YAMLWritesNoTBESyms) {
                           "  - libfoo.so\n"
                           "  - libbar.so\n"
                           "Symbols:         []\n"
-                          "...\n";
+                          "...\n" };
   IFSStub Stub;
   Stub.IfsVersion = VersionTuple(1, 0);
   Stub.SoName = "nosyms.so";
@@ -251,5 +252,5 @@ TEST(ElfYamlTextAPI, YAMLWritesNoTBESyms) {
   raw_string_ostream OS(Result);
   ASSERT_THAT_ERROR(writeIFSToOutputStream(OS, Stub), Succeeded());
   Result = OS.str();
-  compareByLine(Result.c_str(), Expected);
+  compareByLine(Result.c_str(), Expected.begin());
 }

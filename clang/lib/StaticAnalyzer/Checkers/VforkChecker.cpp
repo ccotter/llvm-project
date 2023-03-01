@@ -24,6 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
@@ -98,7 +100,7 @@ bool VforkChecker::isCallExplicitelyAllowed(const IdentifierInfo *II,
                                             CheckerContext &C) const {
   if (VforkAllowlist.empty()) {
     // According to manpage.
-    const char *ids[] = {
+    std::array<const char *, 10>ids = { {
       "_Exit",
       "_exit",
       "execl",
@@ -109,10 +111,10 @@ bool VforkChecker::isCallExplicitelyAllowed(const IdentifierInfo *II,
       "execvp",
       "execvpe",
       nullptr
-    };
+    } };
 
     ASTContext &AC = C.getASTContext();
-    for (const char **id = ids; *id; ++id)
+    for (const char **id = ids.begin(); *id; ++id)
       VforkAllowlist.insert(&AC.Idents.get(*id));
   }
 

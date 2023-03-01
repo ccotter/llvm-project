@@ -50,6 +50,8 @@
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
+
+#include <array>
 #else
 #include <io.h>
 #endif
@@ -80,8 +82,8 @@ static void printRanLibHelp(StringRef ToolName) {
 }
 
 static void printArHelp(StringRef ToolName) {
-  const char ArOptions[] =
-      R"(OPTIONS:
+  const std::array<char, 1897> ArOptions =
+      { R"(OPTIONS:
   --format              - archive format to create
     =default            -   default
     =gnu                -   gnu
@@ -129,7 +131,7 @@ MODIFIERS:
   [U] - use actual timestamps and uids/gids
   [v] - be verbose about actions taken
   [V] - display the version and exit
-)";
+)" };
 
   outs() << "OVERVIEW: LLVM Archiver\n\n"
          << "USAGE: " + ToolName +
@@ -137,7 +139,7 @@ MODIFIERS:
                 "[count] <archive> [files]\n"
          << "       " + ToolName + " -M [<mri-script]\n\n";
 
-  outs() << ArOptions;
+  outs() << ArOptions.begin();
 }
 
 static void printHelpMessage() {

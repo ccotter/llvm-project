@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -2404,8 +2406,8 @@ TEST(YAMLIO, SequenceElideTest) {
   // default followed by other data is properly read back in.
   OptionalTestSeq Seq;
   OptionalTest One, Two, Three, Four;
-  int N[] = {1, 2, 3};
-  Three.Numbers.assign(N, N + 3);
+  std::array N = {1, 2, 3};
+  Three.Numbers.assign(N.begin(), N.begin() + 3);
   Seq.Tests.push_back(One);
   Seq.Tests.push_back(Two);
   Seq.Tests.push_back(Three);
@@ -2803,11 +2805,11 @@ TEST(YAMLIO, TestEscaped) {
   // unicode-scalar level escape like \uNNNN (at the YAML level), and don't
   // just pass the UTF-8 byte sequence through as with quoted printables.
   {
-    const unsigned char foobar[10] = {'f', 'o', 'o',
+    const std::array<unsigned char, 10> foobar = { {'f', 'o', 'o',
                                       0xE2, 0x80, 0x8B, // UTF-8 of U+200B
                                       'b', 'a', 'r',
-                                      0x0};
-    TestEscaped((char const *)foobar, "\"foo\\u200Bbar\"");
+                                      0x0} };
+    TestEscaped((char const *)foobar.begin(), "\"foo\\u200Bbar\"");
   }
 }
 

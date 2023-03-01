@@ -54,6 +54,7 @@
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <memory>
 #include <string>
@@ -1131,7 +1132,7 @@ private:
 
     // Values that will be used to determine if result of logical
     // operator is always true/false
-    const llvm::APSInt Values[] = {
+    const std::array<llvm::APSInt, 5> Values = { {
       // Value less than both Value1 and Value2
       llvm::APSInt::getMinValue(L1.getBitWidth(), L1.isUnsigned()),
       // L1
@@ -1143,7 +1144,7 @@ private:
       L2,
       // Value greater than both Value1 and Value2
       llvm::APSInt::getMaxValue(L1.getBitWidth(), L1.isUnsigned()),
-    };
+    } };
 
     // Check whether expression is always true/false by evaluating the following
     // * variable x is less than the smallest literal.

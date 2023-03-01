@@ -11,6 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TargetInfo/XCoreTargetInfo.h"
 #include "XCore.h"
 #include "XCoreRegisterInfo.h"
@@ -198,9 +200,9 @@ static DecodeStatus DecodeBitpOperand(MCInst &Inst, unsigned Val,
                                       const MCDisassembler *Decoder) {
   if (Val > 11)
     return MCDisassembler::Fail;
-  static const unsigned Values[] = {
+  static const std::array<unsigned, 12> Values = { {
     32 /*bpw*/, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32
-  };
+  } };
   Inst.addOperand(MCOperand::createImm(Values[Val]));
   return MCDisassembler::Success;
 }

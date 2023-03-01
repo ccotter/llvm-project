@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "VEInstrInfo.h"
+
+#include <array>
 #include "VE.h"
 #include "VEMachineFunctionInfo.h"
 #include "VESubtarget.h"
@@ -244,7 +246,7 @@ unsigned VEInstrInfo::insertBranch(MachineBasicBlock &MBB,
   //   (BRCFir CC sy sz addr)
   assert(Cond[0].isImm() && Cond[2].isReg() && "not implemented");
 
-  unsigned opc[2];
+  std::array<unsigned, 2> opc;
   const TargetRegisterInfo *TRI = &getRegisterInfo();
   MachineFunction *MF = MBB.getParent();
   const MachineRegisterInfo &MRI = MF->getRegInfo();
@@ -390,16 +392,16 @@ void VEInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         .addReg(SrcReg, getKillRegState(KillSrc));
   } else if (VE::VM512RegClass.contains(DestReg, SrcReg)) {
     // Use two instructions.
-    const unsigned SubRegIdx[] = {VE::sub_vm_even, VE::sub_vm_odd};
+    const std::array<unsigned, 2> SubRegIdx = { {VE::sub_vm_even, VE::sub_vm_odd} };
     unsigned int NumSubRegs = 2;
     copyPhysSubRegs(MBB, I, DL, DestReg, SrcReg, KillSrc, get(VE::ANDMmm),
-                    NumSubRegs, SubRegIdx, &getRegisterInfo());
+                    NumSubRegs, SubRegIdx.begin(), &getRegisterInfo());
   } else if (VE::F128RegClass.contains(DestReg, SrcReg)) {
     // Use two instructions.
-    const unsigned SubRegIdx[] = {VE::sub_even, VE::sub_odd};
+    const std::array<unsigned, 2> SubRegIdx = { {VE::sub_even, VE::sub_odd} };
     unsigned int NumSubRegs = 2;
     copyPhysSubRegs(MBB, I, DL, DestReg, SrcReg, KillSrc, get(VE::ORri),
-                    NumSubRegs, SubRegIdx, &getRegisterInfo());
+                    NumSubRegs, SubRegIdx.begin(), &getRegisterInfo());
   } else {
     const TargetRegisterInfo *TRI = &getRegisterInfo();
     dbgs() << "Impossible reg-to-reg copy from " << printReg(SrcReg, TRI)

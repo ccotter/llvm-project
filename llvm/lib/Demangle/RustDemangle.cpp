@@ -16,6 +16,7 @@
 #include "llvm/Demangle/Utility.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -1122,8 +1123,8 @@ static bool decodePunycode(StringView Input, OutputBuffer &Output) {
       if (!isValid(C))
         return false;
       // Code points are padded with zeros while decoding is in progress.
-      char UTF8[4] = {C};
-      Output += StringView(UTF8, UTF8 + 4);
+      std::array<char, 4> UTF8 = { {C} };
+      Output += StringView(UTF8.begin(), UTF8.begin() + 4);
     }
     // Skip over the delimiter.
     ++InputIdx;
@@ -1191,10 +1192,10 @@ static bool decodePunycode(StringView Input, OutputBuffer &Output) {
     I = I % NumPoints;
 
     // Insert N at position I in the output.
-    char UTF8[4] = {};
-    if (!encodeUTF8(N, UTF8))
+    std::array<char, 4> UTF8 = { {} };
+    if (!encodeUTF8(N, UTF8.begin()))
       return false;
-    Output.insert(OutputSize + I * 4, UTF8, 4);
+    Output.insert(OutputSize + I * 4, UTF8.begin(), 4);
   }
 
   removeNullBytes(Output, OutputSize);

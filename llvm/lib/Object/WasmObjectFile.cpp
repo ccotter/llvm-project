@@ -26,6 +26,7 @@
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -1966,7 +1967,7 @@ bool WasmSectionOrderChecker::isValidSectionOrder(unsigned ID,
   SmallVector<int, WASM_NUM_SEC_ORDERS> WorkList;
 
   // Keep track of completed checks to avoid repeating work
-  bool Checked[WASM_NUM_SEC_ORDERS] = {};
+  std::array<bool, WASM_NUM_SEC_ORDERS> Checked = { {} };
 
   int Curr = Order;
   while (true) {

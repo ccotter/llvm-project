@@ -47,6 +47,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
 #include "llvm/Transforms/Instrumentation/AddressSanitizerCommon.h"
+#include <array>
 #include <string>
 
 using namespace llvm;
@@ -1594,10 +1595,10 @@ void X86AsmPrinter::LowerPATCHABLE_EVENT_CALL(const MachineInstr &MI,
 
   // The default C calling convention will place two arguments into %rcx and
   // %rdx -- so we only work with those.
-  const Register DestRegs[] = {X86::RDI, X86::RSI};
-  bool UsedMask[] = {false, false};
+  const std::array<Register, 2> DestRegs = { {X86::RDI, X86::RSI} };
+  std::array UsedMask = {false, false};
   // Filled out in loop.
-  Register SrcRegs[] = {0, 0};
+  std::array<Register, 2> SrcRegs = { {0, 0} };
 
   // Then we put the operands in the %rdi and %rsi registers. We spill the
   // values in the register before we clobber them, and mark them as used in
@@ -1691,11 +1692,11 @@ void X86AsmPrinter::LowerPATCHABLE_TYPED_EVENT_CALL(const MachineInstr &MI,
   // An x86-64 convention may place three arguments into %rcx, %rdx, and R8,
   // so we'll work with those. Or we may be called via SystemV, in which case
   // we don't have to do any translation.
-  const Register DestRegs[] = {X86::RDI, X86::RSI, X86::RDX};
-  bool UsedMask[] = {false, false, false};
+  const std::array<Register, 3> DestRegs = { {X86::RDI, X86::RSI, X86::RDX} };
+  std::array UsedMask = {false, false, false};
 
   // Will fill out src regs in the loop.
-  Register SrcRegs[] = {0, 0, 0};
+  std::array<Register, 3> SrcRegs = { {0, 0, 0} };
 
   // Then we put the operands in the SystemV registers. We spill the values in
   // the registers before we clobber them, and mark them as used in UsedMask.

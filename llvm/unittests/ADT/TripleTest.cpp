@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/VersionTuple.h"
 #include "gtest/gtest.h"
@@ -940,12 +942,12 @@ TEST(TripleTest, Normalization) {
   auto FirstVendorType = Triple::VendorType(Triple::UnknownVendor + 1);
   auto FirstOSType = Triple::OSType(Triple::UnknownOS + 1);
   auto FirstEnvType = Triple::EnvironmentType(Triple::UnknownEnvironment + 1);
-  StringRef InitialC[] = {Triple::getArchTypeName(FirstArchType),
+  std::array InitialC = {Triple::getArchTypeName(FirstArchType),
                           Triple::getVendorTypeName(FirstVendorType),
                           Triple::getOSTypeName(FirstOSType),
                           Triple::getEnvironmentTypeName(FirstEnvType)};
   for (int Arch = FirstArchType; Arch <= Triple::LastArchType; ++Arch) {
-    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    std::array C = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
     C[0] = Triple::getArchTypeName(Triple::ArchType(Arch));
     std::string E = Join(C[0], C[1], C[2]);
     int I[] = {0, 1, 2};
@@ -960,7 +962,7 @@ TEST(TripleTest, Normalization) {
   }
   for (int Vendor = FirstVendorType; Vendor <= Triple::LastVendorType;
        ++Vendor) {
-    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    std::array C = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
     C[1] = Triple::getVendorTypeName(Triple::VendorType(Vendor));
     std::string E = Join(C[0], C[1], C[2]);
     int I[] = {0, 1, 2};
@@ -976,7 +978,7 @@ TEST(TripleTest, Normalization) {
   for (int OS = FirstOSType; OS <= Triple::LastOSType; ++OS) {
     if (OS == Triple::Win32)
       continue;
-    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    std::array C = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
     C[2] = Triple::getOSTypeName(Triple::OSType(OS));
     std::string E = Join(C[0], C[1], C[2]);
     int I[] = {0, 1, 2};
@@ -990,7 +992,7 @@ TEST(TripleTest, Normalization) {
     } while (std::next_permutation(std::begin(J), std::end(J)));
   }
   for (int Env = FirstEnvType; Env <= Triple::LastEnvironmentType; ++Env) {
-    StringRef C[] = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
+    std::array C = {InitialC[0], InitialC[1], InitialC[2], InitialC[3]};
     C[3] = Triple::getEnvironmentTypeName(Triple::EnvironmentType(Env));
     std::string F = Join(C[0], C[1], C[2], C[3]);
     int J[] = {0, 1, 2, 3};

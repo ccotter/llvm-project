@@ -34,6 +34,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetOptions.h"
+#include <array>
 #include <cstdlib>
 
 #define DEBUG_TYPE "x86-fl"
@@ -3347,7 +3348,7 @@ bool X86FrameLowering::adjustStackWithPops(MachineBasicBlock &MBB,
   if (!Prev->isCall() || !Prev->getOperand(1).isRegMask())
     return false;
 
-  unsigned Regs[2];
+  std::array<unsigned, 2> Regs;
   unsigned FoundRegs = 0;
 
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();

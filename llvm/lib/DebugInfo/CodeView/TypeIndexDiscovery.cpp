@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -44,7 +46,7 @@ static inline uint32_t getEncodedIntegerLength(ArrayRef<uint8_t> Data) {
 
   assert(N <= LF_UQUADWORD);
 
-  constexpr uint32_t Sizes[] = {
+  constexpr std::array<uint32_t, 11> Sizes = { {
       1,  // LF_CHAR
       2,  // LF_SHORT
       2,  // LF_USHORT
@@ -56,7 +58,7 @@ static inline uint32_t getEncodedIntegerLength(ArrayRef<uint8_t> Data) {
       16, // LF_REAL128
       8,  // LF_QUADWORD
       8,  // LF_UQUADWORD
-  };
+  } };
 
   return 2 + Sizes[N - LF_NUMERIC];
 }

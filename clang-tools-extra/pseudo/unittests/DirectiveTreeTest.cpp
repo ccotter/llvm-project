@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang-pseudo/DirectiveTree.h"
 
 #include "clang-pseudo/Token.h"
@@ -158,7 +160,7 @@ TEST(DirectiveTree, ParseBroken) {
 
 TEST(DirectiveTree, ChooseBranches) {
   LangOptions Opts;
-  const std::string Cases[] = {
+  const std::array<std::string, 9> Cases = { {
       R"cpp(
         // Branches with no alternatives are taken
         #if COND // TAKEN
@@ -287,7 +289,7 @@ TEST(DirectiveTree, ChooseBranches) {
           #endif
         #endif
       )cpp",
-  };
+  } };
   for (const auto &Code : Cases) {
     TokenStream S = cook(lex(Code, Opts), Opts);
 

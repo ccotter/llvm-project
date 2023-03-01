@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/CodeGen/IntrinsicLowering.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
@@ -148,11 +150,11 @@ static Value *LowerBSWAP(LLVMContext &Context, Value *V, Instruction *IP) {
 static Value *LowerCTPOP(LLVMContext &Context, Value *V, Instruction *IP) {
   assert(V->getType()->isIntegerTy() && "Can't ctpop a non-integer type!");
 
-  static const uint64_t MaskValues[6] = {
+  static const std::array<uint64_t, 6> MaskValues = { {
     0x5555555555555555ULL, 0x3333333333333333ULL,
     0x0F0F0F0F0F0F0F0FULL, 0x00FF00FF00FF00FFULL,
     0x0000FFFF0000FFFFULL, 0x00000000FFFFFFFFULL
-  };
+  } };
 
   IRBuilder<> Builder(IP);
 
@@ -337,22 +339,22 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     Type *IntPtr = DL.getIntPtrType(Context);
     Value *Size = Builder.CreateIntCast(CI->getArgOperand(2), IntPtr,
                                         /* isSigned */ false);
-    Value *Ops[3];
+    std::array<Value *, 3>Ops;
     Ops[0] = CI->getArgOperand(0);
     Ops[1] = CI->getArgOperand(1);
     Ops[2] = Size;
-    ReplaceCallWith("memcpy", CI, Ops, Ops+3, CI->getArgOperand(0)->getType());
+    ReplaceCallWith("memcpy", CI, Ops.begin(), Ops.begin()+3, CI->getArgOperand(0)->getType());
     break;
   }
   case Intrinsic::memmove: {
     Type *IntPtr = DL.getIntPtrType(Context);
     Value *Size = Builder.CreateIntCast(CI->getArgOperand(2), IntPtr,
                                         /* isSigned */ false);
-    Value *Ops[3];
+    std::array<Value *, 3>Ops;
     Ops[0] = CI->getArgOperand(0);
     Ops[1] = CI->getArgOperand(1);
     Ops[2] = Size;
-    ReplaceCallWith("memmove", CI, Ops, Ops+3, CI->getArgOperand(0)->getType());
+    ReplaceCallWith("memmove", CI, Ops.begin(), Ops.begin()+3, CI->getArgOperand(0)->getType());
     break;
   }
   case Intrinsic::memset: {
@@ -360,14 +362,14 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
     Type *IntPtr = DL.getIntPtrType(Op0->getType());
     Value *Size = Builder.CreateIntCast(CI->getArgOperand(2), IntPtr,
                                         /* isSigned */ false);
-    Value *Ops[3];
+    std::array<Value *, 3>Ops;
     Ops[0] = Op0;
     // Extend the amount to i32.
     Ops[1] = Builder.CreateIntCast(CI->getArgOperand(1),
                                    Type::getInt32Ty(Context),
                                    /* isSigned */ false);
     Ops[2] = Size;
-    ReplaceCallWith("memset", CI, Ops, Ops+3, CI->getArgOperand(0)->getType());
+    ReplaceCallWith("memset", CI, Ops.begin(), Ops.begin()+3, CI->getArgOperand(0)->getType());
     break;
   }
   case Intrinsic::sqrt: {

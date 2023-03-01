@@ -43,6 +43,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
+#include <array>
 #include <iterator>
 #include <list>
 #include <set>
@@ -5015,13 +5016,13 @@ static void AddKeywordsToConsumer(Sema &SemaRef,
 
   if (CCC.WantTypeSpecifiers) {
     // Add type-specifier keywords to the set of results.
-    static const char *const CTypeSpecs[] = {
+    static const std::array<const char *, 20>CTypeSpecs = { {
       "char", "const", "double", "enum", "float", "int", "long", "short",
       "signed", "struct", "union", "unsigned", "void", "volatile",
       "_Complex", "_Imaginary",
       // storage-specifiers as well
       "extern", "inline", "static", "typedef"
-    };
+    } };
 
     for (const auto *CTS : CTypeSpecs)
       Consumer.addKeywordResult(CTS);
@@ -5050,10 +5051,10 @@ static void AddKeywordsToConsumer(Sema &SemaRef,
     if (SemaRef.getLangOpts().GNUKeywords)
       Consumer.addKeywordResult("typeof");
   } else if (CCC.WantFunctionLikeCasts) {
-    static const char *const CastableTypeSpecs[] = {
+    static const std::array<const char *, 9>CastableTypeSpecs = { {
       "char", "double", "float", "int", "long", "short",
       "signed", "unsigned", "void"
-    };
+    } };
     for (auto *kw : CastableTypeSpecs)
       Consumer.addKeywordResult(kw);
   }
@@ -5073,9 +5074,9 @@ static void AddKeywordsToConsumer(Sema &SemaRef,
     }
 
     if (SemaRef.getLangOpts().CPlusPlus) {
-      static const char *const CXXExprs[] = {
+      static const std::array<const char *, 5>CXXExprs = { {
         "delete", "new", "operator", "throw", "typeid"
-      };
+      } };
       for (const auto *CE : CXXExprs)
         Consumer.addKeywordResult(CE);
 
@@ -5099,8 +5100,8 @@ static void AddKeywordsToConsumer(Sema &SemaRef,
   if (CCC.WantRemainingKeywords) {
     if (SemaRef.getCurFunctionOrMethodDecl() || SemaRef.getCurBlock()) {
       // Statements.
-      static const char *const CStmts[] = {
-        "do", "else", "for", "goto", "if", "return", "switch", "while" };
+      static const std::array<const char *, 8>CStmts = { {
+        "do", "else", "for", "goto", "if", "return", "switch", "while" } };
       for (const auto *CS : CStmts)
         Consumer.addKeywordResult(CS);
 

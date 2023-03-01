@@ -69,6 +69,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation.h"
+#include <array>
 #include <cerrno>
 #include <optional>
 
@@ -1170,8 +1171,8 @@ Expected<std::unique_ptr<orc::ExecutorProcessControl>> launchRemote() {
       ChildOut[ChildOutStr.size()] = '\0';
     }
 
-    char * const args[] = { &ChildPath[0], &ChildIn[0], &ChildOut[0], nullptr };
-    int rc = execv(ChildExecPath.c_str(), args);
+    const std::array<char *, 4> args = { { &ChildPath[0], &ChildIn[0], &ChildOut[0], nullptr } };
+    int rc = execv(ChildExecPath.c_str(), args.begin());
     if (rc != 0)
       perror("Error executing child process: ");
     llvm_unreachable("Error executing child process");

@@ -29,6 +29,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
@@ -787,7 +789,7 @@ ExprResult ObjCPropertyOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
   }
 
   // Arguments.
-  Expr *args[] = { op };
+  std::array args = { op };
 
   // Build a message-send.
   ExprResult msg;
@@ -797,12 +799,12 @@ ExprResult ObjCPropertyOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
       RefExpr->isObjectReceiver()) {
     msg = S.BuildInstanceMessageImplicit(InstanceReceiver, receiverType,
                                          GenericLoc, SetterSelector, Setter,
-                                         MultiExprArg(args, 1));
+                                         MultiExprArg(args.begin(), 1));
   } else {
     msg = S.BuildClassMessageImplicit(receiverType, RefExpr->isSuperReceiver(),
                                       GenericLoc,
                                       SetterSelector, Setter,
-                                      MultiExprArg(args, 1));
+                                      MultiExprArg(args.begin(), 1));
   }
 
   if (!msg.isInvalid() && captureSetValueAsResult) {
@@ -1121,10 +1123,10 @@ static void CheckKeyForObjCARCConversion(Sema &S, QualType ContainerT,
     return;
   // dictionary subscripting.
   // - (id)objectForKeyedSubscript:(id)key;
-  IdentifierInfo *KeyIdents[] = {
+  std::array KeyIdents = {
     &S.Context.Idents.get("objectForKeyedSubscript")
   };
-  Selector GetterSelector = S.Context.Selectors.getSelector(1, KeyIdents);
+  Selector GetterSelector = S.Context.Selectors.getSelector(1, KeyIdents.begin());
   ObjCMethodDecl *Getter = S.LookupMethodInObjectType(GetterSelector, ContainerT,
                                                       true /*instance*/);
   if (!Getter)
@@ -1164,18 +1166,18 @@ bool ObjCSubscriptOpBuilder::findAtIndexGetter() {
   if (!arrayRef) {
     // dictionary subscripting.
     // - (id)objectForKeyedSubscript:(id)key;
-    IdentifierInfo *KeyIdents[] = {
+    std::array KeyIdents = {
       &S.Context.Idents.get("objectForKeyedSubscript")
     };
-    AtIndexGetterSelector = S.Context.Selectors.getSelector(1, KeyIdents);
+    AtIndexGetterSelector = S.Context.Selectors.getSelector(1, KeyIdents.begin());
   }
   else {
     // - (id)objectAtIndexedSubscript:(size_t)index;
-    IdentifierInfo *KeyIdents[] = {
+    std::array KeyIdents = {
       &S.Context.Idents.get("objectAtIndexedSubscript")
     };
 
-    AtIndexGetterSelector = S.Context.Selectors.getSelector(1, KeyIdents);
+    AtIndexGetterSelector = S.Context.Selectors.getSelector(1, KeyIdents.begin());
   }
 
   AtIndexGetter = S.LookupMethodInObjectType(AtIndexGetterSelector, ResultType,
@@ -1269,19 +1271,19 @@ bool ObjCSubscriptOpBuilder::findAtIndexSetter() {
   if (!arrayRef) {
     // dictionary subscripting.
     // - (void)setObject:(id)object forKeyedSubscript:(id)key;
-    IdentifierInfo *KeyIdents[] = {
+    std::array KeyIdents = {
       &S.Context.Idents.get("setObject"),
       &S.Context.Idents.get("forKeyedSubscript")
     };
-    AtIndexSetterSelector = S.Context.Selectors.getSelector(2, KeyIdents);
+    AtIndexSetterSelector = S.Context.Selectors.getSelector(2, KeyIdents.begin());
   }
   else {
     // - (void)setObject:(id)object atIndexedSubscript:(NSInteger)index;
-    IdentifierInfo *KeyIdents[] = {
+    std::array KeyIdents = {
       &S.Context.Idents.get("setObject"),
       &S.Context.Idents.get("atIndexedSubscript")
     };
-    AtIndexSetterSelector = S.Context.Selectors.getSelector(2, KeyIdents);
+    AtIndexSetterSelector = S.Context.Selectors.getSelector(2, KeyIdents.begin());
   }
   AtIndexSetter = S.LookupMethodInObjectType(AtIndexSetterSelector, ResultType,
                                              true /*instance*/);
@@ -1383,14 +1385,14 @@ ExprResult ObjCSubscriptOpBuilder::buildGet() {
   Expr *Index = InstanceKey;
 
   // Arguments.
-  Expr *args[] = { Index };
+  std::array args = { Index };
   assert(InstanceBase);
   if (AtIndexGetter)
     S.DiagnoseUseOfDecl(AtIndexGetter, GenericLoc);
   msg = S.BuildInstanceMessageImplicit(InstanceBase, receiverType,
                                        GenericLoc,
                                        AtIndexGetterSelector, AtIndexGetter,
-                                       MultiExprArg(args, 1));
+                                       MultiExprArg(args.begin(), 1));
   return msg;
 }
 
@@ -1409,14 +1411,14 @@ ExprResult ObjCSubscriptOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
   Expr *Index = InstanceKey;
 
   // Arguments.
-  Expr *args[] = { op, Index };
+  std::array args = { op, Index };
 
   // Build a message-send.
   ExprResult msg = S.BuildInstanceMessageImplicit(InstanceBase, receiverType,
                                                   GenericLoc,
                                                   AtIndexSetterSelector,
                                                   AtIndexSetter,
-                                                  MultiExprArg(args, 2));
+                                                  MultiExprArg(args.begin(), 2));
 
   if (!msg.isInvalid() && captureSetValueAsResult) {
     ObjCMessageExpr *msgExpr =

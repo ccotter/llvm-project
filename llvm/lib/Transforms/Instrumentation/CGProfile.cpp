@@ -18,6 +18,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Transforms/Instrumentation.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -82,14 +83,14 @@ static bool runCGProfilePass(
         if (!CB)
           continue;
         if (CB->isIndirectCall()) {
-          InstrProfValueData ValueData[8];
+          std::array<InstrProfValueData, 8> ValueData;
           uint32_t ActualNumValueData;
           uint64_t TotalC;
           if (!getValueProfDataFromInst(*CB, IPVK_IndirectCallTarget, 8,
-                                        ValueData, ActualNumValueData, TotalC))
+                                        ValueData.begin(), ActualNumValueData, TotalC))
             continue;
           for (const auto &VD :
-               ArrayRef<InstrProfValueData>(ValueData, ActualNumValueData)) {
+               ArrayRef<InstrProfValueData>(ValueData.begin(), ActualNumValueData)) {
             UpdateCounts(TTI, &F, Symtab.getFunction(VD.Value), VD.Count);
           }
           continue;

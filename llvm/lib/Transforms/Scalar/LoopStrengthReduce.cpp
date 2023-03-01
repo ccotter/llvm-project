@@ -117,6 +117,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -4292,9 +4293,9 @@ void LSRInstance::GenerateCrossUseConstantOffsets() {
       // If the result is negative and First is odd and Last even (or vice versa),
       // we rounded towards -inf. Add 1 in that case, to round towards 0.
       Avg = Avg + ((First ^ Last) & ((uint64_t)Avg >> 63));
-      ImmMapTy::const_iterator OtherImms[] = {
+      std::array<ImmMapTy::const_iterator, 3> OtherImms = { {
           Imms.begin(), std::prev(Imms.end()),
-         Imms.lower_bound(Avg)};
+         Imms.lower_bound(Avg)} };
       for (const auto &M : OtherImms) {
         if (M == J || M == JE) continue;
 
@@ -6038,9 +6039,9 @@ struct SCEVDbgValueBuilder {
     const llvm::Type *Type = C->getType();
     uint64_t ToWidth = Type->getIntegerBitWidth();
     bool Success = pushSCEV(Inner);
-    uint64_t CastOps[] = {dwarf::DW_OP_LLVM_convert, ToWidth,
+    std::array<uint64_t, 3> CastOps = { {dwarf::DW_OP_LLVM_convert, ToWidth,
                           IsSigned ? llvm::dwarf::DW_ATE_signed
-                                   : llvm::dwarf::DW_ATE_unsigned};
+                                   : llvm::dwarf::DW_ATE_unsigned} };
     for (const auto &Op : CastOps)
       pushOperator(Op);
     return Success;

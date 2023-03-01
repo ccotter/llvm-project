@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "WebAssemblyISelLowering.h"
+
+#include <array>
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "Utils/WebAssemblyTypeUtilities.h"
 #include "Utils/WebAssemblyUtilities.h"
@@ -2110,7 +2112,7 @@ SDValue WebAssemblyTargetLowering::LowerBUILD_VECTOR(SDValue Op,
       Src2 = DAG.getBitcast(VecT, Src2);
     }
 
-    int Mask[16];
+    std::array<int, 16> Mask;
     assert(DestLaneCount <= 16);
     for (size_t I = 0; I < DestLaneCount; ++I) {
       const SDValue &Lane = Op->getOperand(I);
@@ -2123,7 +2125,7 @@ SDValue WebAssemblyTargetLowering::LowerBUILD_VECTOR(SDValue Op,
         Mask[I] = -1;
       }
     }
-    ArrayRef<int> MaskRef(Mask, DestLaneCount);
+    ArrayRef<int> MaskRef(Mask.begin(), DestLaneCount);
     Result = DAG.getVectorShuffle(VecT, DL, Src1, Src2, MaskRef);
     IsLaneConstructed = [&](size_t, const SDValue &Lane) {
       auto Src = GetShuffleSrc(Lane);

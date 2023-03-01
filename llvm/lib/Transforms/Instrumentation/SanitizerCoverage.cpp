@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -901,8 +903,8 @@ void ModuleSanitizerCoverage::InjectTraceForLoadsAndStores(
            : TypeSize == 128 ? 4
                              : -1;
   };
-  Type *PointerType[5] = {Int8PtrTy, Int16PtrTy, Int32PtrTy, Int64PtrTy,
-                          Int128PtrTy};
+  std::array<Type *, 5>PointerType = { {Int8PtrTy, Int16PtrTy, Int32PtrTy, Int64PtrTy,
+                          Int128PtrTy} };
   for (auto *LI : Loads) {
     IRBuilder<> IRB(LI);
     auto Ptr = LI->getPointerOperand();

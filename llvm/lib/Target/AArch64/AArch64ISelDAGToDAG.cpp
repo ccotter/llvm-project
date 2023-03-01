@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AArch64MachineFunctionInfo.h"
 #include "AArch64TargetMachine.h"
 #include "MCTargetDesc/AArch64AddressingModes.h"
@@ -1395,31 +1397,31 @@ bool AArch64DAGToDAGISel::SelectAddrModeXRO(SDValue N, unsigned Size,
 }
 
 SDValue AArch64DAGToDAGISel::createDTuple(ArrayRef<SDValue> Regs) {
-  static const unsigned RegClassIDs[] = {
-      AArch64::DDRegClassID, AArch64::DDDRegClassID, AArch64::DDDDRegClassID};
-  static const unsigned SubRegs[] = {AArch64::dsub0, AArch64::dsub1,
-                                     AArch64::dsub2, AArch64::dsub3};
+  static const std::array<unsigned, 3> RegClassIDs = { {
+      AArch64::DDRegClassID, AArch64::DDDRegClassID, AArch64::DDDDRegClassID} };
+  static const std::array<unsigned, 4> SubRegs = { {AArch64::dsub0, AArch64::dsub1,
+                                     AArch64::dsub2, AArch64::dsub3} };
 
-  return createTuple(Regs, RegClassIDs, SubRegs);
+  return createTuple(Regs, RegClassIDs.begin(), SubRegs.begin());
 }
 
 SDValue AArch64DAGToDAGISel::createQTuple(ArrayRef<SDValue> Regs) {
-  static const unsigned RegClassIDs[] = {
-      AArch64::QQRegClassID, AArch64::QQQRegClassID, AArch64::QQQQRegClassID};
-  static const unsigned SubRegs[] = {AArch64::qsub0, AArch64::qsub1,
-                                     AArch64::qsub2, AArch64::qsub3};
+  static const std::array<unsigned, 3> RegClassIDs = { {
+      AArch64::QQRegClassID, AArch64::QQQRegClassID, AArch64::QQQQRegClassID} };
+  static const std::array<unsigned, 4> SubRegs = { {AArch64::qsub0, AArch64::qsub1,
+                                     AArch64::qsub2, AArch64::qsub3} };
 
-  return createTuple(Regs, RegClassIDs, SubRegs);
+  return createTuple(Regs, RegClassIDs.begin(), SubRegs.begin());
 }
 
 SDValue AArch64DAGToDAGISel::createZTuple(ArrayRef<SDValue> Regs) {
-  static const unsigned RegClassIDs[] = {AArch64::ZPR2RegClassID,
+  static const std::array<unsigned, 3> RegClassIDs = { {AArch64::ZPR2RegClassID,
                                          AArch64::ZPR3RegClassID,
-                                         AArch64::ZPR4RegClassID};
-  static const unsigned SubRegs[] = {AArch64::zsub0, AArch64::zsub1,
-                                     AArch64::zsub2, AArch64::zsub3};
+                                         AArch64::ZPR4RegClassID} };
+  static const std::array<unsigned, 4> SubRegs = { {AArch64::zsub0, AArch64::zsub1,
+                                     AArch64::zsub2, AArch64::zsub3} };
 
-  return createTuple(Regs, RegClassIDs, SubRegs);
+  return createTuple(Regs, RegClassIDs.begin(), SubRegs.begin());
 }
 
 SDValue AArch64DAGToDAGISel::createTuple(ArrayRef<SDValue> Regs,
@@ -1835,8 +1837,8 @@ void AArch64DAGToDAGISel::SelectLoadLane(SDNode *N, unsigned NumVecs,
   SDValue SuperReg = SDValue(Ld, 0);
 
   EVT WideVT = RegSeq.getOperand(1)->getValueType(0);
-  static const unsigned QSubs[] = { AArch64::qsub0, AArch64::qsub1,
-                                    AArch64::qsub2, AArch64::qsub3 };
+  static const std::array<unsigned, 4> QSubs = { { AArch64::qsub0, AArch64::qsub1,
+                                    AArch64::qsub2, AArch64::qsub3 } };
   for (unsigned i = 0; i < NumVecs; ++i) {
     SDValue NV = CurDAG->getTargetExtractSubreg(QSubs[i], dl, WideVT, SuperReg);
     if (Narrow)
@@ -1887,8 +1889,8 @@ void AArch64DAGToDAGISel::SelectPostLoadLane(SDNode *N, unsigned NumVecs,
                 Narrow ? NarrowVector(SuperReg, *CurDAG) : SuperReg);
   } else {
     EVT WideVT = RegSeq.getOperand(1)->getValueType(0);
-    static const unsigned QSubs[] = { AArch64::qsub0, AArch64::qsub1,
-                                      AArch64::qsub2, AArch64::qsub3 };
+    static const std::array<unsigned, 4> QSubs = { { AArch64::qsub0, AArch64::qsub1,
+                                      AArch64::qsub2, AArch64::qsub3 } };
     for (unsigned i = 0; i < NumVecs; ++i) {
       SDValue NV = CurDAG->getTargetExtractSubreg(QSubs[i], dl, WideVT,
                                                   SuperReg);

@@ -31,6 +31,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include <array>
 #include <utility>
 
 #define DEBUG_TYPE "gcn-create-vopd"
@@ -73,7 +74,7 @@ public:
                         .setMIFlags(FirstMI->getFlags() | SecondMI->getFlags());
 
     namespace VOPD = AMDGPU::VOPD;
-    MachineInstr *MI[] = {FirstMI, SecondMI};
+    std::array<MachineInstr *, 2>MI = { {FirstMI, SecondMI} };
     auto InstInfo =
         AMDGPU::getVOPDInstInfo(FirstMI->getDesc(), SecondMI->getDesc());
 

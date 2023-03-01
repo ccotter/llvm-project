@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCJITTestAPICommon.h"
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Core.h"
@@ -186,9 +188,9 @@ protected:
     
     LLVMSetTarget(Module, HostTriple.c_str());
     
-    LLVMTypeRef stackmapParamTypes[] = { LLVMInt64Type(), LLVMInt32Type() };
+    std::array stackmapParamTypes = { LLVMInt64Type(), LLVMInt32Type() };
     LLVMTypeRef stackmapTy =
-        LLVMFunctionType(LLVMVoidType(), stackmapParamTypes, 2, 1);
+        LLVMFunctionType(LLVMVoidType(), stackmapParamTypes.begin(), 2, 1);
     LLVMValueRef stackmap = LLVMAddFunction(
       Module, "llvm.experimental.stackmap", stackmapTy);
     LLVMSetLinkage(stackmap, LLVMExternalLinkage);
@@ -199,11 +201,11 @@ protected:
     LLVMBasicBlockRef entry = LLVMAppendBasicBlock(Function, "entry");
     LLVMBuilderRef builder = LLVMCreateBuilder();
     LLVMPositionBuilderAtEnd(builder, entry);
-    LLVMValueRef stackmapArgs[] = {
+    std::array stackmapArgs = {
       LLVMConstInt(LLVMInt64Type(), 0, 0), LLVMConstInt(LLVMInt32Type(), 5, 0),
       LLVMConstInt(LLVMInt32Type(), 42, 0)
     };
-    LLVMBuildCall2(builder, stackmapTy, stackmap, stackmapArgs, 3, "");
+    LLVMBuildCall2(builder, stackmapTy, stackmap, stackmapArgs.begin(), 3, "");
     LLVMBuildRet(builder, LLVMConstInt(LLVMInt32Type(), 42, 0));
     
     LLVMVerifyModule(Module, LLVMAbortProcessAction, &Error);
@@ -241,9 +243,9 @@ protected:
     }
     
     {
-        LLVMTypeRef ParamTypes[] = { LLVMInt32Type() };
+        std::array ParamTypes = { LLVMInt32Type() };
         Function2 = LLVMAddFunction(
-          Module, "setGlobal", LLVMFunctionType(LLVMVoidType(), ParamTypes, 1, 0));
+          Module, "setGlobal", LLVMFunctionType(LLVMVoidType(), ParamTypes.begin(), 1, 0));
         LLVMSetFunctionCallConv(Function2, LLVMCCallConv);
         
         LLVMBasicBlockRef Entry = LLVMAppendBasicBlock(Function2, "entry");

@@ -53,6 +53,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/Timer.h"
 
+#include <array>
 #include <cstring>
 #include <deque>
 #include <list>
@@ -731,13 +732,13 @@ static Expected<std::unique_ptr<ExecutorProcessControl>> launchExecutor() {
   constexpr int WriteEnd = 1;
 
   // Pipe FDs.
-  int ToExecutor[2];
-  int FromExecutor[2];
+  std::array<int, 2> ToExecutor;
+  std::array<int, 2> FromExecutor;
 
   pid_t ChildPID;
 
   // Create pipes to/from the executor..
-  if (pipe(ToExecutor) != 0 || pipe(FromExecutor) != 0)
+  if (pipe(ToExecutor.begin()) != 0 || pipe(FromExecutor.begin()) != 0)
     return make_error<StringError>("Unable to create pipe for executor",
                                    inconvertibleErrorCode());
 
@@ -764,8 +765,8 @@ static Expected<std::unique_ptr<ExecutorProcessControl>> launchExecutor() {
       strcpy(FDSpecifier.get(), FDSpecifierStr.c_str());
     }
 
-    char *const Args[] = {ExecutorPath.get(), FDSpecifier.get(), nullptr};
-    int RC = execvp(ExecutorPath.get(), Args);
+    const std::array<char *, 3>Args = { {ExecutorPath.get(), FDSpecifier.get(), nullptr} };
+    int RC = execvp(ExecutorPath.get(), Args.begin());
     if (RC != 0) {
       errs() << "unable to launch out-of-process executor \""
              << ExecutorPath.get() << "\"\n";
@@ -1576,9 +1577,9 @@ static Error addLibraries(Session &S,
     LL.Modifier = LibraryLoad::Hidden;
     LibraryLoadQueue.push_back(std::move(LL));
   }
-  StringRef StandardExtensions[] = {".so", ".dylib", ".dll", ".a", ".lib"};
+  std::array<StringRef, 5> StandardExtensions = { {".so", ".dylib", ".dll", ".a", ".lib"} };
   StringRef DynLibExtensionsOnly[] = {".so", ".dylib", ".dll"};
-  StringRef ArchiveExtensionsOnly[] = {".a", ".lib"};
+  std::array<StringRef, 2> ArchiveExtensionsOnly = { {".a", ".lib"} };
 
   // Add -lx arguments to LibraryLoads.
   for (auto LibItr = Libraries.begin(), LibEnd = Libraries.end();
@@ -1586,7 +1587,7 @@ static Error addLibraries(Session &S,
     LibraryLoad LL;
     LL.LibName = *LibItr;
     LL.Position = Libraries.getPosition(LibItr - Libraries.begin());
-    LL.CandidateExtensions = StandardExtensions;
+    LL.CandidateExtensions = StandardExtensions.begin();
     LL.Modifier = LibraryLoad::Standard;
     LibraryLoadQueue.push_back(std::move(LL));
   }
@@ -1599,7 +1600,7 @@ static Error addLibraries(Session &S,
     LL.LibName = *LibHiddenItr;
     LL.Position =
         LibrariesHidden.getPosition(LibHiddenItr - LibrariesHidden.begin());
-    LL.CandidateExtensions = ArchiveExtensionsOnly;
+    LL.CandidateExtensions = ArchiveExtensionsOnly.begin();
     LL.Modifier = LibraryLoad::Hidden;
     LibraryLoadQueue.push_back(std::move(LL));
   }

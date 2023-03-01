@@ -14,6 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Utils/AMDGPUEmitPrintf.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -184,7 +186,7 @@ static void locateCStrings(SparseBitVector<8> &BV, Value *Fmt) {
   if (!getConstantStringInfo(Fmt, Str) || Str.empty())
     return;
 
-  static const char ConvSpecifiers[] = "diouxXfFeEgGaAcspn";
+  static const std::array<char, 19> ConvSpecifiers = { "diouxXfFeEgGaAcspn" };
   size_t SpecPos = 0;
   // Skip the first argument, the format string.
   unsigned ArgIdx = 1;
@@ -194,7 +196,7 @@ static void locateCStrings(SparseBitVector<8> &BV, Value *Fmt) {
       SpecPos += 2;
       continue;
     }
-    auto SpecEnd = Str.find_first_of(ConvSpecifiers, SpecPos);
+    auto SpecEnd = Str.find_first_of(ConvSpecifiers.begin(), SpecPos);
     if (SpecEnd == StringRef::npos)
       return;
     auto Spec = Str.slice(SpecPos, SpecEnd + 1);

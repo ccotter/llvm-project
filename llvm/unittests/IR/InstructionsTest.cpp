@@ -29,6 +29,7 @@
 #include "llvm-c/Core.h"
 #include "gmock/gmock-matchers.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 
 namespace llvm {
@@ -719,8 +720,8 @@ TEST(InstructionsTest, CloneCall) {
       CallInst::Create(FnTy, Callee, Args, "result"));
 
   // Test cloning the tail call kind.
-  CallInst::TailCallKind Kinds[] = {CallInst::TCK_None, CallInst::TCK_Tail,
-                                    CallInst::TCK_MustTail};
+  std::array<CallInst::TailCallKind, 3> Kinds = { {CallInst::TCK_None, CallInst::TCK_Tail,
+                                    CallInst::TCK_MustTail} };
   for (CallInst::TailCallKind TCK : Kinds) {
     Call->setTailCallKind(TCK);
     std::unique_ptr<CallInst> Clone(cast<CallInst>(Call->clone()));

@@ -91,6 +91,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -232,7 +233,7 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
   }
 
   // PowerPC uses ADDC/ADDE/SUBC/SUBE to propagate carry.
-  const MVT ScalarIntVTs[] = { MVT::i32, MVT::i64 };
+  const std::array<MVT, 2> ScalarIntVTs = { { MVT::i32, MVT::i64 } };
   for (MVT VT : ScalarIntVTs) {
     setOperationAction(ISD::ADDC, VT, Legal);
     setOperationAction(ISD::ADDE, VT, Legal);
@@ -2200,7 +2201,7 @@ static bool isNByteElemShuffleMask(ShuffleVectorSDNode *N, unsigned Width,
   assert((StepLen == 1 || StepLen == -1) && "Unexpected element width.");
 
   unsigned NumOfElem = 16 / Width;
-  unsigned MaskVal[16]; //  Width is never greater than 16
+  std::array<unsigned, 16> MaskVal; //  Width is never greater than 16
   for (unsigned i = 0; i < NumOfElem; ++i) {
     MaskVal[0] = N->getMaskElt(i * Width);
     if ((StepLen == 1) && (MaskVal[0] % Width)) {
@@ -2230,8 +2231,8 @@ bool PPC::isXXINSERTWMask(ShuffleVectorSDNode *N, unsigned &ShiftElts,
   unsigned M1 = N->getMaskElt(4) / 4;
   unsigned M2 = N->getMaskElt(8) / 4;
   unsigned M3 = N->getMaskElt(12) / 4;
-  unsigned LittleEndianShifts[] = { 2, 1, 0, 3 };
-  unsigned BigEndianShifts[] = { 3, 0, 1, 2 };
+  std::array<unsigned, 4> LittleEndianShifts = { { 2, 1, 0, 3 } };
+  std::array<unsigned, 4> BigEndianShifts = { { 3, 0, 1, 2 } };
 
   // Below, let H and L be arbitrary elements of the shuffle mask
   // where H is in the range [4,7] and L is in the range [0,3].
@@ -2480,7 +2481,7 @@ SDValue PPC::get_VSPLTI_elt(SDNode *N, unsigned ByteSize, SelectionDAG &DAG) {
   unsigned EltSize = 16/N->getNumOperands();
   if (EltSize < ByteSize) {
     unsigned Multiple = ByteSize/EltSize;   // Number of BV entries per spltval.
-    SDValue UniquedVals[4];
+    std::array<SDValue, 4> UniquedVals;
     assert(Multiple > 1 && Multiple <= 4 && "How can this happen?");
 
     // See if all of the elements in the buildvector agree across.
@@ -5384,10 +5385,10 @@ static SDValue getOutputChainFromCallSeq(SDValue CallSeqStart) {
 static void prepareIndirectCall(SelectionDAG &DAG, SDValue &Callee,
                                 SDValue &Glue, SDValue &Chain,
                                 const SDLoc &dl) {
-  SDValue MTCTROps[] = {Chain, Callee, Glue};
-  EVT ReturnTypes[] = {MVT::Other, MVT::Glue};
-  Chain = DAG.getNode(PPCISD::MTCTR, dl, makeArrayRef(ReturnTypes, 2),
-                      makeArrayRef(MTCTROps, Glue.getNode() ? 3 : 2));
+  std::array MTCTROps = {Chain, Callee, Glue};
+  std::array<EVT, 2> ReturnTypes = { {MVT::Other, MVT::Glue} };
+  Chain = DAG.getNode(PPCISD::MTCTR, dl, makeArrayRef(ReturnTypes.begin(), 2),
+                      makeArrayRef(MTCTROps.begin(), Glue.getNode() ? 3 : 2));
   // The glue is the second value produced.
   Glue = Chain.getValue(1);
 }
@@ -5933,10 +5934,10 @@ SDValue PPCTargetLowering::LowerCall_32SVR4(
   // registers.
   if (IsVarArg) {
     SDVTList VTs = DAG.getVTList(MVT::Other, MVT::Glue);
-    SDValue Ops[] = { Chain, InFlag };
+    std::array Ops = { Chain, InFlag };
 
     Chain = DAG.getNode(seenFloatArg ? PPCISD::CR6SET : PPCISD::CR6UNSET,
-                        dl, VTs, makeArrayRef(Ops, InFlag.getNode() ? 2 : 1));
+                        dl, VTs, makeArrayRef(Ops.begin(), InFlag.getNode() ? 2 : 1));
 
     InFlag = Chain.getValue(1);
   }
@@ -8944,9 +8945,9 @@ SDValue PPCTargetLowering::LowerFunnelShift(SDValue Op,
 /// element size of SplatSize. Cast the result to VT.
 static SDValue getCanonicalConstSplat(uint64_t Val, unsigned SplatSize, EVT VT,
                                       SelectionDAG &DAG, const SDLoc &dl) {
-  static const MVT VTys[] = { // canonical VT to use for each size.
+  static const std::array<MVT, 4> VTys = { { // canonical VT to use for each size.
     MVT::v16i8, MVT::v8i16, MVT::Other, MVT::v4i32
-  };
+  } };
 
   EVT ReqVT = VT != MVT::Other ? VT : VTys[SplatSize-1];
 
@@ -9413,10 +9414,10 @@ SDValue PPCTargetLowering::LowerBUILD_VECTOR(SDValue Op,
     // vsplti + shl self.
     if (SextVal == (int)((unsigned)i << TypeShiftAmt)) {
       SDValue Res = getCanonicalConstSplat(i, SplatSize, MVT::Other, DAG, dl);
-      static const unsigned IIDs[] = { // Intrinsic to use for each size.
+      static const std::array<unsigned, 4> IIDs = { { // Intrinsic to use for each size.
         Intrinsic::ppc_altivec_vslb, Intrinsic::ppc_altivec_vslh, 0,
         Intrinsic::ppc_altivec_vslw
-      };
+      } };
       Res = BuildIntrinsicOp(IIDs[SplatSize-1], Res, Res, DAG, dl);
       return DAG.getNode(ISD::BITCAST, dl, Op.getValueType(), Res);
     }
@@ -9424,10 +9425,10 @@ SDValue PPCTargetLowering::LowerBUILD_VECTOR(SDValue Op,
     // vsplti + srl self.
     if (SextVal == (int)((unsigned)i >> TypeShiftAmt)) {
       SDValue Res = getCanonicalConstSplat(i, SplatSize, MVT::Other, DAG, dl);
-      static const unsigned IIDs[] = { // Intrinsic to use for each size.
+      static const std::array<unsigned, 4> IIDs = { { // Intrinsic to use for each size.
         Intrinsic::ppc_altivec_vsrb, Intrinsic::ppc_altivec_vsrh, 0,
         Intrinsic::ppc_altivec_vsrw
-      };
+      } };
       Res = BuildIntrinsicOp(IIDs[SplatSize-1], Res, Res, DAG, dl);
       return DAG.getNode(ISD::BITCAST, dl, Op.getValueType(), Res);
     }
@@ -9436,10 +9437,10 @@ SDValue PPCTargetLowering::LowerBUILD_VECTOR(SDValue Op,
     if (SextVal == (int)(((unsigned)i << TypeShiftAmt) |
                          ((unsigned)i >> (SplatBitSize-TypeShiftAmt)))) {
       SDValue Res = getCanonicalConstSplat(i, SplatSize, MVT::Other, DAG, dl);
-      static const unsigned IIDs[] = { // Intrinsic to use for each size.
+      static const std::array<unsigned, 4> IIDs = { { // Intrinsic to use for each size.
         Intrinsic::ppc_altivec_vrlb, Intrinsic::ppc_altivec_vrlh, 0,
         Intrinsic::ppc_altivec_vrlw
-      };
+      } };
       Res = BuildIntrinsicOp(IIDs[SplatSize-1], Res, Res, DAG, dl);
       return DAG.getNode(ISD::BITCAST, dl, Op.getValueType(), Res);
     }
@@ -9558,13 +9559,13 @@ SDValue PPCTargetLowering::lowerToVINSERTB(ShuffleVectorSDNode *N,
   bool Swap = false;
 
   // Shifts required to get the byte we want at element 7.
-  unsigned LittleEndianShifts[] = {8, 7,  6,  5,  4,  3,  2,  1,
-                                   0, 15, 14, 13, 12, 11, 10, 9};
-  unsigned BigEndianShifts[] = {9, 10, 11, 12, 13, 14, 15, 0,
-                                1, 2,  3,  4,  5,  6,  7,  8};
+  std::array<unsigned, 16> LittleEndianShifts = { {8, 7,  6,  5,  4,  3,  2,  1,
+                                   0, 15, 14, 13, 12, 11, 10, 9} };
+  std::array<unsigned, 16> BigEndianShifts = { {9, 10, 11, 12, 13, 14, 15, 0,
+                                1, 2,  3,  4,  5,  6,  7,  8} };
 
   ArrayRef<int> Mask = N->getMask();
-  int OriginalOrder[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  std::array OriginalOrder = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
   // For each mask element, find out if we're just inserting something
   // from V2 into V1 or vice versa.
@@ -9664,8 +9665,8 @@ SDValue PPCTargetLowering::lowerToVINSERTH(ShuffleVectorSDNode *N,
   bool Swap = false;
 
   // Shifts required to get the half-word we want at element 3.
-  unsigned LittleEndianShifts[] = {4, 3, 2, 1, 0, 7, 6, 5};
-  unsigned BigEndianShifts[] = {5, 6, 7, 0, 1, 2, 3, 4};
+  std::array<unsigned, 8> LittleEndianShifts = { {4, 3, 2, 1, 0, 7, 6, 5} };
+  std::array<unsigned, 8> BigEndianShifts = { {5, 6, 7, 0, 1, 2, 3, 4} };
 
   uint32_t Mask = 0;
   uint32_t OriginalOrderLow = 0x1234567;
@@ -10097,7 +10098,7 @@ SDValue PPCTargetLowering::LowerVECTOR_SHUFFLE(SDValue Op,
   ArrayRef<int> PermMask = SVOp->getMask();
 
   if (!DisablePerfectShuffle && !isLittleEndian) {
-    unsigned PFIndexes[4];
+    std::array<unsigned, 4> PFIndexes;
     bool isFourElementShuffle = true;
     for (unsigned i = 0; i != 4 && isFourElementShuffle;
          ++i) {                           // Element number
@@ -10593,9 +10594,9 @@ SDValue PPCTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
 
   case Intrinsic::ppc_mma_disassemble_acc: {
     if (Subtarget.isISAFuture()) {
-      EVT ReturnTypes[] = {MVT::v256i1, MVT::v256i1};
+      std::array<EVT, 2> ReturnTypes = { {MVT::v256i1, MVT::v256i1} };
       SDValue WideVec = SDValue(DAG.getMachineNode(PPC::DMXXEXTFDMR512, dl,
-                                                   makeArrayRef(ReturnTypes, 2),
+                                                   makeArrayRef(ReturnTypes.begin(), 2),
                                                    Op.getOperand(1)),
                                 0);
       SmallVector<SDValue, 4> RetOps;
@@ -11102,9 +11103,9 @@ SDValue PPCTargetLowering::LowerVectorStore(SDValue Op,
   unsigned NumVecs = 2;
   if (StoreVT == MVT::v512i1) {
     if (Subtarget.isISAFuture()) {
-      EVT ReturnTypes[] = {MVT::v256i1, MVT::v256i1};
+      std::array<EVT, 2> ReturnTypes = { {MVT::v256i1, MVT::v256i1} };
       MachineSDNode *ExtNode = DAG.getMachineNode(PPC::DMXXEXTFDMR512, dl,
-                          makeArrayRef(ReturnTypes, 2),
+                          makeArrayRef(ReturnTypes.begin(), 2),
                           Op.getOperand(1));
 
       Value = SDValue(ExtNode, 0);
@@ -11256,7 +11257,7 @@ SDValue PPCTargetLowering::LowerFP_EXTEND(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FADD:
   case ISD::FMUL:
   case ISD::FSUB: {
-    SDValue NewLoad[2];
+    std::array<SDValue, 2> NewLoad;
     for (unsigned i = 0, ie = Op0.getNumOperands(); i != ie; ++i) {
       // Ensure both input are loads.
       SDValue LdOp = Op0.getOperand(i);
@@ -13895,7 +13896,7 @@ SDValue PPCTargetLowering::DAGCombineExtBoolTrunc(SDNode *N,
 
   // The operands of a select that must be truncated when the select is
   // promoted because the operand is actually part of the to-be-promoted set.
-  DenseMap<SDNode *, EVT> SelectTruncOp[2];
+  std::array<DenseMap<SDNode *, EVT>, 2> SelectTruncOp;
 
   // Make sure that this is a self-contained cluster of operations (which
   // is not quite the same thing as saying that everything has only one
@@ -14378,13 +14379,13 @@ static SDValue combineBVOfVecSExt(SDNode *N, SelectionDAG &DAG) {
   // For example: 0x000070F8  byte->double word
   // For LE: the allowed indices are: 0x0,0x8
   // For BE: the allowed indices are: 0x7,0xF
-  uint64_t TargetElems[] = {
+  std::array<uint64_t, 5> TargetElems = { {
       0x3074B8FC, // b->w
       0x000070F8, // b->d
       0x10325476, // h->w
       0x00003074, // h->d
       0x00001032, // w->d
-  };
+  } };
 
   uint64_t Elems = 0;
   int Index;
@@ -17016,11 +17017,11 @@ PPCTargetLowering::getScratchRegisters(CallingConv::ID) const {
   // site. Hence we include LR in the scratch registers, which are in turn added
   // as implicit-defs for stackmaps and patchpoints. The same reasoning applies
   // to CTR, which is used by any indirect call.
-  static const MCPhysReg ScratchRegs[] = {
+  static const std::array<MCPhysReg, 4> ScratchRegs = { {
     PPC::X12, PPC::LR8, PPC::CTR8, 0
-  };
+  } };
 
-  return ScratchRegs;
+  return ScratchRegs.begin();
 }
 
 Register PPCTargetLowering::getExceptionPointerRegister(

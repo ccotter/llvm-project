@@ -13,6 +13,7 @@
 #include "llvm/Bitstream/BitstreamReader.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/SHA1.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -431,7 +432,7 @@ static Expected<CurStreamTypeType> ReadSignature(BitstreamCursor &Stream) {
     return Error::success();
   };
 
-  char Signature[6];
+  std::array<char, 6> Signature;
   if (Error Err = tryRead(Signature[0], 8))
     return std::move(Err);
   if (Error Err = tryRead(Signature[1], 8))

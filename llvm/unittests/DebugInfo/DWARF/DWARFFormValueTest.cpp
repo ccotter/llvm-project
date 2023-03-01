@@ -110,9 +110,9 @@ TEST(DWARFFormValue, SignedConstantForms) {
   EXPECT_EQ(*LEB2.getAsSignedConstant(), 42);
 
   // Data16 is a little tricky.
-  char Cksum[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+  std::array<char, 16> Cksum = { {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} };
   DWARFFormValue Data16(DW_FORM_data16);
-  DWARFDataExtractor DE16(StringRef(Cksum, 16), sys::IsLittleEndianHost,
+  DWARFDataExtractor DE16(StringRef(Cksum.begin(), 16), sys::IsLittleEndianHost,
                           sizeof(void *));
   uint64_t Offset = 0;
   Data16.extractValue(DE16, &Offset, {0, 0, dwarf::DwarfFormat::DWARF32});

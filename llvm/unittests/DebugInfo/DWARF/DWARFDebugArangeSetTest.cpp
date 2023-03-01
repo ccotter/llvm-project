@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/DWARF/DWARFDebugArangeSet.h"
 #include "llvm/DebugInfo/DWARF/DWARFDataExtractor.h"
 #include "llvm/Testing/Support/Error.h"
@@ -180,8 +182,8 @@ TEST(DWARFDebugArangeSet, UnevenLength) {
 }
 
 TEST(DWARFDebugArangeSet, ZeroAddressEntry) {
-  static const char DebugArangesSecRaw[] =
-      "\x1c\x00\x00\x00" // Length
+  static const std::array<char, 33> DebugArangesSecRaw =
+      { "\x1c\x00\x00\x00" // Length
       "\x02\x00"         // Version
       "\x00\x00\x00\x00" // Debug Info Offset
       "\x04"             // Address Size
@@ -190,9 +192,9 @@ TEST(DWARFDebugArangeSet, ZeroAddressEntry) {
       "\x00\x00\x00\x00" // Entry1: Address
       "\x01\x00\x00\x00" //         Length
       "\x00\x00\x00\x00" // Termination tuple
-      "\x00\x00\x00\x00";
+      "\x00\x00\x00\x00" };
   DWARFDataExtractor Extractor(
-      StringRef(DebugArangesSecRaw, sizeof(DebugArangesSecRaw) - 1),
+      StringRef(DebugArangesSecRaw.begin(), sizeof(DebugArangesSecRaw) - 1),
       /*IsLittleEndian=*/true,
       /*AddressSize=*/4);
   DWARFDebugArangeSet Set;
@@ -207,8 +209,8 @@ TEST(DWARFDebugArangeSet, ZeroAddressEntry) {
 }
 
 TEST(DWARFDebugArangeSet, ZeroLengthEntry) {
-  static const char DebugArangesSecRaw[] =
-      "\x1c\x00\x00\x00" // Length
+  static const std::array<char, 33> DebugArangesSecRaw =
+      { "\x1c\x00\x00\x00" // Length
       "\x02\x00"         // Version
       "\x00\x00\x00\x00" // Debug Info Offset
       "\x04"             // Address Size
@@ -217,9 +219,9 @@ TEST(DWARFDebugArangeSet, ZeroLengthEntry) {
       "\x01\x00\x00\x00" // Entry1: Address
       "\x00\x00\x00\x00" //         Length
       "\x00\x00\x00\x00" // Termination tuple
-      "\x00\x00\x00\x00";
+      "\x00\x00\x00\x00" };
   DWARFDataExtractor Extractor(
-      StringRef(DebugArangesSecRaw, sizeof(DebugArangesSecRaw) - 1),
+      StringRef(DebugArangesSecRaw.begin(), sizeof(DebugArangesSecRaw) - 1),
       /*IsLittleEndian=*/true,
       /*AddressSize=*/4);
   DWARFDebugArangeSet Set;
@@ -234,8 +236,8 @@ TEST(DWARFDebugArangeSet, ZeroLengthEntry) {
 }
 
 TEST(DWARFDebugArangesSet, PrematureTerminator) {
-  static const char DebugArangesSecRaw[] =
-      "\x24\x00\x00\x00" // Length
+  static const std::array<char, 41> DebugArangesSecRaw =
+      { "\x24\x00\x00\x00" // Length
       "\x02\x00"         // Version
       "\x00\x00\x00\x00" // Debug Info Offset
       "\x04"             // Address Size
@@ -246,9 +248,9 @@ TEST(DWARFDebugArangesSet, PrematureTerminator) {
       "\x01\x00\x00\x00" // Entry2: Address
       "\x01\x00\x00\x00" //         Length
       "\x00\x00\x00\x00" // Termination tuple
-      "\x00\x00\x00\x00";
+      "\x00\x00\x00\x00" };
   DWARFDataExtractor Extractor(
-      StringRef(DebugArangesSecRaw, sizeof(DebugArangesSecRaw) - 1),
+      StringRef(DebugArangesSecRaw.begin(), sizeof(DebugArangesSecRaw) - 1),
       /*IsLittleEndian=*/true,
       /*AddressSize=*/4);
   DWARFDebugArangeSet Set;

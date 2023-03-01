@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AMDGPU.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
@@ -105,9 +107,9 @@ namespace {
   }
 
   bool unifyMetadataImpl(Module &M) {
-    const char *Vers[] = {kOCLMD::SpirVer, kOCLMD::OCLVer};
-    const char *Exts[] = {kOCLMD::UsedExt, kOCLMD::UsedOptCoreFeat,
-                          kOCLMD::CompilerOptions, kOCLMD::LLVMIdent};
+    std::array<const char *, 2>Vers = { {kOCLMD::SpirVer, kOCLMD::OCLVer} };
+    std::array<const char *, 4>Exts = { {kOCLMD::UsedExt, kOCLMD::UsedOptCoreFeat,
+                          kOCLMD::CompilerOptions, kOCLMD::LLVMIdent} };
 
     bool Changed = false;
 

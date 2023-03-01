@@ -73,6 +73,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "MCTargetDesc/X86MCTargetDesc.h"
 #include "TargetInfo/X86TargetInfo.h"
@@ -1793,7 +1795,7 @@ MCDisassembler::DecodeStatus X86GenericDisassembler::getInstruction(
 /// @param reg        - The Reg to append.
 static void translateRegister(MCInst &mcInst, Reg reg) {
 #define ENTRY(x) X86::x,
-  static constexpr MCPhysReg llvmRegnums[] = {ALL_REGS};
+  static constexpr std::array<MCPhysReg, 231> llvmRegnums = { {ALL_REGS} };
 #undef ENTRY
 
   MCPhysReg llvmRegnum = llvmRegnums[reg];

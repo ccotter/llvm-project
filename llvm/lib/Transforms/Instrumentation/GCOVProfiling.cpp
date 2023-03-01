@@ -41,6 +41,7 @@
 #include "llvm/Transforms/Instrumentation/GCOVProfiler.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -100,9 +101,9 @@ public:
               std::function<const TargetLibraryInfo &(Function &F)> GetTLI);
 
   void write(uint32_t i) {
-    char Bytes[4];
-    endian::write32(Bytes, i, Endian);
-    os->write(Bytes, 4);
+    std::array<char, 4> Bytes;
+    endian::write32(Bytes.begin(), i, Endian);
+    os->write(Bytes.begin(), 4);
   }
   void writeString(StringRef s) {
     write(wordsOfString(s) - 1);
@@ -928,7 +929,7 @@ bool GCOVProfiler::emitProfileNotes(
       }
     }
 
-    char Tmp[4];
+    std::array<char, 4> Tmp;
     JamCRC JC;
     JC.update(EdgeDestinations);
     uint32_t Stamp = JC.getCRC();
@@ -950,8 +951,8 @@ bool GCOVProfiler::emitProfileNotes(
         out.write(Options.Version, 4);
       } else {
         out.write("oncg", 4);
-        std::reverse_copy(Options.Version, Options.Version + 4, Tmp);
-        out.write(Tmp, 4);
+        std::reverse_copy(Options.Version, Options.Version + 4, Tmp.begin());
+        out.write(Tmp.begin(), 4);
       }
       write(Stamp);
       if (Version >= 90)

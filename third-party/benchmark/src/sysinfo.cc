@@ -454,10 +454,10 @@ std::string GetSystemName() {
 #define HOST_NAME_MAX 64
 #endif
 #endif  // def HOST_NAME_MAX
-  char hostname[HOST_NAME_MAX];
-  int retVal = gethostname(hostname, HOST_NAME_MAX);
+  std::array<char, HOST_NAME_MAX> hostname;
+  int retVal = gethostname(hostname.begin(), HOST_NAME_MAX);
   if (retVal != 0) return std::string("");
-  return std::string(hostname);
+  return std::string(hostname.begin());
 #endif  // Catch-all POSIX block.
 }
 

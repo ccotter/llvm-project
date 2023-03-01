@@ -29,6 +29,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Unicode.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -322,10 +323,10 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
 
 static void appendCodePoint(unsigned Codepoint,
                             llvm::SmallVectorImpl<char> &Str) {
-  char ResultBuf[4];
-  char *ResultPtr = ResultBuf;
+  std::array<char, 4> ResultBuf;
+  char *ResultPtr = ResultBuf.begin();
   if (llvm::ConvertCodePointToUTF8(Codepoint, ResultPtr))
-    Str.append(ResultBuf, ResultPtr);
+    Str.append(ResultBuf.begin(), ResultPtr);
 }
 
 void clang::expandUCNs(SmallVectorImpl<char> &Buf, StringRef Input) {
@@ -755,9 +756,9 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 
   // Once the bits are split out into bytes of UTF8, this is a mask OR-ed
   // into the first byte, depending on how many bytes follow.
-  static const UTF8 firstByteMark[5] = {
+  static const std::array<UTF8, 5> firstByteMark = { {
     0x00, 0x00, 0xC0, 0xE0, 0xF0
-  };
+  } };
   // Finally, we write the bytes into ResultBuf.
   ResultBuf += bytesToWrite;
   switch (bytesToWrite) { // note: everything falls through.

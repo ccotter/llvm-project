@@ -44,6 +44,7 @@
 #include <emscripten.h>
 #endif
 
+#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -203,9 +204,9 @@ std::string LocalDateTimeString() {
   // trailing zero).
   //
   // Thus, the maximum size this needs to be is 41.
-  char tz_offset[41];
+  std::array<char, 41> tz_offset;
   // Long enough buffer to avoid format-overflow warnings
-  char storage[128];
+  std::array<char, 128> storage;
 
 #if defined(BENCHMARK_OS_WINDOWS)
   std::tm* timeinfo_p = ::localtime(&now);
@@ -215,21 +216,21 @@ std::string LocalDateTimeString() {
   ::localtime_r(&now, &timeinfo);
 #endif
 
-  tz_len = std::strftime(tz_offset, sizeof(tz_offset), "%z", timeinfo_p);
+  tz_len = std::strftime(tz_offset.begin(), sizeof(tz_offset), "%z", timeinfo_p);
 
   if (tz_len < kTzOffsetLen && tz_len > 1) {
     // Timezone offset was written. strftime writes offset as +HHMM or -HHMM,
     // RFC3339 specifies an offset as +HH:MM or -HH:MM. To convert, we parse
     // the offset as an integer, then reprint it to a string.
 
-    offset_minutes = ::strtol(tz_offset, NULL, 10);
+    offset_minutes = ::strtol(tz_offset.begin(), NULL, 10);
     if (offset_minutes < 0) {
       offset_minutes *= -1;
       tz_offset_sign = '-';
     }
 
     tz_len =
-        ::snprintf(tz_offset, sizeof(tz_offset), "%c%02li:%02li",
+        ::snprintf(tz_offset.begin(), sizeof(tz_offset), "%c%02li:%02li",
                    tz_offset_sign, offset_minutes / 100, offset_minutes % 100);
     BM_CHECK(tz_len == kTzOffsetLen);
     ((void)tz_len);  // Prevent unused variable warning in optimized build.
@@ -243,17 +244,17 @@ std::string LocalDateTimeString() {
     ::gmtime_r(&now, &timeinfo);
 #endif
 
-    strncpy(tz_offset, "-00:00", kTzOffsetLen + 1);
+    strncpy(tz_offset.begin(), "-00:00", kTzOffsetLen + 1);
   }
 
   timestamp_len =
-      std::strftime(storage, sizeof(storage), "%Y-%m-%dT%H:%M:%S", timeinfo_p);
+      std::strftime(storage.begin(), sizeof(storage), "%Y-%m-%dT%H:%M:%S", timeinfo_p);
   BM_CHECK(timestamp_len == kTimestampLen);
   // Prevent unused variable warning in optimized build.
   ((void)kTimestampLen);
 
-  std::strncat(storage, tz_offset, sizeof(storage) - timestamp_len - 1);
-  return std::string(storage);
+  std::strncat(storage.begin(), tz_offset.begin(), sizeof(storage) - timestamp_len - 1);
+  return std::string(storage.begin());
 }
 
 }  // end namespace benchmark

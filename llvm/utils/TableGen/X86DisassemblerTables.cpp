@@ -20,6 +20,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <map>
 
 using namespace llvm;
@@ -579,9 +580,9 @@ static inline bool outranks(InstructionContext upper,
 #define ENUM_ENTRY_K_B(n, r, d) ENUM_ENTRY(n, r, d) \
   ENUM_ENTRY(n##_K_B, r, d) ENUM_ENTRY(n##_KZ_B, r, d) \
   ENUM_ENTRY(n##_KZ, r, d) ENUM_ENTRY(n##_K, r, d) ENUM_ENTRY(n##_B, r, d)
-  static int ranks[IC_max] = {
+  static std::array<int, IC_max> ranks = { {
     INSTRUCTION_CONTEXTS
-  };
+  } };
 #undef ENUM_ENTRY
 #undef ENUM_ENTRY_K_B
 

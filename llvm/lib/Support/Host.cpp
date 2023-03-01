@@ -26,6 +26,8 @@
 #ifdef LLVM_ON_UNIX
 #include "Unix/Host.inc"
 #include <sched.h>
+
+#include <array>
 #endif
 #ifdef _WIN32
 #include "Windows/Host.inc"
@@ -1256,9 +1258,9 @@ StringRef sys::getHostCPUName() {
   getX86CpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
 
   unsigned Family = 0, Model = 0;
-  unsigned Features[(X86::CPU_FEATURE_MAX + 31) / 32] = {0};
+  std::array<unsigned, (X86::CPU_FEATURE_MAX + 31) / 32> Features = { {0} };
   detectX86FamilyModel(EAX, &Family, &Model);
-  getAvailableFeatures(ECX, EDX, MaxLeaf, Features);
+  getAvailableFeatures(ECX, EDX, MaxLeaf, Features.begin());
 
   // These aren't consumed in this file, but we try to keep some source code the
   // same or similar to compiler-rt.
@@ -1268,10 +1270,10 @@ StringRef sys::getHostCPUName() {
   StringRef CPU;
 
   if (Vendor == VendorSignatures::GENUINE_INTEL) {
-    CPU = getIntelProcessorTypeAndSubtype(Family, Model, Features, &Type,
+    CPU = getIntelProcessorTypeAndSubtype(Family, Model, Features.begin(), &Type,
                                           &Subtype);
   } else if (Vendor == VendorSignatures::AUTHENTIC_AMD) {
-    CPU = getAMDProcessorTypeAndSubtype(Family, Model, Features, &Type,
+    CPU = getAMDProcessorTypeAndSubtype(Family, Model, Features.begin(), &Type,
                                         &Subtype);
   }
 

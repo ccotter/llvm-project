@@ -32,6 +32,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Regex.h"
+#include <array>
 #include <cstring>
 using namespace llvm;
 
@@ -678,15 +679,15 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     }
     static const Regex vstRegex("^arm\\.neon\\.vst([1234]|[234]lane)\\.v[a-z0-9]*$");
     if (vstRegex.match(Name)) {
-      static const Intrinsic::ID StoreInts[] = {Intrinsic::arm_neon_vst1,
+      static const std::array<Intrinsic::ID, 4> StoreInts = { {Intrinsic::arm_neon_vst1,
                                                 Intrinsic::arm_neon_vst2,
                                                 Intrinsic::arm_neon_vst3,
-                                                Intrinsic::arm_neon_vst4};
+                                                Intrinsic::arm_neon_vst4} };
 
-      static const Intrinsic::ID StoreLaneInts[] = {
+      static const std::array<Intrinsic::ID, 3> StoreLaneInts = { {
         Intrinsic::arm_neon_vst2lane, Intrinsic::arm_neon_vst3lane,
         Intrinsic::arm_neon_vst4lane
-      };
+      } };
 
       auto fArgs = F->getFunctionType()->params();
       Type *Tys[] = {fArgs[0], fArgs[1]};
@@ -1222,7 +1223,7 @@ static Value *UpgradeX86PSLLDQIntrinsics(IRBuilder<> &Builder,
   // If shift is less than 16, emit a shuffle to move the bytes. Otherwise,
   // we'll just return the zero vector.
   if (Shift < 16) {
-    int Idxs[64];
+    std::array<int, 64> Idxs;
     // 256/512-bit version is split into 2/4 16-byte lanes.
     for (unsigned l = 0; l != NumElts; l += 16)
       for (unsigned i = 0; i != 16; ++i) {
@@ -1232,7 +1233,7 @@ static Value *UpgradeX86PSLLDQIntrinsics(IRBuilder<> &Builder,
         Idxs[l + i] = Idx + l;
       }
 
-    Res = Builder.CreateShuffleVector(Res, Op, makeArrayRef(Idxs, NumElts));
+    Res = Builder.CreateShuffleVector(Res, Op, makeArrayRef(Idxs.begin(), NumElts));
   }
 
   // Bitcast back to a 64-bit element type.
@@ -1256,7 +1257,7 @@ static Value *UpgradeX86PSRLDQIntrinsics(IRBuilder<> &Builder, Value *Op,
   // If shift is less than 16, emit a shuffle to move the bytes. Otherwise,
   // we'll just return the zero vector.
   if (Shift < 16) {
-    int Idxs[64];
+    std::array<int, 64> Idxs;
     // 256/512-bit version is split into 2/4 16-byte lanes.
     for (unsigned l = 0; l != NumElts; l += 16)
       for (unsigned i = 0; i != 16; ++i) {
@@ -1266,7 +1267,7 @@ static Value *UpgradeX86PSRLDQIntrinsics(IRBuilder<> &Builder, Value *Op,
         Idxs[l + i] = Idx + l;
       }
 
-    Res = Builder.CreateShuffleVector(Op, Res, makeArrayRef(Idxs, NumElts));
+    Res = Builder.CreateShuffleVector(Op, Res, makeArrayRef(Idxs.begin(), NumElts));
   }
 
   // Bitcast back to a 64-bit element type.
@@ -1283,11 +1284,11 @@ static Value *getX86MaskVec(IRBuilder<> &Builder, Value *Mask,
   // If we have less than 8 elements (1, 2 or 4), then the starting mask was an
   // i8 and we need to extract down to the right number of elements.
   if (NumElts <= 4) {
-    int Indices[4];
+    std::array<int, 4> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i;
     Mask = Builder.CreateShuffleVector(
-        Mask, Mask, makeArrayRef(Indices, NumElts), "extract");
+        Mask, Mask, makeArrayRef(Indices.begin(), NumElts), "extract");
   }
 
   return Mask;
@@ -1350,7 +1351,7 @@ static Value *UpgradeX86ALIGNIntrinsics(IRBuilder<> &Builder, Value *Op0,
     Op0 = llvm::Constant::getNullValue(Op0->getType());
   }
 
-  int Indices[64];
+  std::array<int, 64> Indices;
   // 256-bit palignr operates on 128-bit lanes so we need to handle that
   for (unsigned l = 0; l < NumElts; l += 16) {
     for (unsigned i = 0; i != 16; ++i) {
@@ -1362,7 +1363,7 @@ static Value *UpgradeX86ALIGNIntrinsics(IRBuilder<> &Builder, Value *Op0,
   }
 
   Value *Align = Builder.CreateShuffleVector(Op1, Op0,
-                                             makeArrayRef(Indices, NumElts),
+                                             makeArrayRef(Indices.begin(), NumElts),
                                              "palignr");
 
   return EmitX86Select(Builder, Mask, Align, Passthru);
@@ -2263,20 +2264,20 @@ void llvm::UpgradeIntrinsicCall(CallBase *CI, Function *NewFn) {
       unsigned NumElts = CI->getType()->getScalarSizeInBits();
       Value *LHS = getX86MaskVec(Builder, CI->getArgOperand(0), NumElts);
       Value *RHS = getX86MaskVec(Builder, CI->getArgOperand(1), NumElts);
-      int Indices[64];
+      std::array<int, 64> Indices;
       for (unsigned i = 0; i != NumElts; ++i)
         Indices[i] = i;
 
       // First extract half of each vector. This gives better codegen than
       // doing it in a single shuffle.
       LHS = Builder.CreateShuffleVector(LHS, LHS,
-                                        makeArrayRef(Indices, NumElts / 2));
+                                        makeArrayRef(Indices.begin(), NumElts / 2));
       RHS = Builder.CreateShuffleVector(RHS, RHS,
-                                        makeArrayRef(Indices, NumElts / 2));
+                                        makeArrayRef(Indices.begin(), NumElts / 2));
       // Concat the vectors.
       // NOTE: Operands have to be swapped to match intrinsic definition.
       Rep = Builder.CreateShuffleVector(RHS, LHS,
-                                        makeArrayRef(Indices, NumElts));
+                                        makeArrayRef(Indices.begin(), NumElts));
       Rep = Builder.CreateBitCast(Rep, CI->getType());
     } else if (IsX86 && Name == "avx512.kand.w") {
       Value *LHS = getX86MaskVec(Builder, CI->getArgOperand(0), 16);
@@ -4571,7 +4572,7 @@ void llvm::UpgradeARCRuntime(Module &M) {
   if (!UpgradeRetainReleaseMarker(M))
     return;
 
-  std::pair<const char *, llvm::Intrinsic::ID> RuntimeFuncs[] = {
+  std::array<std::pair<const char *, llvm::Intrinsic::ID>, 29> RuntimeFuncs = { {
       {"objc_autorelease", llvm::Intrinsic::objc_autorelease},
       {"objc_autoreleasePoolPop", llvm::Intrinsic::objc_autoreleasePoolPop},
       {"objc_autoreleasePoolPush", llvm::Intrinsic::objc_autoreleasePoolPush},
@@ -4608,7 +4609,7 @@ void llvm::UpgradeARCRuntime(Module &M) {
       {"objc_arc_annotation_bottomup_bbstart",
        llvm::Intrinsic::objc_arc_annotation_bottomup_bbstart},
       {"objc_arc_annotation_bottomup_bbend",
-       llvm::Intrinsic::objc_arc_annotation_bottomup_bbend}};
+       llvm::Intrinsic::objc_arc_annotation_bottomup_bbend}} };
 
   for (auto &I : RuntimeFuncs)
     UpgradeToIntrinsic(I.first, I.second);

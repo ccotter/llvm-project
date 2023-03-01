@@ -17,6 +17,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <optional>
 #include <sstream>
 
@@ -39,17 +40,17 @@ protected:
   SMDiagnostic Err;
 
   std::unique_ptr<Module> createVPDeclarationModule() {
-    const char *BinaryIntOpcodes[] = {"add",  "sub",  "mul", "sdiv", "srem",
+    std::array<const char *, 17>BinaryIntOpcodes = { {"add",  "sub",  "mul", "sdiv", "srem",
                                       "udiv", "urem", "and", "xor",  "or",
                                       "ashr", "lshr", "shl", "smin", "smax",
-                                      "umin", "umax"};
+                                      "umin", "umax"} };
     std::stringstream Str;
     for (const char *BinaryIntOpcode : BinaryIntOpcodes)
       Str << " declare <8 x i32> @llvm.vp." << BinaryIntOpcode
           << ".v8i32(<8 x i32>, <8 x i32>, <8 x i1>, i32) ";
 
-    const char *BinaryFPOpcodes[] = {"fadd", "fsub",   "fmul",   "fdiv",
-                                     "frem", "minnum", "maxnum", "copysign"};
+    std::array<const char *, 8>BinaryFPOpcodes = { {"fadd", "fsub",   "fmul",   "fdiv",
+                                     "frem", "minnum", "maxnum", "copysign"} };
     for (const char *BinaryFPOpcode : BinaryFPOpcodes)
       Str << " declare <8 x float> @llvm.vp." << BinaryFPOpcode
           << ".v8f32(<8 x float>, <8 x float>, <8 x i1>, i32) ";

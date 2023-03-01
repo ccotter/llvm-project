@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/X86FixupKinds.h"
 #include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/ADT/Twine.h"
@@ -417,11 +419,11 @@ bool X86MachObjectWriter::recordScatteredRelocation(MachObjectWriter *Writer,
     // If the offset is too large to fit in a scattered relocation,
     // we're hosed. It's an unfortunate limitation of the MachO format.
     if (FixupOffset > 0xffffff) {
-      char Buffer[32];
-      format("0x%x", FixupOffset).print(Buffer, sizeof(Buffer));
+      std::array<char, 32> Buffer;
+      format("0x%x", FixupOffset).print(Buffer.begin(), sizeof(Buffer));
       Asm.getContext().reportError(Fixup.getLoc(),
                          Twine("Section too large, can't encode "
-                                "r_address (") + Buffer +
+                                "r_address (") + Buffer.begin() +
                          ") into 24 bits of scattered "
                          "relocation entry.");
       return false;

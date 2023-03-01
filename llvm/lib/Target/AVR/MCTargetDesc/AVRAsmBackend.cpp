@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/AVRAsmBackend.h"
+
+#include <array>
 #include "MCTargetDesc/AVRFixupKinds.h"
 #include "MCTargetDesc/AVRMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -393,7 +395,7 @@ void AVRAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
 MCFixupKindInfo const &AVRAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
   // NOTE: Many AVR fixups work on sets of non-contignous bits. We work around
   // this by saying that the fixup is the size of the entire instruction.
-  const static MCFixupKindInfo Infos[AVR::NumTargetFixupKinds] = {
+  const static std::array<MCFixupKindInfo, AVR::NumTargetFixupKinds> Infos = { {
       // This table *must* be in same the order of fixup_* kinds in
       // AVRFixupKinds.h.
       //
@@ -447,7 +449,7 @@ MCFixupKindInfo const &AVRAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
 
       {"fixup_port6", 0, 16, 0}, // non-contiguous
       {"fixup_port5", 3, 5, 0},
-  };
+  } };
 
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);

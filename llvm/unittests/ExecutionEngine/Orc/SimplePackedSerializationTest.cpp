@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ExecutionEngine/Orc/Shared/SimplePackedSerialization.h"
 #include "gtest/gtest.h"
 
@@ -14,9 +16,9 @@ using namespace llvm::orc::shared;
 
 TEST(SimplePackedSerializationTest, SPSOutputBuffer) {
   constexpr unsigned NumBytes = 8;
-  char Buffer[NumBytes];
+  std::array<char, NumBytes> Buffer;
   char Zero = 0;
-  SPSOutputBuffer OB(Buffer, NumBytes);
+  SPSOutputBuffer OB(Buffer.begin(), NumBytes);
 
   // Expect that we can write NumBytes of content.
   for (unsigned I = 0; I != NumBytes; ++I) {
@@ -194,15 +196,15 @@ TEST(SimplePackedSerializationTest, ArrayRefEmpty) {
   // should deserialize to a default-constructed ArrayRef, not a pointer into
   // the stream.
   constexpr unsigned BufferSize = sizeof(uint64_t);
-  char Buffer[BufferSize];
-  memset(Buffer, 0, BufferSize);
+  std::array<char, BufferSize> Buffer;
+  memset(Buffer.begin(), 0, BufferSize);
 
   ArrayRef<char> AOut;
-  SPSOutputBuffer OB(Buffer, BufferSize);
+  SPSOutputBuffer OB(Buffer.begin(), BufferSize);
   EXPECT_TRUE(SPSArgList<SPSSequence<char>>::serialize(OB, AOut));
 
   ArrayRef<char> AIn;
-  SPSInputBuffer IB(Buffer, BufferSize);
+  SPSInputBuffer IB(Buffer.begin(), BufferSize);
   EXPECT_TRUE(SPSArgList<SPSSequence<char>>::deserialize(IB, AIn));
 
   EXPECT_EQ(AIn.data(), nullptr);
@@ -215,15 +217,15 @@ TEST(SimplePackedSerializationTest, StringRefEmpty) {
   // should deserialize to a default-constructed StringRef, not a pointer into
   // the stream.
   constexpr unsigned BufferSize = sizeof(uint64_t);
-  char Buffer[BufferSize];
-  memset(Buffer, 0, BufferSize);
+  std::array<char, BufferSize> Buffer;
+  memset(Buffer.begin(), 0, BufferSize);
 
   StringRef SROut;
-  SPSOutputBuffer OB(Buffer, BufferSize);
+  SPSOutputBuffer OB(Buffer.begin(), BufferSize);
   EXPECT_TRUE(SPSArgList<SPSSequence<char>>::serialize(OB, SROut));
 
   StringRef SRIn;
-  SPSInputBuffer IB(Buffer, BufferSize);
+  SPSInputBuffer IB(Buffer.begin(), BufferSize);
   EXPECT_TRUE(SPSArgList<SPSSequence<char>>::deserialize(IB, SRIn));
 
   EXPECT_EQ(SRIn.data(), nullptr);

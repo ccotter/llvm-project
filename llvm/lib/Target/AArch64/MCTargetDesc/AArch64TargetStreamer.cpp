@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64TargetStreamer.h"
+
+#include <array>
 #include "AArch64MCAsmInfo.h"
 #include "AArch64Subtarget.h"
 #include "llvm/BinaryFormat/ELF.h"
@@ -96,7 +98,7 @@ void AArch64TargetStreamer::emitNoteSection(unsigned Flags) {
 }
 
 void AArch64TargetStreamer::emitInst(uint32_t Inst) {
-  char Buffer[4];
+  std::array<char, 4> Buffer;
 
   // We can't just use EmitIntValue here, as that will swap the
   // endianness on big-endian systems (instructions are always
@@ -106,7 +108,7 @@ void AArch64TargetStreamer::emitInst(uint32_t Inst) {
     Inst >>= 8;
   }
 
-  getStreamer().emitBytes(StringRef(Buffer, 4));
+  getStreamer().emitBytes(StringRef(Buffer.begin(), 4));
 }
 
 MCTargetStreamer *

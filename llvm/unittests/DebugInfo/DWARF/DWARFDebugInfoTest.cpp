@@ -31,6 +31,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 
 using namespace llvm;
@@ -60,11 +61,11 @@ void TestAllForms() {
                               9, 10, 11, 12, 13, 14, 15, 16};
   const int64_t SData = INT64_MIN;
   const int64_t ICSData = INT64_MAX; // DW_FORM_implicit_const SData
-  const uint64_t UData[] = {UINT64_MAX - 1, UINT64_MAX - 2, UINT64_MAX - 3,
+  const std::array<uint64_t, 9> UData = { {UINT64_MAX - 1, UINT64_MAX - 2, UINT64_MAX - 3,
                             UINT64_MAX - 4, UINT64_MAX - 5, UINT64_MAX - 6,
-                            UINT64_MAX - 7, UINT64_MAX - 8, UINT64_MAX - 9};
+                            UINT64_MAX - 7, UINT64_MAX - 8, UINT64_MAX - 9} };
 #define UDATA_1 18446744073709551614ULL
-  const uint32_t Dwarf32Values[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  const std::array<uint32_t, 8> Dwarf32Values = { {1, 2, 3, 4, 5, 6, 7, 8} };
   const char *StringValue = "Hello";
   const char *StrpValue = "World";
   const char *StrxValue = "Indexed";
@@ -2124,17 +2125,17 @@ TEST(DWARFDebugInfo, TestDWARFDieRangeInfoIntersects) {
 }
 
 TEST(DWARFDebugInfo, TestDWARF64UnitLength) {
-  static const char DebugInfoSecRaw[] =
-      "\xff\xff\xff\xff"                 // DWARF64 mark
+  static const std::array<char, 25> DebugInfoSecRaw =
+      { "\xff\xff\xff\xff"                 // DWARF64 mark
       "\x88\x77\x66\x55\x44\x33\x22\x11" // Length
       "\x05\x00"                         // Version
       "\x01"                             // DW_UT_compile
       "\x04"                             // Address size
-      "\0\0\0\0\0\0\0\0";                // Offset Into Abbrev. Sec.
+      "\0\0\0\0\0\0\0\0" };                // Offset Into Abbrev. Sec.
   StringMap<std::unique_ptr<MemoryBuffer>> Sections;
   Sections.insert(std::make_pair(
       "debug_info", MemoryBuffer::getMemBuffer(StringRef(
-                        DebugInfoSecRaw, sizeof(DebugInfoSecRaw) - 1))));
+                        DebugInfoSecRaw.begin(), sizeof(DebugInfoSecRaw) - 1))));
   auto Context = DWARFContext::create(Sections, /* AddrSize = */ 4,
                                       /* isLittleEndian = */ true);
   const auto &Obj = Context->getDWARFObj();

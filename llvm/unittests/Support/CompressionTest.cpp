@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/Compression.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
@@ -55,10 +57,10 @@ TEST(CompressionTest, Zlib) {
   testZlibCompression("hello, world!", zlib::DefaultCompression);
 
   const size_t kSize = 1024;
-  char BinaryData[kSize];
+  std::array<char, kSize> BinaryData;
   for (size_t i = 0; i < kSize; ++i)
     BinaryData[i] = i & 255;
-  StringRef BinaryDataStr(BinaryData, kSize);
+  StringRef BinaryDataStr(BinaryData.begin(), kSize);
 
   testZlibCompression(BinaryDataStr, zlib::NoCompression);
   testZlibCompression(BinaryDataStr, zlib::BestSizeCompression);

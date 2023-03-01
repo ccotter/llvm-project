@@ -47,6 +47,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -4161,21 +4162,21 @@ void AArch64InstrInfo::decomposeStackOffsetForFrameOffsets(
 static void appendVGScaledOffsetExpr(SmallVectorImpl<char> &Expr, int NumBytes,
                                      int NumVGScaledBytes, unsigned VG,
                                      llvm::raw_string_ostream &Comment) {
-  uint8_t buffer[16];
+  std::array<uint8_t, 16> buffer;
 
   if (NumBytes) {
     Expr.push_back(dwarf::DW_OP_consts);
-    Expr.append(buffer, buffer + encodeSLEB128(NumBytes, buffer));
+    Expr.append(buffer.begin(), buffer.begin() + encodeSLEB128(NumBytes, buffer.begin()));
     Expr.push_back((uint8_t)dwarf::DW_OP_plus);
     Comment << (NumBytes < 0 ? " - " : " + ") << std::abs(NumBytes);
   }
 
   if (NumVGScaledBytes) {
     Expr.push_back((uint8_t)dwarf::DW_OP_consts);
-    Expr.append(buffer, buffer + encodeSLEB128(NumVGScaledBytes, buffer));
+    Expr.append(buffer.begin(), buffer.begin() + encodeSLEB128(NumVGScaledBytes, buffer.begin()));
 
     Expr.push_back((uint8_t)dwarf::DW_OP_bregx);
-    Expr.append(buffer, buffer + encodeULEB128(VG, buffer));
+    Expr.append(buffer.begin(), buffer.begin() + encodeULEB128(VG, buffer.begin()));
     Expr.push_back(0);
 
     Expr.push_back((uint8_t)dwarf::DW_OP_mul);
@@ -4215,8 +4216,8 @@ static MCCFIInstruction createDefCFAExpression(const TargetRegisterInfo &TRI,
   // Wrap this into DW_CFA_def_cfa.
   SmallString<64> DefCfaExpr;
   DefCfaExpr.push_back(dwarf::DW_CFA_def_cfa_expression);
-  uint8_t buffer[16];
-  DefCfaExpr.append(buffer, buffer + encodeULEB128(Expr.size(), buffer));
+  std::array<uint8_t, 16> buffer;
+  DefCfaExpr.append(buffer.begin(), buffer.begin() + encodeULEB128(Expr.size(), buffer.begin()));
   DefCfaExpr.append(Expr.str());
   return MCCFIInstruction::createEscape(nullptr, DefCfaExpr.str(),
                                         Comment.str());
@@ -4261,9 +4262,9 @@ MCCFIInstruction llvm::createCFAOffset(const TargetRegisterInfo &TRI,
   // Wrap this into DW_CFA_expression
   SmallString<64> CfaExpr;
   CfaExpr.push_back(dwarf::DW_CFA_expression);
-  uint8_t buffer[16];
-  CfaExpr.append(buffer, buffer + encodeULEB128(DwarfReg, buffer));
-  CfaExpr.append(buffer, buffer + encodeULEB128(OffsetExpr.size(), buffer));
+  std::array<uint8_t, 16> buffer;
+  CfaExpr.append(buffer.begin(), buffer.begin() + encodeULEB128(DwarfReg, buffer.begin()));
+  CfaExpr.append(buffer.begin(), buffer.begin() + encodeULEB128(OffsetExpr.size(), buffer.begin()));
   CfaExpr.append(OffsetExpr.str());
 
   return MCCFIInstruction::createEscape(nullptr, CfaExpr.str(), Comment.str());

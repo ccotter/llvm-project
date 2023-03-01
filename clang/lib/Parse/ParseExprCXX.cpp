@@ -24,6 +24,7 @@
 #include "clang/Sema/Scope.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <array>
 #include <numeric>
 
 using namespace clang;
@@ -2616,7 +2617,7 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
 
   // Determine what kind of operator name we have.
   unsigned SymbolIdx = 0;
-  SourceLocation SymbolLocations[3];
+  std::array<SourceLocation, 3> SymbolLocations;
   OverloadedOperatorKind Op = OO_None;
   switch (Tok.getKind()) {
     case tok::kw_new:
@@ -2693,7 +2694,7 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
 
   if (Op != OO_None) {
     // We have parsed an operator-function-id.
-    Result.setOperatorFunctionId(KeywordLoc, Op, SymbolLocations);
+    Result.setOperatorFunctionId(KeywordLoc, Op, SymbolLocations.begin());
     return false;
   }
 

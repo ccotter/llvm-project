@@ -87,6 +87,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -7166,8 +7167,8 @@ QualType ASTContext::getPromotedIntegerType(QualType Promotable) const {
         BT->getKind() == BuiltinType::Char32) {
       bool FromIsSigned = BT->getKind() == BuiltinType::WChar_S;
       uint64_t FromSize = getTypeSize(BT);
-      QualType PromoteTypes[] = { IntTy, UnsignedIntTy, LongTy, UnsignedLongTy,
-                                  LongLongTy, UnsignedLongLongTy };
+      std::array<QualType, 6> PromoteTypes = { { IntTy, UnsignedIntTy, LongTy, UnsignedLongTy,
+                                  LongLongTy, UnsignedLongLongTy } };
       for (const auto &PT : PromoteTypes) {
         uint64_t ToSize = getTypeSize(PT);
         if (FromSize < ToSize ||
@@ -7383,15 +7384,15 @@ QualType ASTContext::getBlockDescriptorType() const {
   RD = buildImplicitRecord("__block_descriptor");
   RD->startDefinition();
 
-  QualType FieldTypes[] = {
+  std::array<QualType, 2> FieldTypes = { {
     UnsignedLongTy,
     UnsignedLongTy,
-  };
+  } };
 
-  static const char *const FieldNames[] = {
+  static const std::array<const char *, 2>FieldNames = { {
     "reserved",
     "Size"
-  };
+  } };
 
   for (size_t i = 0; i < 2; ++i) {
     FieldDecl *Field = FieldDecl::Create(
@@ -7418,19 +7419,19 @@ QualType ASTContext::getBlockDescriptorExtendedType() const {
   RD = buildImplicitRecord("__block_descriptor_withcopydispose");
   RD->startDefinition();
 
-  QualType FieldTypes[] = {
+  std::array<QualType, 4> FieldTypes = { {
     UnsignedLongTy,
     UnsignedLongTy,
     getPointerType(VoidPtrTy),
     getPointerType(VoidPtrTy)
-  };
+  } };
 
-  static const char *const FieldNames[] = {
+  static const std::array<const char *, 4>FieldNames = { {
     "reserved",
     "Size",
     "CopyFuncPtr",
     "DestroyFuncPtr"
-  };
+  } };
 
   for (size_t i = 0; i < 4; ++i) {
     FieldDecl *Field = FieldDecl::Create(
@@ -8757,8 +8758,8 @@ CreateAArch64ABIBuiltinVaListDecl(const ASTContext *Context) {
   VaListTagDecl->startDefinition();
 
   const size_t NumFields = 5;
-  QualType FieldTypes[NumFields];
-  const char *FieldNames[NumFields];
+  std::array<QualType, NumFields> FieldTypes;
+  std::array<const char *, NumFields>FieldNames;
 
   // void *__stack;
   FieldTypes[0] = Context->getPointerType(Context->VoidTy);
@@ -8810,8 +8811,8 @@ static TypedefDecl *CreatePowerABIBuiltinVaListDecl(const ASTContext *Context) {
   VaListTagDecl->startDefinition();
 
   const size_t NumFields = 5;
-  QualType FieldTypes[NumFields];
-  const char *FieldNames[NumFields];
+  std::array<QualType, NumFields> FieldTypes;
+  std::array<const char *, NumFields>FieldNames;
 
   //   unsigned char gpr;
   FieldTypes[0] = Context->UnsignedCharTy;
@@ -8873,8 +8874,8 @@ CreateX86_64ABIBuiltinVaListDecl(const ASTContext *Context) {
   VaListTagDecl->startDefinition();
 
   const size_t NumFields = 4;
-  QualType FieldTypes[NumFields];
-  const char *FieldNames[NumFields];
+  std::array<QualType, NumFields> FieldTypes;
+  std::array<const char *, NumFields>FieldNames;
 
   //   unsigned gp_offset;
   FieldTypes[0] = Context->UnsignedIntTy;
@@ -8976,8 +8977,8 @@ CreateSystemZBuiltinVaListDecl(const ASTContext *Context) {
   VaListTagDecl->startDefinition();
 
   const size_t NumFields = 4;
-  QualType FieldTypes[NumFields];
-  const char *FieldNames[NumFields];
+  std::array<QualType, NumFields> FieldTypes;
+  std::array<const char *, NumFields>FieldNames;
 
   //   long __gpr;
   FieldTypes[0] = Context->LongTy;
@@ -9030,8 +9031,8 @@ static TypedefDecl *CreateHexagonBuiltinVaListDecl(const ASTContext *Context) {
   VaListTagDecl->startDefinition();
 
   const size_t NumFields = 3;
-  QualType FieldTypes[NumFields];
-  const char *FieldNames[NumFields];
+  std::array<QualType, NumFields> FieldTypes;
+  std::array<const char *, NumFields>FieldNames;
 
   //   void *CurrentSavedRegisterArea;
   FieldTypes[0] = Context->getPointerType(Context->VoidTy);

@@ -13,6 +13,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <cmath>
 #include <ostream>
 #include <string>
@@ -988,12 +989,12 @@ TEST(APFloatTest, fromStringSpecials) {
   };
 
   // Convert payload integer to decimal string representation.
-  std::string NaNPayloadDecStrings[std::size(NaNPayloads)];
+  std::array<std::string, std::size(NaNPayloads)> NaNPayloadDecStrings;
   for (size_t I = 0; I < std::size(NaNPayloads); ++I)
     NaNPayloadDecStrings[I] = utostr(NaNPayloads[I]);
 
   // Convert payload integer to hexadecimal string representation.
-  std::string NaNPayloadHexStrings[std::size(NaNPayloads)];
+  std::array<std::string, std::size(NaNPayloads)> NaNPayloadHexStrings;
   for (size_t I = 0; I < std::size(NaNPayloads); ++I)
     NaNPayloadHexStrings[I] = "0x" + utohexstr(NaNPayloads[I]);
 
@@ -1013,7 +1014,7 @@ TEST(APFloatTest, fromStringSpecials) {
   // "Signaling" prefix (or none - for "Quiet").
   const char NaNTypes[] = {0, 's', 'S'};
 
-  const StringRef NaNStrings[] = {"nan", "NaN"};
+  const std::array<StringRef, 2> NaNStrings = { {"nan", "NaN"} };
   for (StringRef NaNStr : NaNStrings)
     for (char TypeChar : NaNTypes) {
       bool Signaling = (TypeChar == 's' || TypeChar == 'S');
@@ -1027,7 +1028,7 @@ TEST(APFloatTest, fromStringSpecials) {
         for (char SignChar : Signs) {
           bool Negative = (SignChar == '-');
 
-          std::string TestStrings[5];
+          std::array<std::string, 5> TestStrings;
           size_t NumTestStrings = 0;
 
           std::string Prefix;
@@ -1067,8 +1068,8 @@ TEST(APFloatTest, fromStringSpecials) {
       }
     }
 
-  const StringRef InfStrings[] = {"inf",  "INFINITY",  "+Inf",
-                                  "-inf", "-INFINITY", "-Inf"};
+  const std::array<StringRef, 6> InfStrings = { {"inf",  "INFINITY",  "+Inf",
+                                  "-inf", "-INFINITY", "-Inf"} };
   for (StringRef InfStr : InfStrings) {
     bool Negative = InfStr.front() == '-';
 
@@ -3199,7 +3200,7 @@ TEST(APFloatTest, operatorOverloads) {
 
 TEST(APFloatTest, Comparisons) {
   enum {MNan, MInf, MBig, MOne, MZer, PZer, POne, PBig, PInf, PNan, NumVals};
-  APFloat Vals[NumVals] = {
+  std::array<APFloat, NumVals> Vals = { {
     APFloat::getNaN(APFloat::IEEEsingle(), true),
     APFloat::getInf(APFloat::IEEEsingle(), true),
     APFloat::getLargest(APFloat::IEEEsingle(), true),
@@ -3210,7 +3211,7 @@ TEST(APFloatTest, Comparisons) {
     APFloat::getLargest(APFloat::IEEEsingle(), false),
     APFloat::getInf(APFloat::IEEEsingle(), false),
     APFloat::getNaN(APFloat::IEEEsingle(), false),
-  };
+  } };
   using Relation = void (*)(const APFloat &, const APFloat &);
   Relation LT = [](const APFloat &LHS, const APFloat &RHS) {
     EXPECT_FALSE(LHS == RHS);
@@ -4202,7 +4203,7 @@ TEST(APFloatTest, remainder) {
 TEST(APFloatTest, PPCDoubleDoubleAddSpecial) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t,
                               APFloat::fltCategory, APFloat::roundingMode>;
-  DataType Data[] = {
+  std::array<DataType, 5> Data = { {
       // (1 + 0) + (-1 + 0) = fcZero
       std::make_tuple(0x3ff0000000000000ull, 0, 0xbff0000000000000ull, 0,
                       APFloat::fcZero, APFloat::rmNearestTiesToEven),
@@ -4224,7 +4225,7 @@ TEST(APFloatTest, PPCDoubleDoubleAddSpecial) {
       // NaN + (1 + 0) = fcNaN
       std::make_tuple(0x7ff8000000000000ull, 0, 0x3ff0000000000000ull, 0,
                       APFloat::fcNaN, APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2];
@@ -4258,7 +4259,7 @@ TEST(APFloatTest, PPCDoubleDoubleAddSpecial) {
 TEST(APFloatTest, PPCDoubleDoubleAdd) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
                               uint64_t, APFloat::roundingMode>;
-  DataType Data[] = {
+  std::array<DataType, 6> Data = { {
       // (1 + 0) + (1e-105 + 0) = (1 + 1e-105)
       std::make_tuple(0x3ff0000000000000ull, 0, 0x3960000000000000ull, 0,
                       0x3ff0000000000000ull, 0x3960000000000000ull,
@@ -4289,7 +4290,7 @@ TEST(APFloatTest, PPCDoubleDoubleAdd) {
       std::make_tuple(0x7c90000000000000ull, 0, 0x7fefffffffffffffull,
                       0xf950000000000000ull, 0x7fefffffffffffffull,
                       0x7c8ffffffffffffeull, APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4330,7 +4331,7 @@ TEST(APFloatTest, PPCDoubleDoubleAdd) {
 TEST(APFloatTest, PPCDoubleDoubleSubtract) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
                               uint64_t, APFloat::roundingMode>;
-  DataType Data[] = {
+  std::array<DataType, 2> Data = { {
       // (1 + 0) - (-1e-105 + 0) = (1 + 1e-105)
       std::make_tuple(0x3ff0000000000000ull, 0, 0xb960000000000000ull, 0,
                       0x3ff0000000000000ull, 0x3960000000000000ull,
@@ -4339,7 +4340,7 @@ TEST(APFloatTest, PPCDoubleDoubleSubtract) {
       std::make_tuple(0x3ff0000000000000ull, 0, 0xb950000000000000ull, 0,
                       0x3ff0000000000000ull, 0x3950000000000000ull,
                       APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4364,7 +4365,7 @@ TEST(APFloatTest, PPCDoubleDoubleSubtract) {
 TEST(APFloatTest, PPCDoubleDoubleMultiplySpecial) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t,
                               APFloat::fltCategory, APFloat::roundingMode>;
-  DataType Data[] = {
+  std::array<DataType, 9> Data = { {
       // fcNaN * fcNaN = fcNaN
       std::make_tuple(0x7ff8000000000000ull, 0, 0x7ff8000000000000ull, 0,
                       APFloat::fcNaN, APFloat::rmNearestTiesToEven),
@@ -4392,7 +4393,7 @@ TEST(APFloatTest, PPCDoubleDoubleMultiplySpecial) {
       // fcZero * fcNormal = fcZero
       std::make_tuple(0, 0, 0x3ff0000000000000ull, 0, APFloat::fcZero,
                       APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2];
@@ -4426,7 +4427,7 @@ TEST(APFloatTest, PPCDoubleDoubleMultiplySpecial) {
 TEST(APFloatTest, PPCDoubleDoubleMultiply) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,
                               uint64_t, APFloat::roundingMode>;
-  DataType Data[] = {
+  std::array<DataType, 9> Data = { {
       // 1/3 * 3 = 1.0
       std::make_tuple(0x3fd5555555555555ull, 0x3c75555555555556ull,
                       0x4008000000000000ull, 0, 0x3ff0000000000000ull, 0,
@@ -4466,7 +4467,7 @@ TEST(APFloatTest, PPCDoubleDoubleMultiply) {
                       0x3ff0000000000000ull, 0x3930000000000000ull,
                       0x7fefffffffffffffull, 0x7c8ffffffffffffeull,
                       APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4509,12 +4510,12 @@ TEST(APFloatTest, PPCDoubleDoubleDivide) {
                               uint64_t, APFloat::roundingMode>;
   // TODO: Only a sanity check for now. Add more edge cases when the
   // double-double algorithm is implemented.
-  DataType Data[] = {
+  std::array<DataType, 1> Data = { {
       // 1 / 3 = 1/3
       std::make_tuple(0x3ff0000000000000ull, 0, 0x4008000000000000ull, 0,
                       0x3fd5555555555555ull, 0x3c75555555555556ull,
                       APFloat::rmNearestTiesToEven),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4539,7 +4540,7 @@ TEST(APFloatTest, PPCDoubleDoubleDivide) {
 TEST(APFloatTest, PPCDoubleDoubleRemainder) {
   using DataType =
       std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>;
-  DataType Data[] = {
+  std::array<DataType, 2> Data = { {
       // remainder(3.0 + 3.0 << 53, 1.25 + 1.25 << 53) = (0.5 + 0.5 << 53)
       std::make_tuple(0x4008000000000000ull, 0x3cb8000000000000ull,
                       0x3ff4000000000000ull, 0x3ca4000000000000ull,
@@ -4548,7 +4549,7 @@ TEST(APFloatTest, PPCDoubleDoubleRemainder) {
       std::make_tuple(0x4008000000000000ull, 0x3cb8000000000000ull,
                       0x3ffc000000000000ull, 0x3cac000000000000ull,
                       0xbfe0000000000000ull, 0xbc90000000000000ull),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4572,7 +4573,7 @@ TEST(APFloatTest, PPCDoubleDoubleRemainder) {
 TEST(APFloatTest, PPCDoubleDoubleMod) {
   using DataType =
       std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>;
-  DataType Data[] = {
+  std::array<DataType, 2> Data = { {
       // mod(3.0 + 3.0 << 53, 1.25 + 1.25 << 53) = (0.5 + 0.5 << 53)
       std::make_tuple(0x4008000000000000ull, 0x3cb8000000000000ull,
                       0x3ff4000000000000ull, 0x3ca4000000000000ull,
@@ -4583,7 +4584,7 @@ TEST(APFloatTest, PPCDoubleDoubleMod) {
       std::make_tuple(0x4008000000000000ull, 0x3cb8000000000000ull,
                       0x3ffc000000000000ull, 0x3cac000000000000ull,
                       0x3ff4000000000001ull, 0xbc98000000000000ull),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2], Expected[2];
@@ -4633,7 +4634,7 @@ TEST(APFloatTest, PPCDoubleDoubleCompare) {
   using DataType =
       std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, APFloat::cmpResult>;
 
-  DataType Data[] = {
+  std::array<DataType, 7> Data = { {
       // (1 + 0) = (1 + 0)
       std::make_tuple(0x3ff0000000000000ull, 0, 0x3ff0000000000000ull, 0,
                       APFloat::cmpEqual),
@@ -4655,7 +4656,7 @@ TEST(APFloatTest, PPCDoubleDoubleCompare) {
       // Inf = Inf
       std::make_tuple(0x7ff0000000000000ull, 0, 0x7ff0000000000000ull, 0,
                       APFloat::cmpEqual),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2];
@@ -4674,7 +4675,7 @@ TEST(APFloatTest, PPCDoubleDoubleCompare) {
 TEST(APFloatTest, PPCDoubleDoubleBitwiseIsEqual) {
   using DataType = std::tuple<uint64_t, uint64_t, uint64_t, uint64_t, bool>;
 
-  DataType Data[] = {
+  std::array<DataType, 5> Data = { {
       // (1 + 0) = (1 + 0)
       std::make_tuple(0x3ff0000000000000ull, 0, 0x3ff0000000000000ull, 0, true),
       // (1 + 0) != (1.00...1 + 0)
@@ -4687,7 +4688,7 @@ TEST(APFloatTest, PPCDoubleDoubleBitwiseIsEqual) {
                       0x3ff0000000000000ull, false),
       // Inf = Inf
       std::make_tuple(0x7ff0000000000000ull, 0, 0x7ff0000000000000ull, 0, true),
-  };
+  } };
 
   for (auto Tp : Data) {
     uint64_t Op1[2], Op2[2];
@@ -4713,10 +4714,10 @@ TEST(APFloatTest, PPCDoubleDoubleHashValue) {
 }
 
 TEST(APFloatTest, PPCDoubleDoubleChangeSign) {
-  uint64_t Data[] = {
+  std::array<uint64_t, 2> Data = { {
       0x400f000000000000ull, 0xbcb0000000000000ull,
-  };
-  APFloat Float(APFloat::PPCDoubleDouble(), APInt(128, 2, Data));
+  } };
+  APFloat Float(APFloat::PPCDoubleDouble(), APInt(128, 2, Data.begin()));
   {
     APFloat Actual =
         APFloat::copySign(Float, APFloat(APFloat::IEEEdouble(), "1"));
@@ -4813,11 +4814,11 @@ TEST(APFloatTest, PPCDoubleDoubleIsDenormal) {
 
 TEST(APFloatTest, PPCDoubleDoubleScalbn) {
   // 3.0 + 3.0 << 53
-  uint64_t Input[] = {
+  std::array<uint64_t, 2> Input = { {
       0x4008000000000000ull, 0x3cb8000000000000ull,
-  };
+  } };
   APFloat Result =
-      scalbn(APFloat(APFloat::PPCDoubleDouble(), APInt(128, 2, Input)), 1,
+      scalbn(APFloat(APFloat::PPCDoubleDouble(), APInt(128, 2, Input.begin())), 1,
              APFloat::rmNearestTiesToEven);
   // 6.0 + 6.0 << 53
   EXPECT_EQ(0x4018000000000000ull, Result.bitcastToAPInt().getRawData()[0]);
@@ -4826,13 +4827,13 @@ TEST(APFloatTest, PPCDoubleDoubleScalbn) {
 
 TEST(APFloatTest, PPCDoubleDoubleFrexp) {
   // 3.0 + 3.0 << 53
-  uint64_t Input[] = {
+  std::array<uint64_t, 2> Input = { {
       0x4008000000000000ull, 0x3cb8000000000000ull,
-  };
+  } };
   int Exp;
   // 0.75 + 0.75 << 53
   APFloat Result =
-      frexp(APFloat(APFloat::PPCDoubleDouble(), APInt(128, 2, Input)), Exp,
+      frexp(APFloat(APFloat::PPCDoubleDouble(), APInt(128, 2, Input.begin())), Exp,
             APFloat::rmNearestTiesToEven);
   EXPECT_EQ(2, Exp);
   EXPECT_EQ(0x3fe8000000000000ull, Result.bitcastToAPInt().getRawData()[0]);

@@ -7,6 +7,8 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/AMDGPUFixupKinds.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "Utils/AMDGPUBaseInfo.h"
@@ -174,10 +176,10 @@ AMDGPUAsmBackend::getFixupKind(StringRef Name) const {
 
 const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
                                                        MCFixupKind Kind) const {
-  const static MCFixupKindInfo Infos[AMDGPU::NumTargetFixupKinds] = {
+  const static std::array<MCFixupKindInfo, AMDGPU::NumTargetFixupKinds> Infos = { {
     // name                   offset bits  flags
     { "fixup_si_sopp_br",     0,     16,   MCFixupKindInfo::FKF_IsPCRel },
-  };
+  } };
 
   if (Kind >= FirstLiteralRelocationKind)
     return MCAsmBackend::getFixupKindInfo(FK_NONE);

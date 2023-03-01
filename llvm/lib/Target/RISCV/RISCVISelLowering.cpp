@@ -39,6 +39,7 @@
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -113,22 +114,22 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasStdExtD())
     addRegisterClass(MVT::f64, &RISCV::FPR64RegClass);
 
-  static const MVT::SimpleValueType BoolVecVTs[] = {
+  static const std::array<MVT::SimpleValueType, 7> BoolVecVTs = { {
       MVT::nxv1i1,  MVT::nxv2i1,  MVT::nxv4i1, MVT::nxv8i1,
-      MVT::nxv16i1, MVT::nxv32i1, MVT::nxv64i1};
-  static const MVT::SimpleValueType IntVecVTs[] = {
+      MVT::nxv16i1, MVT::nxv32i1, MVT::nxv64i1} };
+  static const std::array<MVT::SimpleValueType, 22> IntVecVTs = { {
       MVT::nxv1i8,  MVT::nxv2i8,   MVT::nxv4i8,   MVT::nxv8i8,  MVT::nxv16i8,
       MVT::nxv32i8, MVT::nxv64i8,  MVT::nxv1i16,  MVT::nxv2i16, MVT::nxv4i16,
       MVT::nxv8i16, MVT::nxv16i16, MVT::nxv32i16, MVT::nxv1i32, MVT::nxv2i32,
       MVT::nxv4i32, MVT::nxv8i32,  MVT::nxv16i32, MVT::nxv1i64, MVT::nxv2i64,
-      MVT::nxv4i64, MVT::nxv8i64};
+      MVT::nxv4i64, MVT::nxv8i64} };
   static const MVT::SimpleValueType F16VecVTs[] = {
       MVT::nxv1f16, MVT::nxv2f16,  MVT::nxv4f16,
       MVT::nxv8f16, MVT::nxv16f16, MVT::nxv32f16};
   static const MVT::SimpleValueType F32VecVTs[] = {
       MVT::nxv1f32, MVT::nxv2f32, MVT::nxv4f32, MVT::nxv8f32, MVT::nxv16f32};
-  static const MVT::SimpleValueType F64VecVTs[] = {
-      MVT::nxv1f64, MVT::nxv2f64, MVT::nxv4f64, MVT::nxv8f64};
+  static const std::array<MVT::SimpleValueType, 4> F64VecVTs = { {
+      MVT::nxv1f64, MVT::nxv2f64, MVT::nxv4f64, MVT::nxv8f64} };
 
   if (Subtarget.hasVInstructions()) {
     auto addRegClassForRVV = [this](MVT VT) {
@@ -2888,7 +2889,7 @@ static bool isInterleaveShuffle(ArrayRef<int> Mask, MVT VT, bool &SwapSources,
   int Size = Mask.size();
   assert(Size == (int)VT.getVectorNumElements() && "Unexpected mask size");
 
-  int Srcs[] = {-1, -1};
+  std::array Srcs = {-1, -1};
   for (int i = 0; i != Size; ++i) {
     // Ignore undef elements.
     if (Mask[i] < 0)
@@ -5676,11 +5677,11 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   case Intrinsic::riscv_seg7_load:
   case Intrinsic::riscv_seg8_load: {
     SDLoc DL(Op);
-    static const Intrinsic::ID VlsegInts[7] = {
+    static const std::array<Intrinsic::ID, 7> VlsegInts = { {
         Intrinsic::riscv_vlseg2, Intrinsic::riscv_vlseg3,
         Intrinsic::riscv_vlseg4, Intrinsic::riscv_vlseg5,
         Intrinsic::riscv_vlseg6, Intrinsic::riscv_vlseg7,
-        Intrinsic::riscv_vlseg8};
+        Intrinsic::riscv_vlseg8} };
     unsigned NF = Op->getNumValues() - 1;
     assert(NF >= 2 && NF <= 8 && "Unexpected seg number");
     MVT XLenVT = Subtarget.getXLenVT();
@@ -10329,9 +10330,9 @@ bool RISCVTargetLowering::targetShrinkDemandedConstant(
 }
 
 static uint64_t computeGREVOrGORC(uint64_t x, unsigned ShAmt, bool IsGORC) {
-  static const uint64_t GREVMasks[] = {
+  static const std::array<uint64_t, 6> GREVMasks = { {
       0x5555555555555555ULL, 0x3333333333333333ULL, 0x0F0F0F0F0F0F0F0FULL,
-      0x00FF00FF00FF00FFULL, 0x0000FFFF0000FFFFULL, 0x00000000FFFFFFFFULL};
+      0x00FF00FF00FF00FFULL, 0x0000FFFF0000FFFFULL, 0x00000000FFFFFFFFULL} };
 
   for (unsigned Stage = 0; Stage != 6; ++Stage) {
     unsigned Shift = 1 << Stage;

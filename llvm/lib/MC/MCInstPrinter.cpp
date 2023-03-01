@@ -17,13 +17,14 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cinttypes>
 #include <cstdint>
 
 using namespace llvm;
 
 void llvm::dumpBytes(ArrayRef<uint8_t> bytes, raw_ostream &OS) {
-  static const char hex_rep[] = "0123456789abcdef";
+  static const std::array<char, 17> hex_rep = { "0123456789abcdef" };
   bool First = true;
   for (char i: bytes) {
     if (First)

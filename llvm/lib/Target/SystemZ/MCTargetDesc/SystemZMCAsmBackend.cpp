@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/SystemZMCFixups.h"
 #include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -130,7 +132,7 @@ SystemZMCAsmBackend::getFixupKind(StringRef Name) const {
 
 const MCFixupKindInfo &
 SystemZMCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
-  const static MCFixupKindInfo Infos[SystemZ::NumTargetFixupKinds] = {
+  const static std::array<MCFixupKindInfo, SystemZ::NumTargetFixupKinds> Infos = { {
     { "FK_390_PC12DBL",  4, 12, MCFixupKindInfo::FKF_IsPCRel },
     { "FK_390_PC16DBL",  0, 16, MCFixupKindInfo::FKF_IsPCRel },
     { "FK_390_PC24DBL",  0, 24, MCFixupKindInfo::FKF_IsPCRel },
@@ -138,7 +140,7 @@ SystemZMCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
     { "FK_390_TLS_CALL", 0, 0, 0 },
     { "FK_390_12",       4, 12, 0 },
     { "FK_390_20",       4, 20, 0 }
-  };
+  } };
 
   // Fixup kinds from .reloc directive are like R_390_NONE. They
   // do not require any extra processing.

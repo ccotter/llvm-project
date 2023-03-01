@@ -83,6 +83,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstring>
 #include <optional>
@@ -1046,7 +1047,7 @@ static uint64_t dumpARMELFData(uint64_t SectionAddr, uint64_t Index,
 static void dumpELFData(uint64_t SectionAddr, uint64_t Index, uint64_t End,
                         ArrayRef<uint8_t> Bytes) {
   // print out data up to 8 bytes at a time in hex and ascii
-  uint8_t AsciiData[9] = {'\0'};
+  std::array<uint8_t, 9> AsciiData = { {'\0'} };
   uint8_t Byte;
   int NumBytes = 0;
 
@@ -1070,7 +1071,7 @@ static void dumpELFData(uint64_t SectionAddr, uint64_t Index, uint64_t End,
     if (NumBytes == 8) {
       AsciiData[8] = '\0';
       outs() << std::string(IndentOffset, ' ') << "         ";
-      outs() << reinterpret_cast<char *>(AsciiData);
+      outs() << reinterpret_cast<char *>(AsciiData.begin());
       outs() << '\n';
       NumBytes = 0;
     }
@@ -3104,8 +3105,8 @@ static void parseObjdumpOptions(const llvm::opt::InputArgList &InputArgs) {
     }
   }
   if (AsmSyntax) {
-    const char *Argv[] = {"llvm-objdump", AsmSyntax};
-    llvm::cl::ParseCommandLineOptions(2, Argv);
+    std::array<const char *, 2>Argv = { {"llvm-objdump", AsmSyntax} };
+    llvm::cl::ParseCommandLineOptions(2, Argv.begin());
   }
 
   // Look up any provided build IDs, then append them to the input filenames.

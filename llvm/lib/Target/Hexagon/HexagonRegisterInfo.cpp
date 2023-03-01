@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "HexagonRegisterInfo.h"
+
+#include <array>
 #include "Hexagon.h"
 #include "HexagonMachineFunctionInfo.h"
 #include "HexagonSubtarget.h"
@@ -68,73 +70,73 @@ HexagonRegisterInfo::getCallerSavedRegs(const MachineFunction *MF,
       const TargetRegisterClass *RC) const {
   using namespace Hexagon;
 
-  static const MCPhysReg Int32[] = {
+  static const std::array<MCPhysReg, 17> Int32 = { {
     R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, 0
-  };
-  static const MCPhysReg Int64[] = {
+  } };
+  static const std::array<MCPhysReg, 9> Int64 = { {
     D0, D1, D2, D3, D4, D5, D6, D7, 0
-  };
-  static const MCPhysReg Pred[] = {
+  } };
+  static const std::array<MCPhysReg, 5> Pred = { {
     P0, P1, P2, P3, 0
-  };
-  static const MCPhysReg VecSgl[] = {
+  } };
+  static const std::array<MCPhysReg, 33> VecSgl = { {
      V0,  V1,  V2,  V3,  V4,  V5,  V6,  V7,  V8,  V9, V10, V11, V12, V13,
     V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27,
     V28, V29, V30, V31,   0
-  };
-  static const MCPhysReg VecDbl[] = {
+  } };
+  static const std::array<MCPhysReg, 17> VecDbl = { {
     W0, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15, 0
-  };
-  static const MCPhysReg VecPred[] = {
+  } };
+  static const std::array<MCPhysReg, 5> VecPred = { {
     Q0, Q1, Q2, Q3, 0
-  };
+  } };
 
   switch (RC->getID()) {
     case IntRegsRegClassID:
-      return Int32;
+      return Int32.begin();
     case DoubleRegsRegClassID:
-      return Int64;
+      return Int64.begin();
     case PredRegsRegClassID:
-      return Pred;
+      return Pred.begin();
     case HvxVRRegClassID:
-      return VecSgl;
+      return VecSgl.begin();
     case HvxWRRegClassID:
-      return VecDbl;
+      return VecDbl.begin();
     case HvxQRRegClassID:
-      return VecPred;
+      return VecPred.begin();
     default:
       break;
   }
 
-  static const MCPhysReg Empty[] = { 0 };
+  static const std::array<MCPhysReg, 1> Empty = { { 0 } };
 #ifndef NDEBUG
   dbgs() << "Register class: " << getRegClassName(RC) << "\n";
 #endif
   llvm_unreachable("Unexpected register class");
-  return Empty;
+  return Empty.begin();
 }
 
 
 const MCPhysReg *
 HexagonRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  static const MCPhysReg CalleeSavedRegsV3[] = {
+  static const std::array<MCPhysReg, 13> CalleeSavedRegsV3 = { {
     Hexagon::R16,   Hexagon::R17,   Hexagon::R18,   Hexagon::R19,
     Hexagon::R20,   Hexagon::R21,   Hexagon::R22,   Hexagon::R23,
     Hexagon::R24,   Hexagon::R25,   Hexagon::R26,   Hexagon::R27, 0
-  };
+  } };
 
   // Functions that contain a call to __builtin_eh_return also save the first 4
   // parameter registers.
-  static const MCPhysReg CalleeSavedRegsV3EHReturn[] = {
+  static const std::array<MCPhysReg, 17> CalleeSavedRegsV3EHReturn = { {
     Hexagon::R0,    Hexagon::R1,    Hexagon::R2,    Hexagon::R3,
     Hexagon::R16,   Hexagon::R17,   Hexagon::R18,   Hexagon::R19,
     Hexagon::R20,   Hexagon::R21,   Hexagon::R22,   Hexagon::R23,
     Hexagon::R24,   Hexagon::R25,   Hexagon::R26,   Hexagon::R27, 0
-  };
+  } };
 
   bool HasEHReturn = MF->getInfo<HexagonMachineFunctionInfo>()->hasEHReturn();
 
-  return HasEHReturn ? CalleeSavedRegsV3EHReturn : CalleeSavedRegsV3;
+  return HasEHReturn ? CalleeSavedRegsV3EHReturn.begin() : CalleeSavedRegsV3.begin();
 }
 
 
@@ -422,9 +424,9 @@ unsigned HexagonRegisterInfo::getHexagonSubRegIndex(
       const TargetRegisterClass &RC, unsigned GenIdx) const {
   assert(GenIdx == Hexagon::ps_sub_lo || GenIdx == Hexagon::ps_sub_hi);
 
-  static const unsigned ISub[] = { Hexagon::isub_lo, Hexagon::isub_hi };
-  static const unsigned VSub[] = { Hexagon::vsub_lo, Hexagon::vsub_hi };
-  static const unsigned WSub[] = { Hexagon::wsub_lo, Hexagon::wsub_hi };
+  static const std::array<unsigned, 2> ISub = { { Hexagon::isub_lo, Hexagon::isub_hi } };
+  static const std::array<unsigned, 2> VSub = { { Hexagon::vsub_lo, Hexagon::vsub_hi } };
+  static const std::array<unsigned, 2> WSub = { { Hexagon::wsub_lo, Hexagon::wsub_hi } };
 
   switch (RC.getID()) {
     case Hexagon::CtrRegs64RegClassID:

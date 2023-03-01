@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+#include <array>
+
 #include "Annotations.h"
 #include "Selection.h"
 #include "SourceCode.h"
@@ -99,7 +101,7 @@ TEST(SelectionTest, CommonAncestor) {
     const char *Code;
     const char *CommonAncestorKind;
   };
-  Case Cases[] = {
+  std::array<Case, 94> Cases = { {
       {
           R"cpp(
             template <typename T>
@@ -561,7 +563,7 @@ TEST(SelectionTest, CommonAncestor) {
         [[^using enum ns::A]];
         )cpp",
        "UsingEnumDecl"},
-  };
+  } };
 
   for (const Case &C : Cases) {
     trace::TestTracer Tracer;
@@ -636,7 +638,7 @@ TEST(SelectionTest, Selected) {
   // Selection with ^marks^.
   // Partially selected nodes marked with a [[range]].
   // Completely selected nodes marked with a $C[[range]].
-  const char *Cases[] = {
+  std::array<const char *, 9>Cases = { {
       R"cpp( int abc, xyz = [[^ab^c]]; )cpp",
       R"cpp( int abc, xyz = [[a^bc^]]; )cpp",
       R"cpp( int abc, xyz = $C[[^abc^]]; )cpp",
@@ -661,7 +663,7 @@ TEST(SelectionTest, Selected) {
       )cpp",
       R"cpp( $C[[^$C[[int]] a^]]; )cpp",
       R"cpp( $C[[^$C[[int]] a = $C[[5]]^]]; )cpp",
-  };
+  } };
   for (const char *C : Cases) {
     Annotations Test(C);
     auto AST = TestTU::withCode(Test.code()).build();

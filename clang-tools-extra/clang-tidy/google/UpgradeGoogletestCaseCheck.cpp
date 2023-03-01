@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "UpgradeGoogletestCaseCheck.h"
+
+#include <array>
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/PPCallbacks.h"
@@ -24,13 +26,13 @@ static const llvm::StringRef RenameCaseToSuiteMessage =
 
 static llvm::Optional<llvm::StringRef>
 getNewMacroName(llvm::StringRef MacroName) {
-  std::pair<llvm::StringRef, llvm::StringRef> ReplacementMap[] = {
+  std::array<std::pair<llvm::StringRef, llvm::StringRef>, 5> ReplacementMap = { {
       {"TYPED_TEST_CASE", "TYPED_TEST_SUITE"},
       {"TYPED_TEST_CASE_P", "TYPED_TEST_SUITE_P"},
       {"REGISTER_TYPED_TEST_CASE_P", "REGISTER_TYPED_TEST_SUITE_P"},
       {"INSTANTIATE_TYPED_TEST_CASE_P", "INSTANTIATE_TYPED_TEST_SUITE_P"},
       {"INSTANTIATE_TEST_CASE_P", "INSTANTIATE_TEST_SUITE_P"},
-  };
+  } };
 
   for (auto &Mapping : ReplacementMap) {
     if (MacroName == Mapping.first)
@@ -205,7 +207,7 @@ void UpgradeGoogletestCaseCheck::registerMatchers(MatchFinder *Finder) {
 }
 
 static llvm::StringRef getNewMethodName(llvm::StringRef CurrentName) {
-  std::pair<llvm::StringRef, llvm::StringRef> ReplacementMap[] = {
+  std::array<std::pair<llvm::StringRef, llvm::StringRef>, 11> ReplacementMap = { {
       {"SetUpTestCase", "SetUpTestSuite"},
       {"TearDownTestCase", "TearDownTestSuite"},
       {"test_case_name", "test_suite_name"},
@@ -216,7 +218,7 @@ static llvm::StringRef getNewMethodName(llvm::StringRef CurrentName) {
       {"failed_test_case_count", "failed_test_suite_count"},
       {"total_test_case_count", "total_test_suite_count"},
       {"test_case_to_run_count", "test_suite_to_run_count"},
-      {"GetTestCase", "GetTestSuite"}};
+      {"GetTestCase", "GetTestSuite"}} };
 
   for (auto &Mapping : ReplacementMap) {
     if (CurrentName == Mapping.first)

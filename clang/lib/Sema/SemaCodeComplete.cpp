@@ -54,6 +54,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <array>
 #include <list>
 #include <map>
 #include <string>
@@ -9041,10 +9042,10 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   // Add -(void)getKey:(type **)buffer range:(NSRange)inRange
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (Twine("get") + UpperKey).str();
-    IdentifierInfo *SelectorIds[2] = {&Context.Idents.get(SelectorName),
-                                      &Context.Idents.get("range")};
+    std::array<IdentifierInfo *, 2>SelectorIds = { {&Context.Idents.get(SelectorName),
+                                      &Context.Idents.get("range")} };
 
-    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds)).second) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds.begin())).second) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -9073,10 +9074,10 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   // - (void)insertObject:(type *)object inKeyAtIndex:(NSUInteger)index
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (Twine("in") + UpperKey + "AtIndex").str();
-    IdentifierInfo *SelectorIds[2] = {&Context.Idents.get("insertObject"),
-                                      &Context.Idents.get(SelectorName)};
+    std::array<IdentifierInfo *, 2>SelectorIds = { {&Context.Idents.get("insertObject"),
+                                      &Context.Idents.get(SelectorName)} };
 
-    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds)).second) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds.begin())).second) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -9103,10 +9104,10 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   // - (void)insertKey:(NSArray *)array atIndexes:(NSIndexSet *)indexes
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName = (Twine("insert") + UpperKey).str();
-    IdentifierInfo *SelectorIds[2] = {&Context.Idents.get(SelectorName),
-                                      &Context.Idents.get("atIndexes")};
+    std::array<IdentifierInfo *, 2>SelectorIds = { {&Context.Idents.get(SelectorName),
+                                      &Context.Idents.get("atIndexes")} };
 
-    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds)).second) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds.begin())).second) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -9176,10 +9177,10 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
   if (IsInstanceMethod && ReturnTypeMatchesVoid) {
     std::string SelectorName =
         (Twine("replaceObjectIn") + UpperKey + "AtIndex").str();
-    IdentifierInfo *SelectorIds[2] = {&Context.Idents.get(SelectorName),
-                                      &Context.Idents.get("withObject")};
+    std::array<IdentifierInfo *, 2>SelectorIds = { {&Context.Idents.get(SelectorName),
+                                      &Context.Idents.get("withObject")} };
 
-    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds)).second) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds.begin())).second) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");
@@ -9207,10 +9208,10 @@ static void AddObjCKeyValueCompletions(ObjCPropertyDecl *Property,
     std::string SelectorName1 =
         (Twine("replace") + UpperKey + "AtIndexes").str();
     std::string SelectorName2 = (Twine("with") + UpperKey).str();
-    IdentifierInfo *SelectorIds[2] = {&Context.Idents.get(SelectorName1),
-                                      &Context.Idents.get(SelectorName2)};
+    std::array<IdentifierInfo *, 2>SelectorIds = { {&Context.Idents.get(SelectorName1),
+                                      &Context.Idents.get(SelectorName2)} };
 
-    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds)).second) {
+    if (KnownSelectors.insert(Selectors.getSelector(2, SelectorIds.begin())).second) {
       if (ReturnType.isNull()) {
         Builder.AddChunk(CodeCompletionString::CK_LeftParen);
         Builder.AddTextChunk("void");

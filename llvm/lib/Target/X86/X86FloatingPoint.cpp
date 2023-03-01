@@ -46,6 +46,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include <algorithm>
+#include <array>
 #include <bitset>
 using namespace llvm;
 
@@ -1686,12 +1687,12 @@ void FPS::handleSpecialFP(MachineBasicBlock::iterator &Inst) {
     FPKills &= ~(STDefs | STClobbers);
 
     // Now we can rearrange the live registers to match what was requested.
-    unsigned char STUsesArray[8];
+    std::array<unsigned char, 8> STUsesArray;
 
     for (unsigned I = 0; I < NumSTUses; ++I)
       STUsesArray[I] = I;
 
-    shuffleStackTop(STUsesArray, NumSTUses, Inst);
+    shuffleStackTop(STUsesArray.begin(), NumSTUses, Inst);
     LLVM_DEBUG({
       dbgs() << "Before asm: ";
       dumpStack();

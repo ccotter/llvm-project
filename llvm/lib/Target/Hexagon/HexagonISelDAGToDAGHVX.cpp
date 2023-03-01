@@ -21,6 +21,7 @@
 #include "llvm/Support/MathExtras.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <deque>
 #include <functional>
@@ -1286,7 +1287,7 @@ OpRef HvxSelector::packs(ShuffleMask SM, OpRef Va, OpRef Vb,
 
   MVT Ty = getSingleVT(MVT::i8);
   MVT PairTy = getPairVT(MVT::i8);
-  OpRef Inp[2] = {Va, Vb};
+  std::array<OpRef, 2> Inp = { {Va, Vb} };
   unsigned VecLen = SM.Mask.size();
 
   auto valign = [this](OpRef Lo, OpRef Hi, unsigned Amt, MVT Ty,
@@ -1516,8 +1517,8 @@ OpRef HvxSelector::packp(ShuffleMask SM, OpRef Va, OpRef Vb,
 
   MVT HalfTy = getSingleVT(MVT::i8);
 
-  OpRef Inp[2] = { Va, Vb };
-  OpRef Out[2] = { OpRef::undef(HalfTy), OpRef::undef(HalfTy) };
+  std::array<OpRef, 2> Inp = { { Va, Vb } };
+  std::array<OpRef, 2> Out = { { OpRef::undef(HalfTy), OpRef::undef(HalfTy) } };
 
   // Really make sure we have at most 2 vectors used in the mask.
   assert(SegCount <= 2);
@@ -2070,12 +2071,12 @@ OpRef HvxSelector::contracting(ShuffleMask SM, OpRef Va, OpRef Vb,
   };
 
   using PackConfig = std::pair<unsigned, bool>;
-  PackConfig Packs[] = {
+  std::array<PackConfig, 4> Packs = { {
       {1, false}, // byte, even
       {1, true},  // byte, odd
       {2, false}, // half, even
       {2, true},  // half, odd
-  };
+  } };
 
   { // Check vpack
     unsigned Opcodes[] = {
@@ -2384,8 +2385,8 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
     }
     // At most one, IsDeal or IsShuff, can be non-zero.
     assert(!(IsDeal || IsShuff) || IsDeal != IsShuff);
-    static unsigned Deals[] = {Hexagon::V6_vdealb, Hexagon::V6_vdealh};
-    static unsigned Shufs[] = {Hexagon::V6_vshuffb, Hexagon::V6_vshuffh};
+    static std::array<unsigned, 2> Deals = { {Hexagon::V6_vdealb, Hexagon::V6_vdealh} };
+    static std::array<unsigned, 2> Shufs = { {Hexagon::V6_vshuffb, Hexagon::V6_vshuffh} };
     return IsDeal ? Deals[D] : (IsShuff ? Shufs[D] : 0);
   };
 

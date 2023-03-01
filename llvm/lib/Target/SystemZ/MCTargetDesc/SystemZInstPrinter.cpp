@@ -14,6 +14,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 
@@ -245,10 +246,10 @@ void SystemZInstPrinter::printBDVAddrOperand(const MCInst *MI, int OpNum,
 
 void SystemZInstPrinter::printCond4Operand(const MCInst *MI, int OpNum,
                                            raw_ostream &O) {
-  static const char *const CondNames[] = {
+  static const std::array<const char *, 14>CondNames = { {
     "o", "h", "nle", "l", "nhe", "lh", "ne",
     "e", "nlh", "he", "nl", "le", "nh", "no"
-  };
+  } };
   uint64_t Imm = MI->getOperand(OpNum).getImm();
   assert(Imm > 0 && Imm < 15 && "Invalid condition");
   O << CondNames[Imm - 1];

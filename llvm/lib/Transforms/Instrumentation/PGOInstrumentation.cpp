@@ -116,6 +116,7 @@
 #include "llvm/Transforms/Utils/MisExpect.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <map>
@@ -1224,21 +1225,21 @@ void PGOUseFunc::setEdgeCount(DirectEdges &Edges, uint64_t Value) {
 // Emit function metadata indicating PGO profile mismatch.
 static void annotateFunctionWithHashMismatch(Function &F,
                                              LLVMContext &ctx) {
-  const char MetadataName[] = "instr_prof_hash_mismatch";
+  const std::array<char, 25> MetadataName = { "instr_prof_hash_mismatch" };
   SmallVector<Metadata *, 2> Names;
   // If this metadata already exists, ignore.
   auto *Existing = F.getMetadata(LLVMContext::MD_annotation);
   if (Existing) {
     MDTuple *Tuple = cast<MDTuple>(Existing);
     for (const auto &N : Tuple->operands()) {
-      if (cast<MDString>(N.get())->getString() ==  MetadataName)
+      if (cast<MDString>(N.get())->getString() ==  MetadataName.begin())
         return;
       Names.push_back(N.get());
     }
   }
 
   MDBuilder MDB(ctx);
-  Names.push_back(MDB.createString(MetadataName));
+  Names.push_back(MDB.createString(MetadataName.begin()));
   MDNode *MD = MDTuple::get(ctx, Names);
   F.setMetadata(LLVMContext::MD_annotation, MD);
 }

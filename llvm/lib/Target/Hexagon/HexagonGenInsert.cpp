@@ -37,6 +37,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -978,7 +979,7 @@ void HexagonGenInsert::findRemovableRegisters(unsigned VR, IFRecord IF,
   // used by the current definition of VR, and which would no longer be
   // needed for it after the definition of VR is replaced with the insert
   // form. These are the registers that could potentially become dead.
-  RegisterSet Regs[2];
+  std::array<RegisterSet, 2> Regs;
 
   unsigned S = 0;  // Register set selector.
   Regs[S].insert(VR);

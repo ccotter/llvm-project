@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "HexagonISelDAGToDAG.h"
+
+#include <array>
 #include "Hexagon.h"
 #include "HexagonISelLowering.h"
 #include "HexagonMachineFunctionInfo.h"
@@ -144,8 +146,8 @@ void HexagonDAGToDAGISel::SelectIndexedLoad(LoadSDNode *LD, const SDLoc &dl) {
   };
 
   //                  Loaded value   Next address   Chain
-  SDValue From[3] = { SDValue(LD,0), SDValue(LD,1), SDValue(LD,2) };
-  SDValue To[3];
+  std::array<SDValue, 3> From = { { SDValue(LD,0), SDValue(LD,1), SDValue(LD,2) } };
+  std::array<SDValue, 3> To;
 
   EVT ValueVT = LD->getValueType(0);
   if (ValueVT == MVT::i64 && ExtType != ISD::NON_EXTLOAD) {
@@ -180,7 +182,7 @@ void HexagonDAGToDAGISel::SelectIndexedLoad(LoadSDNode *LD, const SDLoc &dl) {
       L = getExt64(L, dl);
     To[0] = SDValue(L, 0); // Loaded (extended) value.
   }
-  ReplaceUses(From, To, 3);
+  ReplaceUses(From.begin(), To.begin(), 3);
   CurDAG->RemoveDeadNode(LD);
 }
 
@@ -304,9 +306,9 @@ bool HexagonDAGToDAGISel::tryLoadOfLoadIntrinsic(LoadSDNode *N) {
 
   if (MachineSDNode *L = LoadInstrForLoadIntrinsic(C)) {
     SDNode *S = StoreInstrForLoadIntrinsic(L, C);
-    SDValue F[] = { SDValue(N,0), SDValue(N,1), SDValue(C,0), SDValue(C,1) };
+    std::array F = { SDValue(N,0), SDValue(N,1), SDValue(C,0), SDValue(C,1) };
     SDValue T[] = { SDValue(L,0), SDValue(S,0), SDValue(L,1), SDValue(S,0) };
-    ReplaceUses(F, T, std::size(T));
+    ReplaceUses(F.begin(), T, std::size(T));
     // This transformation will leave the intrinsic dead. If it remains in
     // the DAG, the selection code will see it again, but without the load,
     // and it will generate a store that is normally required for it.
@@ -527,8 +529,8 @@ void HexagonDAGToDAGISel::SelectIndexedStore(StoreSDNode *ST, const SDLoc &dl) {
   MachineMemOperand *MemOp = ST->getMemOperand();
 
   //                  Next address   Chain
-  SDValue From[2] = { SDValue(ST,0), SDValue(ST,1) };
-  SDValue To[2];
+  std::array<SDValue, 2> From = { { SDValue(ST,0), SDValue(ST,1) } };
+  std::array<SDValue, 2> To;
 
   if (IsValidInc) {
     // Build post increment store.
@@ -549,7 +551,7 @@ void HexagonDAGToDAGISel::SelectIndexedStore(StoreSDNode *ST, const SDLoc &dl) {
     To[0] = SDValue(A, 0);
   }
 
-  ReplaceUses(From, To, 2);
+  ReplaceUses(From.begin(), To.begin(), 2);
   CurDAG->RemoveDeadNode(ST);
 }
 
@@ -1880,7 +1882,7 @@ static unsigned getPowerOf2Factor(SDValue Val) {
 /// @returns true if V>>Amount will eliminate V's operation on its child
 static bool willShiftRightEliminate(SDValue V, unsigned Amount) {
   if (V.getOpcode() == ISD::MUL) {
-    SDValue Ops[] = { V.getOperand(0), V.getOperand(1) };
+    std::array Ops = { V.getOperand(0), V.getOperand(1) };
     for (int i = 0; i < 2; ++i)
       if (isa<ConstantSDNode>(Ops[i].getNode()) &&
           V.getConstantOperandVal(i) % (1ULL << Amount) == 0) {

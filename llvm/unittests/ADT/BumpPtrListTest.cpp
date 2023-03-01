@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/AllocatorList.h"
 #include "llvm/ADT/STLExtras.h"
 #include "gtest/gtest.h"
@@ -89,7 +91,7 @@ TEST(BumpPtrListTest, pushPopFront) {
 
 TEST(BumpPtrListTest, pushBackMoveOnly) {
   BumpPtrList<MoveOnly> L;
-  int Ns[] = {1, 3, 9, 5, 7};
+  std::array Ns = {1, 3, 9, 5, 7};
   for (const int N : Ns) {
     L.push_back(MoveOnly(N));
     EXPECT_EQ(N, L.back().V);
@@ -101,7 +103,7 @@ TEST(BumpPtrListTest, pushBackMoveOnly) {
 
 TEST(BumpPtrListTest, pushFrontMoveOnly) {
   BumpPtrList<MoveOnly> L;
-  int Ns[] = {1, 3, 9, 5, 7};
+  std::array Ns = {1, 3, 9, 5, 7};
   for (const int N : Ns) {
     L.push_front(MoveOnly(N));
     EXPECT_EQ(N, L.front().V);
@@ -113,8 +115,8 @@ TEST(BumpPtrListTest, pushFrontMoveOnly) {
 
 TEST(BumpPtrListTest, emplaceBack) {
   BumpPtrList<EmplaceOnly> L;
-  int N1s[] = {1, 3, 9, 5, 7};
-  int N2s[] = {7, 3, 1, 8, 2};
+  std::array N1s = {1, 3, 9, 5, 7};
+  std::array N2s = {7, 3, 1, 8, 2};
   for (int I = 0; I != 5; ++I) {
     L.emplace_back(N1s[I], N2s[I]);
     EXPECT_EQ(N1s[I], L.back().V1);
@@ -127,8 +129,8 @@ TEST(BumpPtrListTest, emplaceBack) {
 
 TEST(BumpPtrListTest, emplaceFront) {
   BumpPtrList<EmplaceOnly> L;
-  int N1s[] = {1, 3, 9, 5, 7};
-  int N2s[] = {7, 3, 1, 8, 2};
+  std::array N1s = {1, 3, 9, 5, 7};
+  std::array N2s = {7, 3, 1, 8, 2};
   for (int I = 0; I != 5; ++I) {
     L.emplace_front(N1s[I], N2s[I]);
     EXPECT_EQ(N1s[I], L.front().V1);

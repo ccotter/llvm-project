@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Format/Format.h"
 
 #include "FormatTestUtils.h"
@@ -1111,9 +1113,9 @@ TEST_F(TokenAnnotatorTest, UnderstandsVerilogOperators) {
   };
   // Test that unary operators get labeled as such and that operators like '++'
   // don't get split.
-  tok::TokenKind Unary[] = {tok::plus,  tok::minus,    tok::exclaim,
+  std::array<tok::TokenKind, 9> Unary = { {tok::plus,  tok::minus,    tok::exclaim,
                             tok::tilde, tok::amp,      tok::pipe,
-                            tok::caret, tok::plusplus, tok::minusminus};
+                            tok::caret, tok::plusplus, tok::minusminus} };
   for (auto Kind : Unary) {
     auto Tokens =
         Annotate(std::string("x = ") + tok::getPunctuatorSpelling(Kind) + "x;");
@@ -1123,7 +1125,7 @@ TEST_F(TokenAnnotatorTest, UnderstandsVerilogOperators) {
   // Operators formed by joining two operators like '^~'. For some of these
   // joined operators, we don't have a separate type, so we only test for their
   // precedence.
-  std::pair<prec::Level, std::string> JoinedBinary[] = {
+  std::array<std::pair<prec::Level, std::string>, 22> JoinedBinary = { {
       {prec::Comma, "<->"},       {prec::Assignment, "+="},
       {prec::Assignment, "-="},   {prec::Assignment, "*="},
       {prec::Assignment, "/="},   {prec::Assignment, "%="},
@@ -1135,7 +1137,7 @@ TEST_F(TokenAnnotatorTest, UnderstandsVerilogOperators) {
       {prec::Equality, "==="},    {prec::Equality, "!=="},
       {prec::Equality, "==?"},    {prec::Equality, "!=?"},
       {prec::ExclusiveOr, "~^"},  {prec::ExclusiveOr, "^~"},
-  };
+  } };
   for (auto Operator : JoinedBinary) {
     auto Tokens = Annotate(std::string("x = x ") + Operator.second + " x;");
     ASSERT_EQ(Tokens.size(), 7u) << Tokens;

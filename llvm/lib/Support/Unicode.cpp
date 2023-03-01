@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/Unicode.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/UnicodeCharRanges.h"
@@ -494,7 +496,7 @@ int columnWidthUTF8(StringRef Text) {
 
     if (Length <= 0 || i + Length > Text.size())
       return ErrorInvalidUTF8;
-    UTF32 buf[1];
+    std::array<UTF32, 1> buf;
     const UTF8 *Start = reinterpret_cast<const UTF8 *>(Text.data() + i);
     UTF32 *Target = &buf[0];
     if (conversionOK != ConvertUTF8toUTF32(&Start, Start + Length, &Target,

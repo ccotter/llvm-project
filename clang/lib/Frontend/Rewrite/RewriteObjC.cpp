@@ -27,6 +27,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <memory>
 
 #if CLANG_ENABLE_OBJC_REWRITER
@@ -2534,7 +2535,7 @@ QualType RewriteObjC::getSuperStructType() {
     SuperStructDecl = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                          SourceLocation(), SourceLocation(),
                                          &Context->Idents.get("objc_super"));
-    QualType FieldTypes[2];
+    std::array<QualType, 2> FieldTypes;
 
     // struct objc_object *receiver;
     FieldTypes[0] = Context->getObjCIdType();
@@ -2562,7 +2563,7 @@ QualType RewriteObjC::getConstantStringStructType() {
     ConstantStringDecl = RecordDecl::Create(*Context, TTK_Struct, TUDecl,
                                             SourceLocation(), SourceLocation(),
                          &Context->Idents.get("__NSConstantStringImpl"));
-    QualType FieldTypes[4];
+    std::array<QualType, 4> FieldTypes;
 
     // struct objc_object *receiver;
     FieldTypes[0] = Context->getObjCIdType();

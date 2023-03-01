@@ -8,6 +8,7 @@
 
 #include "MachOObject.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include <array>
 #include <unordered_set>
 
 using namespace llvm;
@@ -38,7 +39,7 @@ void SymbolTable::removeSymbols(
 }
 
 void Object::updateLoadCommandIndexes() {
-  static constexpr char TextSegmentName[] = "__TEXT";
+  static constexpr std::array<char, 7> TextSegmentName = { "__TEXT" };
   // Update indices of special load commands
   for (size_t Index = 0, Size = LoadCommands.size(); Index < Size; ++Index) {
     LoadCommand &LC = LoadCommands[Index];
@@ -48,12 +49,12 @@ void Object::updateLoadCommandIndexes() {
       break;
     case MachO::LC_SEGMENT:
       if (StringRef(LC.MachOLoadCommand.segment_command_data.segname) ==
-          TextSegmentName)
+          TextSegmentName.begin())
         TextSegmentCommandIndex = Index;
       break;
     case MachO::LC_SEGMENT_64:
       if (StringRef(LC.MachOLoadCommand.segment_command_64_data.segname) ==
-          TextSegmentName)
+          TextSegmentName.begin())
         TextSegmentCommandIndex = Index;
       break;
     case MachO::LC_SYMTAB:

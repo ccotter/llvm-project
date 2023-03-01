@@ -21,6 +21,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include <array>
 #endif // LLVM_ON_UNIX
 
 using namespace llvm;
@@ -93,11 +95,11 @@ launchLocalExecutor(StringRef ExecutablePath) {
         inconvertibleErrorCode());
 
   // Pipe FDs.
-  int ToExecutor[2];
-  int FromExecutor[2];
+  std::array<int, 2> ToExecutor;
+  std::array<int, 2> FromExecutor;
 
   // Create pipes to/from the executor..
-  if (pipe(ToExecutor) != 0 || pipe(FromExecutor) != 0)
+  if (pipe(ToExecutor.begin()) != 0 || pipe(FromExecutor.begin()) != 0)
     return make_error<StringError>("Unable to create pipe for executor",
                                    inconvertibleErrorCode());
 
@@ -123,8 +125,8 @@ launchLocalExecutor(StringRef ExecutablePath) {
       strcpy(FDSpecifier.get(), FDSpecifierStr.c_str());
     }
 
-    char *const Args[] = {ExecPath.get(), FDSpecifier.get(), nullptr};
-    int RC = execvp(ExecPath.get(), Args);
+    const std::array<char *, 3>Args = { {ExecPath.get(), FDSpecifier.get(), nullptr} };
+    int RC = execvp(ExecPath.get(), Args.begin());
     if (RC != 0)
       return make_error<StringError>(
           "Unable to launch out-of-process executor '" + ExecutablePath + "'\n",

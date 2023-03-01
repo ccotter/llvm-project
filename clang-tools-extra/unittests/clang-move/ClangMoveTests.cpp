@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "gmock/gmock-matchers.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -305,19 +306,19 @@ TEST(ClangMove, HeaderIncludeSelf) {
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
 
-  const char TestHeader[] = "#ifndef FOO_H\n"
+  const std::array<char, 67> TestHeader = { "#ifndef FOO_H\n"
                             "#define FOO_H\n"
                             "#include \"foo.h\"\n"
                             "class Foo {};\n"
-                            "#endif\n";
-  const char TestCode[] = "#include \"foo.h\"";
+                            "#endif\n" };
+  const std::array<char, 17> TestCode = { "#include \"foo.h\"" };
   const char ExpectedNewHeader[] = "#ifndef FOO_H\n"
                                    "#define FOO_H\n"
                                    "#include \"new_foo.h\"\n"
                                    "class Foo {};\n"
                                    "#endif\n";
   const char ExpectedNewCC[] = "#include \"new_foo.h\"";
-  auto Results = runClangMoveOnCode(Spec, TestHeader, TestCode);
+  auto Results = runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin());
   EXPECT_EQ("", Results[Spec.OldHeader]);
   EXPECT_EQ(ExpectedNewHeader, Results[Spec.NewHeader]);
   EXPECT_EQ(ExpectedNewCC, Results[Spec.NewCC]);
@@ -333,7 +334,7 @@ TEST(ClangMove, MoveAll) {
     "namespace a {}\nclass A {\npublic:\n  int f();\n};",
     "namespace a {}\nusing namespace a;\nclass A {\npublic:\n  int f();\n};",
   };
-  const char Code[] = "#include \"foo.h\"\nint A::f() { return 0; }";
+  const std::array<char, 42> Code = { "#include \"foo.h\"\nint A::f() { return 0; }" };
   move::MoveDefinitionSpec Spec;
   Spec.Names.push_back("A");
   Spec.OldHeader = "foo.h";
@@ -341,7 +342,7 @@ TEST(ClangMove, MoveAll) {
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
   for (const auto& Header : TestHeaders) {
-    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code);
+    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code.begin());
     EXPECT_EQ(Header, Results[Spec.NewHeader]);
     EXPECT_EQ("", Results[Spec.OldHeader]);
     EXPECT_EQ("", Results[Spec.OldCC]);
@@ -354,14 +355,14 @@ TEST(ClangMove, MoveAllMultipleClasses) {
     "class C;\nclass A {\npublic:\n  int f();\n};\nclass B {};",
     "class C;\nclass B;\nclass A {\npublic:\n  int f();\n};\nclass B {};",
   };
-  const char Code[] = "#include \"foo.h\"\nint A::f() { return 0; }";
+  const std::array<char, 42> Code = { "#include \"foo.h\"\nint A::f() { return 0; }" };
   Spec.Names = {std::string("A"), std::string("B")};
   Spec.OldHeader = "foo.h";
   Spec.OldCC = "foo.cc";
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
   for (const auto& Header : TestHeaders) {
-    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code);
+    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code.begin());
     EXPECT_EQ(Header, Results[Spec.NewHeader]);
     EXPECT_EQ("", Results[Spec.OldHeader]);
     EXPECT_EQ("", Results[Spec.OldCC]);
@@ -375,7 +376,7 @@ TEST(ClangMove, DontMoveAll) {
                                 "class A {\npublic:\n  int f();\n};\n"
                                 "\n"
                                 "#endif // NEW_FOO_H\n";
-  const char Code[] = "#include \"foo.h\"\nint A::f() { return 0; }";
+  const std::array<char, 42> Code = { "#include \"foo.h\"\nint A::f() { return 0; }" };
   std::vector<std::string> TestHeaders = {
     "class B {};\nclass A {\npublic:\n  int f();\n};\n",
     "void f() {};\nclass A {\npublic:\n  int f();\n};\n",
@@ -387,7 +388,7 @@ TEST(ClangMove, DontMoveAll) {
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
   for (const auto& Header : TestHeaders) {
-    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code);
+    auto Results = runClangMoveOnCode(Spec, Header.c_str(), Code.begin());
     EXPECT_EQ(ExpectedHeader, Results[Spec.NewHeader]);
     // The expected old header should not contain class A definition.
     std::string ExpectedOldHeader = Header.substr(0, Header.size() - 32);
@@ -396,7 +397,7 @@ TEST(ClangMove, DontMoveAll) {
 }
 
 TEST(ClangMove, IgnoreMacroSymbolsAndMoveAll) {
-  const char TestCode[] = "#include \"foo.h\"";
+  const std::array<char, 17> TestCode = { "#include \"foo.h\"" };
   std::vector<std::string> TestHeaders = {
     "#define DEFINE_Foo int Foo = 1;\nDEFINE_Foo;\nclass Bar {};\n",
     "#define DEFINE(x) int var_##x = 1;\nDEFINE(foo);\nclass Bar {};\n",
@@ -409,18 +410,18 @@ TEST(ClangMove, IgnoreMacroSymbolsAndMoveAll) {
   Spec.NewCC = "new_foo.cc";
 
   for (const auto& Header : TestHeaders) {
-    auto Results = runClangMoveOnCode(Spec, Header.c_str(), TestCode);
+    auto Results = runClangMoveOnCode(Spec, Header.c_str(), TestCode.begin());
     EXPECT_EQ("", Results[Spec.OldHeader]);
     EXPECT_EQ(Header, Results[Spec.NewHeader]);
   }
 }
 
 TEST(ClangMove, MacroInFunction) {
-  const char TestHeader[] = "#define INT int\n"
+  const std::array<char, 61> TestHeader = { "#define INT int\n"
                             "class A {\npublic:\n  int f();\n};\n"
-                            "class B {};\n";
-  const char TestCode[] = "#include \"foo.h\"\n"
-                          "INT A::f() { return 0; }\n";
+                            "class B {};\n" };
+  const std::array<char, 43> TestCode = { "#include \"foo.h\"\n"
+                          "INT A::f() { return 0; }\n" };
   const char ExpectedNewCode[] = "#include \"new_foo.h\"\n\n"
                                  "INT A::f() { return 0; }\n";
   move::MoveDefinitionSpec Spec;
@@ -429,19 +430,19 @@ TEST(ClangMove, MacroInFunction) {
   Spec.OldCC = "foo.cc";
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
-  auto Results = runClangMoveOnCode(Spec, TestHeader, TestCode);
+  auto Results = runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin());
   EXPECT_EQ(ExpectedNewCode, Results[Spec.NewCC]);
 }
 
 TEST(ClangMove, DefinitionInMacro) {
-  const char TestHeader[] = "#define DEF(CLASS) void CLASS##_::f() {}\n"
+  const std::array<char, 137> TestHeader = { "#define DEF(CLASS) void CLASS##_::f() {}\n"
                             "#define DEF2(CLASS, ...) void CLASS##_::f2() {}\n"
                             "class A_ {\nvoid f();\nvoid f2();\n};\n"
-                            "class B {};\n";
-  const char TestCode[] = "#include \"foo.h\"\n"
+                            "class B {};\n" };
+  const std::array<char, 44> TestCode = { "#include \"foo.h\"\n"
                           "DEF(A)\n\n"
                           "DEF2(A,\n"
-                          "     123)\n";
+                          "     123)\n" };
   const char ExpectedNewCode[] = "#include \"new_foo.h\"\n\n"
                                  "DEF(A)\n\n"
                                  "DEF2(A, 123)\n";
@@ -451,7 +452,7 @@ TEST(ClangMove, DefinitionInMacro) {
   Spec.OldCC = "foo.cc";
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
-  auto Results = runClangMoveOnCode(Spec, TestHeader, TestCode);
+  auto Results = runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin());
   EXPECT_EQ(ExpectedNewCode, Results[Spec.NewCC]);
 }
 
@@ -511,9 +512,9 @@ TEST(ClangMove, WellFormattedCode) {
 }
 
 TEST(ClangMove, AddDependentNewHeader) {
-  const char TestHeader[] = "class A {};\n"
-                            "class B {};\n";
-  const char TestCode[] = "#include \"foo.h\"\n";
+  const std::array<char, 25> TestHeader = { "class A {};\n"
+                            "class B {};\n" };
+  const std::array<char, 18> TestCode = { "#include \"foo.h\"\n" };
   const char ExpectedOldHeader[] = "#include \"new_foo.h\"\nclass B {};\n";
   const char ExpectedNewHeader[] = "#ifndef NEW_FOO_H\n"
                                    "#define NEW_FOO_H\n"
@@ -528,15 +529,15 @@ TEST(ClangMove, AddDependentNewHeader) {
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
   Spec.OldDependOnNew = true;
-  auto Results = runClangMoveOnCode(Spec, TestHeader, TestCode);
+  auto Results = runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin());
   EXPECT_EQ(ExpectedOldHeader, Results[Spec.OldHeader]);
   EXPECT_EQ(ExpectedNewHeader, Results[Spec.NewHeader]);
 }
 
 TEST(ClangMove, AddDependentOldHeader) {
-  const char TestHeader[] = "class A {};\n"
-                            "class B {};\n";
-  const char TestCode[] = "#include \"foo.h\"\n";
+  const std::array<char, 25> TestHeader = { "class A {};\n"
+                            "class B {};\n" };
+  const std::array<char, 18> TestCode = { "#include \"foo.h\"\n" };
   const char ExpectedNewHeader[] = "#ifndef NEW_FOO_H\n"
                                    "#define NEW_FOO_H\n"
                                    "\n"
@@ -553,13 +554,13 @@ TEST(ClangMove, AddDependentOldHeader) {
   Spec.NewHeader = "new_foo.h";
   Spec.NewCC = "new_foo.cc";
   Spec.NewDependOnOld = true;
-  auto Results = runClangMoveOnCode(Spec, TestHeader, TestCode);
+  auto Results = runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin());
   EXPECT_EQ(ExpectedNewHeader, Results[Spec.NewHeader]);
   EXPECT_EQ(ExpectedOldHeader, Results[Spec.OldHeader]);
 }
 
 TEST(ClangMove, DumpDecls) {
-  const char TestHeader[] = "template <typename T>\n"
+  const std::array<char, 763> TestHeader = { "template <typename T>\n"
                             "class A {\n"
                             " public:\n"
                             "  void f();\n"
@@ -603,8 +604,8 @@ TEST(ClangMove, DumpDecls) {
                             "} // namespace b\n"
                             "} // namespace a\n"
                             "#define DEFINE_FOO class Foo {};\n"
-                            "DEFINE_FOO\n";
-  const char TestCode[] = "#include \"foo.h\"\n";
+                            "DEFINE_FOO\n" };
+  const std::array<char, 18> TestCode = { "#include \"foo.h\"\n" };
   move::MoveDefinitionSpec Spec;
   Spec.Names.push_back("B");
   Spec.OldHeader = "foo.h";
@@ -628,7 +629,7 @@ TEST(ClangMove, DumpDecls) {
       {"a::b::AA", "TypeAlias", true},
       {"a::b::kGlobalInt", "Variable", false},
       {"a::b::kGlobalStr", "Variable", false}};
-  runClangMoveOnCode(Spec, TestHeader, TestCode, &Reporter);
+  runClangMoveOnCode(Spec, TestHeader.begin(), TestCode.begin(), &Reporter);
   std::vector<DeclarationReporter::Declaration> Results;
   for (const auto &DelPair : Reporter.getDeclarationList())
     Results.push_back(DelPair);

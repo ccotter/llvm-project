@@ -13,6 +13,8 @@
 
 #include "ARM.h"
 #include "ARMCallingConv.h"
+
+#include <array>
 #include "ARMSubtarget.h"
 #include "ARMRegisterInfo.h"
 using namespace llvm;
@@ -63,11 +65,11 @@ static bool f64AssignAAPCS(unsigned ValNo, MVT ValVT, MVT LocVT,
                            CCValAssign::LocInfo LocInfo,
                            CCState &State, bool CanFail) {
   static const MCPhysReg HiRegList[] = { ARM::R0, ARM::R2 };
-  static const MCPhysReg LoRegList[] = { ARM::R1, ARM::R3 };
-  static const MCPhysReg ShadowRegList[] = { ARM::R0, ARM::R1 };
+  static const std::array<MCPhysReg, 2> LoRegList = { { ARM::R1, ARM::R3 } };
+  static const std::array<MCPhysReg, 2> ShadowRegList = { { ARM::R0, ARM::R1 } };
   static const MCPhysReg GPRArgRegs[] = { ARM::R0, ARM::R1, ARM::R2, ARM::R3 };
 
-  unsigned Reg = State.AllocateReg(HiRegList, ShadowRegList);
+  unsigned Reg = State.AllocateReg(HiRegList, ShadowRegList.begin());
   if (Reg == 0) {
 
     // If we had R3 unallocated only, now we still must to waste it.
@@ -114,9 +116,9 @@ static bool CC_ARM_AAPCS_Custom_f64(unsigned ValNo, MVT ValVT, MVT LocVT,
 static bool f64RetAssign(unsigned ValNo, MVT ValVT, MVT LocVT,
                          CCValAssign::LocInfo LocInfo, CCState &State) {
   static const MCPhysReg HiRegList[] = { ARM::R0, ARM::R2 };
-  static const MCPhysReg LoRegList[] = { ARM::R1, ARM::R3 };
+  static const std::array<MCPhysReg, 2> LoRegList = { { ARM::R1, ARM::R3 } };
 
-  unsigned Reg = State.AllocateReg(HiRegList, LoRegList);
+  unsigned Reg = State.AllocateReg(HiRegList, LoRegList.begin());
   if (Reg == 0)
     return false; // we didn't handle it
 

@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "R600RegisterInfo.h"
+
+#include <array>
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600Defines.h"
 #include "R600Subtarget.h"
@@ -22,12 +24,12 @@ using namespace llvm;
 #include "R600GenRegisterInfo.inc"
 
 unsigned R600RegisterInfo::getSubRegFromChannel(unsigned Channel) {
-  static const uint16_t SubRegFromChannelTable[] = {
+  static const std::array<uint16_t, 16> SubRegFromChannelTable = { {
     R600::sub0, R600::sub1, R600::sub2, R600::sub3,
     R600::sub4, R600::sub5, R600::sub6, R600::sub7,
     R600::sub8, R600::sub9, R600::sub10, R600::sub11,
     R600::sub12, R600::sub13, R600::sub14, R600::sub15
-  };
+  } };
 
   assert(Channel < std::size(SubRegFromChannelTable));
   return SubRegFromChannelTable[Channel];

@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+#include <array>
+
 #include "Annotations.h"
 #include "ParsedAST.h"
 #include "TestTU.h"
@@ -28,8 +30,8 @@ struct ExpectedSymbolDetails {
 };
 
 TEST(SymbolInfoTests, All) {
-  std::pair<const char *, std::vector<ExpectedSymbolDetails>>
-      TestInputExpectedOutput[] = {
+  std::array<std::pair<const char *, std::vector<ExpectedSymbolDetails>>, 35>
+      TestInputExpectedOutput = { {
           {
               R"cpp( // Simple function reference - declaration
           void $decl[[foo]]();
@@ -365,7 +367,7 @@ TEST(SymbolInfoTests, All) {
           }
         )cpp",
               {/* not implemented */}},
-      };
+      } };
 
   for (const auto &T : TestInputExpectedOutput) {
     Annotations TestInput(T.first);

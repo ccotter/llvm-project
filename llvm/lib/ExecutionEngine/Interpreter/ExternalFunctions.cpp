@@ -32,6 +32,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <csignal>
@@ -430,12 +431,12 @@ static GenericValue lle_X_sprintf(FunctionType *FT,
 // useful.
 static GenericValue lle_X_printf(FunctionType *FT,
                                  ArrayRef<GenericValue> Args) {
-  char Buffer[10000];
+  std::array<char, 10000> Buffer;
   std::vector<GenericValue> NewArgs;
   NewArgs.push_back(PTOGV((void*)&Buffer[0]));
   llvm::append_range(NewArgs, Args);
   GenericValue GV = lle_X_sprintf(FT, NewArgs);
-  outs() << Buffer;
+  outs() << Buffer.begin();
   return GV;
 }
 
@@ -444,7 +445,7 @@ static GenericValue lle_X_sscanf(FunctionType *FT,
                                  ArrayRef<GenericValue> args) {
   assert(args.size() < 10 && "Only handle up to 10 args to sscanf right now!");
 
-  char *Args[10];
+  std::array<char *, 10>Args;
   for (unsigned i = 0; i < args.size(); ++i)
     Args[i] = (char*)GVTOP(args[i]);
 
@@ -458,7 +459,7 @@ static GenericValue lle_X_sscanf(FunctionType *FT,
 static GenericValue lle_X_scanf(FunctionType *FT, ArrayRef<GenericValue> args) {
   assert(args.size() < 10 && "Only handle up to 10 args to scanf right now!");
 
-  char *Args[10];
+  std::array<char *, 10>Args;
   for (unsigned i = 0; i < args.size(); ++i)
     Args[i] = (char*)GVTOP(args[i]);
 
@@ -473,13 +474,13 @@ static GenericValue lle_X_scanf(FunctionType *FT, ArrayRef<GenericValue> args) {
 static GenericValue lle_X_fprintf(FunctionType *FT,
                                   ArrayRef<GenericValue> Args) {
   assert(Args.size() >= 2);
-  char Buffer[10000];
+  std::array<char, 10000> Buffer;
   std::vector<GenericValue> NewArgs;
-  NewArgs.push_back(PTOGV(Buffer));
+  NewArgs.push_back(PTOGV(Buffer.begin()));
   NewArgs.insert(NewArgs.end(), Args.begin()+1, Args.end());
   GenericValue GV = lle_X_sprintf(FT, NewArgs);
 
-  fputs(Buffer, (FILE *) GVTOP(Args[0]));
+  fputs(Buffer.begin(), (FILE *) GVTOP(Args[0]));
   return GV;
 }
 

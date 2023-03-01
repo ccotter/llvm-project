@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/PPCInstPrinter.h"
+
+#include <array>
 #include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "MCTargetDesc/PPCPredicates.h"
 #include "PPCInstrInfo.h"
@@ -615,7 +617,7 @@ const char *PPCInstPrinter::getVerboseConditionRegName(unsigned RegNum,
     return nullptr;
   if (RegNum < PPC::CR0EQ || RegNum > PPC::CR7UN)
     return nullptr;
-  const char *CRBits[] = {
+  std::array<const char *, 32>CRBits = { {
     "lt", "gt", "eq", "un",
     "4*cr1+lt", "4*cr1+gt", "4*cr1+eq", "4*cr1+un",
     "4*cr2+lt", "4*cr2+gt", "4*cr2+eq", "4*cr2+un",
@@ -624,7 +626,7 @@ const char *PPCInstPrinter::getVerboseConditionRegName(unsigned RegNum,
     "4*cr5+lt", "4*cr5+gt", "4*cr5+eq", "4*cr5+un",
     "4*cr6+lt", "4*cr6+gt", "4*cr6+eq", "4*cr6+un",
     "4*cr7+lt", "4*cr7+gt", "4*cr7+eq", "4*cr7+un"
-  };
+  } };
   return CRBits[RegEncoding];
 }
 

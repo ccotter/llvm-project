@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ASTLambda.h"
@@ -2245,7 +2247,7 @@ Sema::CheckObjCForCollectionOperand(SourceLocation forLoc, Expr *collection) {
     // Otherwise, if we have any useful type information, check that
     // the type declares the appropriate method.
   } else if (iface || !objectType->qual_empty()) {
-    IdentifierInfo *selectorIdents[] = {
+    std::array selectorIdents = {
       &Context.Idents.get("countByEnumeratingWithState"),
       &Context.Idents.get("objects"),
       &Context.Idents.get("count")

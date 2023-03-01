@@ -55,6 +55,7 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/X86TargetParser.h"
+#include <array>
 #include <sstream>
 
 using namespace clang;
@@ -187,7 +188,7 @@ static Value *MakeBinaryAtomicValue(
                            CGF.getContext().getTypeSize(T));
   llvm::Type *IntPtrType = IntType->getPointerTo(AddrSpace);
 
-  llvm::Value *Args[2];
+  std::array<llvm::Value *, 2>Args;
   Args[0] = CGF.Builder.CreateBitCast(DestPtr, IntPtrType);
   Args[1] = CGF.EmitScalarExpr(E->getArg(1));
   llvm::Type *ValueType = Args[1]->getType();
@@ -249,7 +250,7 @@ static RValue EmitBinaryAtomicPost(CodeGenFunction &CGF,
                            CGF.getContext().getTypeSize(T));
   llvm::Type *IntPtrType = IntType->getPointerTo(AddrSpace);
 
-  llvm::Value *Args[2];
+  std::array<llvm::Value *, 2>Args;
   Args[1] = CGF.EmitScalarExpr(E->getArg(1));
   llvm::Type *ValueType = Args[1]->getType();
   Args[1] = EmitToInt(CGF, Args[1], T, IntType);
@@ -290,7 +291,7 @@ static Value *MakeAtomicCmpXchgValue(CodeGenFunction &CGF, const CallExpr *E,
       CGF.getLLVMContext(), CGF.getContext().getTypeSize(T));
   llvm::Type *IntPtrType = IntType->getPointerTo(AddrSpace);
 
-  Value *Args[3];
+  std::array<Value *, 3>Args;
   Args[0] = CGF.Builder.CreateBitCast(DestPtr, IntPtrType);
   Args[1] = CGF.EmitScalarExpr(E->getArg(1));
   llvm::Type *ValueType = Args[1]->getType();
@@ -4061,17 +4062,17 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     llvm::BasicBlock *ContBB = createBasicBlock("atomic.continue", CurFn);
 
-    llvm::BasicBlock *BBs[5] = {
+    std::array<llvm::BasicBlock *, 5>BBs = { {
       createBasicBlock("monotonic", CurFn),
       createBasicBlock("acquire", CurFn),
       createBasicBlock("release", CurFn),
       createBasicBlock("acqrel", CurFn),
       createBasicBlock("seqcst", CurFn)
-    };
-    llvm::AtomicOrdering Orders[5] = {
+    } };
+    std::array<llvm::AtomicOrdering, 5> Orders = { {
         llvm::AtomicOrdering::Monotonic, llvm::AtomicOrdering::Acquire,
         llvm::AtomicOrdering::Release, llvm::AtomicOrdering::AcquireRelease,
-        llvm::AtomicOrdering::SequentiallyConsistent};
+        llvm::AtomicOrdering::SequentiallyConsistent} };
 
     Order = Builder.CreateIntCast(Order, Builder.getInt32Ty(), false);
     llvm::SwitchInst *SI = Builder.CreateSwitch(Order, BBs[0]);
@@ -4128,14 +4129,14 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     llvm::BasicBlock *ContBB = createBasicBlock("atomic.continue", CurFn);
 
-    llvm::BasicBlock *BBs[3] = {
+    std::array<llvm::BasicBlock *, 3>BBs = { {
       createBasicBlock("monotonic", CurFn),
       createBasicBlock("release", CurFn),
       createBasicBlock("seqcst", CurFn)
-    };
-    llvm::AtomicOrdering Orders[3] = {
+    } };
+    std::array<llvm::AtomicOrdering, 3> Orders = { {
         llvm::AtomicOrdering::Monotonic, llvm::AtomicOrdering::Release,
-        llvm::AtomicOrdering::SequentiallyConsistent};
+        llvm::AtomicOrdering::SequentiallyConsistent} };
 
     Order = Builder.CreateIntCast(Order, Builder.getInt32Ty(), false);
     llvm::SwitchInst *SI = Builder.CreateSwitch(Order, BBs[0]);
@@ -12366,11 +12367,11 @@ static Value *getMaskVecValue(CodeGenFunction &CGF, Value *Mask,
   // If we have less than 8 elements, then the starting mask was an i8 and
   // we need to extract down to the right number of elements.
   if (NumElts < 8) {
-    int Indices[4];
+    std::array<int, 4> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i;
     MaskVec = CGF.Builder.CreateShuffleVector(MaskVec, MaskVec,
-                                             makeArrayRef(Indices, NumElts),
+                                             makeArrayRef(Indices.begin(), NumElts),
                                              "extract");
   }
   return MaskVec;
@@ -13793,12 +13794,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Index &= SubVectors - 1; // Remove any extra bits.
     Index *= NumElts;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i + Index;
 
     Value *Res = Builder.CreateShuffleVector(Ops[0],
-                                             makeArrayRef(Indices, NumElts),
+                                             makeArrayRef(Indices.begin(), NumElts),
                                              "extract");
 
     if (Ops.size() == 4)
@@ -13832,12 +13833,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Index &= SubVectors - 1; // Remove any extra bits.
     Index *= SrcNumElts;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned i = 0; i != DstNumElts; ++i)
       Indices[i] = (i >= SrcNumElts) ? SrcNumElts + (i % SrcNumElts) : i;
 
     Value *Op1 = Builder.CreateShuffleVector(Ops[1],
-                                             makeArrayRef(Indices, DstNumElts),
+                                             makeArrayRef(Indices.begin(), DstNumElts),
                                              "widen");
 
     for (unsigned i = 0; i != DstNumElts; ++i) {
@@ -13848,7 +13849,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     }
 
     return Builder.CreateShuffleVector(Ops[0], Op1,
-                                       makeArrayRef(Indices, DstNumElts),
+                                       makeArrayRef(Indices.begin(), DstNumElts),
                                        "insert");
   }
   case X86::BI__builtin_ia32_pmovqd512_mask:
@@ -13892,14 +13893,14 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
         cast<llvm::FixedVectorType>(Ops[0]->getType())->getNumElements();
     unsigned Imm = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     // If there are more than 8 elements, the immediate is used twice so make
     // sure we handle that.
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = ((Imm >> (i % 8)) & 0x1) ? NumElts + i : i;
 
     return Builder.CreateShuffleVector(Ops[0], Ops[1],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "blend");
   }
   case X86::BI__builtin_ia32_pshuflw:
@@ -13912,7 +13913,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // Splat the 8-bits of immediate 4 times to help the loop wrap around.
     Imm = (Imm & 0xff) * 0x01010101;
 
-    int Indices[32];
+    std::array<int, 32> Indices;
     for (unsigned l = 0; l != NumElts; l += 8) {
       for (unsigned i = 0; i != 4; ++i) {
         Indices[l + i] = l + (Imm & 3);
@@ -13922,7 +13923,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
         Indices[l + i] = l + i;
     }
 
-    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices, NumElts),
+    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices.begin(), NumElts),
                                        "pshuflw");
   }
   case X86::BI__builtin_ia32_pshufhw:
@@ -13935,7 +13936,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // Splat the 8-bits of immediate 4 times to help the loop wrap around.
     Imm = (Imm & 0xff) * 0x01010101;
 
-    int Indices[32];
+    std::array<int, 32> Indices;
     for (unsigned l = 0; l != NumElts; l += 8) {
       for (unsigned i = 0; i != 4; ++i)
         Indices[l + i] = l + i;
@@ -13945,7 +13946,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
       }
     }
 
-    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices, NumElts),
+    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices.begin(), NumElts),
                                        "pshufhw");
   }
   case X86::BI__builtin_ia32_pshufd:
@@ -13966,7 +13967,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // Splat the 8-bits of immediate 4 times to help the loop wrap around.
     Imm = (Imm & 0xff) * 0x01010101;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned l = 0; l != NumElts; l += NumLaneElts) {
       for (unsigned i = 0; i != NumLaneElts; ++i) {
         Indices[i + l] = (Imm % NumLaneElts) + l;
@@ -13974,7 +13975,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
       }
     }
 
-    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices, NumElts),
+    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices.begin(), NumElts),
                                        "permil");
   }
   case X86::BI__builtin_ia32_shufpd:
@@ -13992,7 +13993,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // Splat the 8-bits of immediate 4 times to help the loop wrap around.
     Imm = (Imm & 0xff) * 0x01010101;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned l = 0; l != NumElts; l += NumLaneElts) {
       for (unsigned i = 0; i != NumLaneElts; ++i) {
         unsigned Index = Imm % NumLaneElts;
@@ -14004,7 +14005,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     }
 
     return Builder.CreateShuffleVector(Ops[0], Ops[1],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "shufp");
   }
   case X86::BI__builtin_ia32_permdi256:
@@ -14016,12 +14017,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     unsigned NumElts = Ty->getNumElements();
 
     // These intrinsics operate on 256-bit lanes of four 64-bit elements.
-    int Indices[8];
+    std::array<int, 8> Indices;
     for (unsigned l = 0; l != NumElts; l += 4)
       for (unsigned i = 0; i != 4; ++i)
         Indices[l + i] = l + ((Imm >> (2 * i)) & 0x3);
 
-    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices, NumElts),
+    return Builder.CreateShuffleVector(Ops[0], makeArrayRef(Indices.begin(), NumElts),
                                        "perm");
   }
   case X86::BI__builtin_ia32_palignr128:
@@ -14046,7 +14047,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
       Ops[0] = llvm::Constant::getNullValue(Ops[0]->getType());
     }
 
-    int Indices[64];
+    std::array<int, 64> Indices;
     // 256-bit palignr operates on 128-bit lanes so we need to handle that
     for (unsigned l = 0; l != NumElts; l += 16) {
       for (unsigned i = 0; i != 16; ++i) {
@@ -14058,7 +14059,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     }
 
     return Builder.CreateShuffleVector(Ops[1], Ops[0],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "palignr");
   }
   case X86::BI__builtin_ia32_alignd128:
@@ -14074,12 +14075,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // Mask the shift amount to width of a vector.
     ShiftVal &= NumElts - 1;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i + ShiftVal;
 
     return Builder.CreateShuffleVector(Ops[1], Ops[0],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "valign");
   }
   case X86::BI__builtin_ia32_shuf_f32x4_256:
@@ -14096,7 +14097,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     unsigned NumLanes = Ty->getPrimitiveSizeInBits() == 512 ? 4 : 2;
     unsigned NumLaneElts = NumElts / NumLanes;
 
-    int Indices[16];
+    std::array<int, 16> Indices;
     for (unsigned l = 0; l != NumElts; l += NumLaneElts) {
       unsigned Index = (Imm % NumLanes) * NumLaneElts;
       Imm /= NumLanes; // Discard the bits we just used.
@@ -14108,7 +14109,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     }
 
     return Builder.CreateShuffleVector(Ops[0], Ops[1],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "shuf");
   }
 
@@ -14125,8 +14126,8 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     // lane and the second input for the second lane. This may result in
     // duplicate sources, but this can be dealt with in the backend.
 
-    Value *OutOps[2];
-    int Indices[8];
+    std::array<Value *, 2>OutOps;
+    std::array<int, 8> Indices;
     for (unsigned l = 0; l != 2; ++l) {
       // Determine the source for this lane.
       if (Imm & (1 << ((l * 4) + 3)))
@@ -14148,7 +14149,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     }
 
     return Builder.CreateShuffleVector(OutOps[0], OutOps[1],
-                                       makeArrayRef(Indices, NumElts),
+                                       makeArrayRef(Indices.begin(), NumElts),
                                        "vperm");
   }
 
@@ -14164,7 +14165,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     if (ShiftVal >= 16)
       return llvm::Constant::getNullValue(ResultType);
 
-    int Indices[64];
+    std::array<int, 64> Indices;
     // 256/512-bit pslldq operates on 128-bit lanes so we need to handle that
     for (unsigned l = 0; l != NumElts; l += 16) {
       for (unsigned i = 0; i != 16; ++i) {
@@ -14178,7 +14179,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Value *Cast = Builder.CreateBitCast(Ops[0], VecTy, "cast");
     Value *Zero = llvm::Constant::getNullValue(VecTy);
     Value *SV = Builder.CreateShuffleVector(Zero, Cast,
-                                            makeArrayRef(Indices, NumElts),
+                                            makeArrayRef(Indices.begin(), NumElts),
                                             "pslldq");
     return Builder.CreateBitCast(SV, Ops[0]->getType(), "cast");
   }
@@ -14194,7 +14195,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     if (ShiftVal >= 16)
       return llvm::Constant::getNullValue(ResultType);
 
-    int Indices[64];
+    std::array<int, 64> Indices;
     // 256/512-bit psrldq operates on 128-bit lanes so we need to handle that
     for (unsigned l = 0; l != NumElts; l += 16) {
       for (unsigned i = 0; i != 16; ++i) {
@@ -14208,7 +14209,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Value *Cast = Builder.CreateBitCast(Ops[0], VecTy, "cast");
     Value *Zero = llvm::Constant::getNullValue(VecTy);
     Value *SV = Builder.CreateShuffleVector(Cast, Zero,
-                                            makeArrayRef(Indices, NumElts),
+                                            makeArrayRef(Indices.begin(), NumElts),
                                             "psrldq");
     return Builder.CreateBitCast(SV, ResultType, "cast");
   }
@@ -14224,13 +14225,13 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
 
     Value *In = getMaskVecValue(*this, Ops[0], NumElts);
 
-    int Indices[64];
+    std::array<int, 64> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = NumElts + i - ShiftVal;
 
     Value *Zero = llvm::Constant::getNullValue(In->getType());
     Value *SV = Builder.CreateShuffleVector(Zero, In,
-                                            makeArrayRef(Indices, NumElts),
+                                            makeArrayRef(Indices.begin(), NumElts),
                                             "kshiftl");
     return Builder.CreateBitCast(SV, Ops[0]->getType());
   }
@@ -14246,13 +14247,13 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
 
     Value *In = getMaskVecValue(*this, Ops[0], NumElts);
 
-    int Indices[64];
+    std::array<int, 64> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i + ShiftVal;
 
     Value *Zero = llvm::Constant::getNullValue(In->getType());
     Value *SV = Builder.CreateShuffleVector(In, Zero,
-                                            makeArrayRef(Indices, NumElts),
+                                            makeArrayRef(Indices.begin(), NumElts),
                                             "kshiftr");
     return Builder.CreateBitCast(SV, Ops[0]->getType());
   }
@@ -14534,20 +14535,20 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     unsigned NumElts = Ops[0]->getType()->getIntegerBitWidth();
     Value *LHS = getMaskVecValue(*this, Ops[0], NumElts);
     Value *RHS = getMaskVecValue(*this, Ops[1], NumElts);
-    int Indices[64];
+    std::array<int, 64> Indices;
     for (unsigned i = 0; i != NumElts; ++i)
       Indices[i] = i;
 
     // First extract half of each vector. This gives better codegen than
     // doing it in a single shuffle.
     LHS = Builder.CreateShuffleVector(LHS, LHS,
-                                      makeArrayRef(Indices, NumElts / 2));
+                                      makeArrayRef(Indices.begin(), NumElts / 2));
     RHS = Builder.CreateShuffleVector(RHS, RHS,
-                                      makeArrayRef(Indices, NumElts / 2));
+                                      makeArrayRef(Indices.begin(), NumElts / 2));
     // Concat the vectors.
     // NOTE: Operands are swapped to match the intrinsic definition.
     Value *Res = Builder.CreateShuffleVector(RHS, LHS,
-                                             makeArrayRef(Indices, NumElts));
+                                             makeArrayRef(Indices.begin(), NumElts));
     return Builder.CreateBitCast(Res, Ops[0]->getType());
   }
 

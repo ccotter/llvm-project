@@ -34,6 +34,7 @@
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -702,9 +703,9 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
     } else {
       Table.push_back(MCD::OPC_FilterValue);
       // Encode and emit the value to filter against.
-      uint8_t Buffer[16];
-      unsigned Len = encodeULEB128(Filter.first, Buffer);
-      Table.insert(Table.end(), Buffer, Buffer + Len);
+      std::array<uint8_t, 16> Buffer;
+      unsigned Len = encodeULEB128(Filter.first, Buffer.begin());
+      Table.insert(Table.end(), Buffer.begin(), Buffer.begin() + Len);
       // Reserve space for the NumToSkip entry. We'll backpatch the value
       // later.
       PrevFilter = Table.size();

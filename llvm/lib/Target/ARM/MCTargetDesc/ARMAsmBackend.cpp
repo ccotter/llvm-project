@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/ARMAsmBackend.h"
+
+#include <array>
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMAsmBackendDarwin.h"
 #include "MCTargetDesc/ARMAsmBackendELF.h"
@@ -1265,7 +1267,7 @@ uint32_t ARMAsmBackendDarwin::generateCompactUnwindEncoding(
   // Floating point registers must either be saved sequentially, or we defer to
   // DWARF. No gaps allowed here so check that each saved d-register is
   // precisely where it should be.
-  static unsigned FPRCSRegs[] = { ARM::D8, ARM::D10, ARM::D12, ARM::D14 };
+  static std::array<unsigned, 4> FPRCSRegs = { { ARM::D8, ARM::D10, ARM::D12, ARM::D14 } };
   for (int Idx = FloatRegCount - 1; Idx >= 0; --Idx) {
     auto Offset = RegOffsets.find(FPRCSRegs[Idx]);
     if (Offset == RegOffsets.end()) {

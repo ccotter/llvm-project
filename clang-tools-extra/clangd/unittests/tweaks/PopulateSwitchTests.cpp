@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TweakTesting.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -24,7 +26,7 @@ TEST_F(PopulateSwitchTest, Test) {
     llvm::StringRef FileName = "TestTU.cpp";
   };
 
-  Case Cases[]{
+  std::array<Case, 23> Cases{ {
       {
           // No enumerators
           Function,
@@ -237,7 +239,7 @@ TEST_F(PopulateSwitchTest, Test) {
             switch (controlState) {case A:break;case B:case C:break;}
           )"",
        "TestTU.c"},
-  };
+  } };
 
   for (const auto &Case : Cases) {
     Context = Case.Context;

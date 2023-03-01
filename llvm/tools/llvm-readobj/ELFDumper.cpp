@@ -60,6 +60,7 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
@@ -3517,7 +3518,7 @@ void GNUELFDumper<ELFT>::printRelRelaReloc(const Relocation<ELFT> &R,
                                            const RelSymbol<ELFT> &RelSym) {
   // First two fields are bit width dependent. The rest of them are fixed width.
   unsigned Bias = ELFT::Is64Bits ? 8 : 0;
-  Field Fields[5] = {0, 10 + Bias, 19 + 2 * Bias, 42 + 2 * Bias, 53 + 2 * Bias};
+  std::array<Field, 5> Fields = { {0, 10 + Bias, 19 + 2 * Bias, 42 + 2 * Bias, 53 + 2 * Bias} };
   unsigned Width = ELFT::Is64Bits ? 16 : 8;
 
   Fields[0].Str = to_string(format_hex_no_prefix(R.Offset, Width));
@@ -3706,11 +3707,11 @@ template <class ELFT> void GNUELFDumper<ELFT>::printSectionHeaders() {
      << " section headers, starting at offset "
      << "0x" << utohexstr(this->Obj.getHeader().e_shoff, /*LowerCase=*/true) << ":\n\n";
   OS << "Section Headers:\n";
-  Field Fields[11] = {
+  std::array<Field, 11> Fields = { {
       {"[Nr]", 2},        {"Name", 7},        {"Type", 25},
       {"Address", 41},    {"Off", 58 - Bias}, {"Size", 65 - Bias},
       {"ES", 72 - Bias},  {"Flg", 75 - Bias}, {"Lk", 79 - Bias},
-      {"Inf", 82 - Bias}, {"Al", 86 - Bias}};
+      {"Inf", 82 - Bias}, {"Al", 86 - Bias}} };
   for (const Field &F : Fields)
     printField(F);
   OS << "\n";
@@ -3836,8 +3837,8 @@ void GNUELFDumper<ELFT>::printSymbol(const Elf_Sym &Symbol, unsigned SymIndex,
                                      bool IsDynamic,
                                      bool NonVisibilityBitsUsed) const {
   unsigned Bias = ELFT::Is64Bits ? 8 : 0;
-  Field Fields[8] = {0,         8,         17 + Bias, 23 + Bias,
-                     31 + Bias, 38 + Bias, 48 + Bias, 51 + Bias};
+  std::array<Field, 8> Fields = { {0,         8,         17 + Bias, 23 + Bias,
+                     31 + Bias, 38 + Bias, 48 + Bias, 51 + Bias} };
   Fields[0].Str = to_string(format_decimal(SymIndex, 6)) + ":";
   Fields[1].Str =
       to_string(format_hex_no_prefix(Symbol.st_value, ELFT::Is64Bits ? 16 : 8));
@@ -3897,8 +3898,8 @@ void GNUELFDumper<ELFT>::printHashedSymbol(const Elf_Sym *Symbol,
                                            StringRef StrTable,
                                            uint32_t Bucket) {
   unsigned Bias = ELFT::Is64Bits ? 8 : 0;
-  Field Fields[9] = {0,         6,         11,        20 + Bias, 25 + Bias,
-                     34 + Bias, 41 + Bias, 49 + Bias, 53 + Bias};
+  std::array<Field, 9> Fields = { {0,         6,         11,        20 + Bias, 25 + Bias,
+                     34 + Bias, 41 + Bias, 49 + Bias, 53 + Bias} };
   Fields[0].Str = to_string(format_decimal(SymIndex, 5));
   Fields[1].Str = to_string(format_decimal(Bucket, 3)) + ":";
 
@@ -4317,8 +4318,8 @@ void GNUELFDumper<ELFT>::printProgramHeaders(
 template <class ELFT> void GNUELFDumper<ELFT>::printProgramHeaders() {
   unsigned Bias = ELFT::Is64Bits ? 8 : 0;
   const Elf_Ehdr &Header = this->Obj.getHeader();
-  Field Fields[8] = {2,         17,        26,        37 + Bias,
-                     48 + Bias, 56 + Bias, 64 + Bias, 68 + Bias};
+  std::array<Field, 8> Fields = { {2,         17,        26,        37 + Bias,
+                     48 + Bias, 56 + Bias, 64 + Bias, 68 + Bias} };
   OS << "\nElf file type is "
      << enumToString(Header.e_type, makeArrayRef(ElfObjectFileType)) << "\n"
      << "Entry point " << format_hex(Header.e_entry, 3) << "\n"
@@ -4922,7 +4923,7 @@ template <class ELFT> void GNUELFDumper<ELFT>::printAddrsig() {
      << " contains " << SymsOrErr->size() << " entries:\n";
   OS << "   Num: Name\n";
 
-  Field Fields[2] = {0, 8};
+  std::array<Field, 2> Fields = { {0, 8} };
   size_t SymIndex = 0;
   for (uint64_t Sym : *SymsOrErr) {
     Fields[0].Str = to_string(format_decimal(++SymIndex, 6)) + ":";

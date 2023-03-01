@@ -40,6 +40,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstdio>
 
 using namespace clang;
@@ -3357,7 +3358,7 @@ void CGObjCMac::GenerateCategory(const ObjCCategoryImplDecl *OCD) {
     ClassMethods,
     NumMethodLists
   };
-  SmallVector<const ObjCMethodDecl *, 16> Methods[NumMethodLists];
+  std::array<SmallVector<const ObjCMethodDecl *, 16>, NumMethodLists> Methods;
   for (const auto *MD : OCD->methods()) {
     if (!MD->isDirectMethod())
       Methods[unsigned(MD->isClassMethod())].push_back(MD);
@@ -3540,7 +3541,7 @@ void CGObjCMac::GenerateClass(const ObjCImplementationDecl *ID) {
     ClassMethods,
     NumMethodLists
   };
-  SmallVector<const ObjCMethodDecl *, 16> Methods[NumMethodLists];
+  std::array<SmallVector<const ObjCMethodDecl *, 16>, NumMethodLists> Methods;
   for (const auto *MD : ID->methods()) {
     if (!MD->isDirectMethod())
       Methods[unsigned(MD->isClassMethod())].push_back(MD);
@@ -6303,13 +6304,13 @@ bool CGObjCNonFragileABIMac::isVTableDispatchedSelector(Selector Sel) {
       VTableDispatchMethods.insert(GetUnarySelector("addObject"));
 
       // "countByEnumeratingWithState:objects:count"
-      IdentifierInfo *KeyIdents[] = {
+      std::array KeyIdents = {
         &CGM.getContext().Idents.get("countByEnumeratingWithState"),
         &CGM.getContext().Idents.get("objects"),
         &CGM.getContext().Idents.get("count")
       };
       VTableDispatchMethods.insert(
-        CGM.getContext().Selectors.getSelector(3, KeyIdents));
+        CGM.getContext().Selectors.getSelector(3, KeyIdents.begin()));
     }
   }
 

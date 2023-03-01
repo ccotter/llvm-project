@@ -105,6 +105,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -3512,11 +3513,11 @@ static bool isTypeCongruent(Type *L, Type *R) {
 }
 
 static AttrBuilder getParameterABIAttributes(LLVMContext& C, unsigned I, AttributeList Attrs) {
-  static const Attribute::AttrKind ABIAttrs[] = {
+  static const std::array<Attribute::AttrKind, 10> ABIAttrs = { {
       Attribute::StructRet,  Attribute::ByVal,          Attribute::InAlloca,
       Attribute::InReg,      Attribute::StackAlignment, Attribute::SwiftSelf,
       Attribute::SwiftAsync, Attribute::SwiftError,     Attribute::Preallocated,
-      Attribute::ByRef};
+      Attribute::ByRef} };
   AttrBuilder Copy(C);
   for (auto AK : ABIAttrs) {
     Attribute Attr = Attrs.getParamAttrs(I).getAttribute(AK);

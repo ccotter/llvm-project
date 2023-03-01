@@ -14,6 +14,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <array>
 #include <cmath>
 
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -244,9 +245,9 @@ void llvm::write_double(raw_ostream &S, double N, FloatStyle Style,
   if (Style == FloatStyle::Percent)
     N *= 100.0;
 
-  char Buf[32];
-  format(Spec.c_str(), N).snprint(Buf, sizeof(Buf));
-  S << Buf;
+  std::array<char, 32> Buf;
+  format(Spec.c_str(), N).snprint(Buf.begin(), sizeof(Buf));
+  S << Buf.begin();
   if (Style == FloatStyle::Percent)
     S << '%';
 }

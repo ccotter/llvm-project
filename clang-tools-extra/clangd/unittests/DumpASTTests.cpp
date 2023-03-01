@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "Annotations.h"
 #include "DumpAST.h"
 #include "TestTU.h"
@@ -24,7 +26,7 @@ using testing::SizeIs;
 MATCHER_P(withDetail, str, "") { return arg.detail == str; }
 
 TEST(DumpASTTests, BasicInfo) {
-  std::pair</*Code=*/std::string, /*Expected=*/std::string> Cases[] = {
+  std::array<std::pair</*Code=*/std::string, /*Expected=*/std::string>, 5> Cases = { {
       {R"cpp(
 float root(int *x) {
   return *x + 1;
@@ -143,7 +145,7 @@ declaration: CXXMethod - root
         expression: Member - x
           expression: CXXThis - const, implicit
       )"},
-  };
+  } };
   for (const auto &Case : Cases) {
     ParsedAST AST = TestTU::withCode(Case.first).build();
     auto Node = dumpAST(DynTypedNode::create(findUnqualifiedDecl(AST, "root")),

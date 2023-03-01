@@ -26,6 +26,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1253,8 +1254,8 @@ unsigned HexagonEvaluator::getNextPhysReg(unsigned PReg, unsigned Width) const {
   bool Is64 = DoubleRegsRegClass.contains(PReg);
   assert(PReg == 0 || Is64 || IntRegsRegClass.contains(PReg));
 
-  static const unsigned Phys32[] = { R0, R1, R2, R3, R4, R5 };
-  static const unsigned Phys64[] = { D0, D1, D2 };
+  static const std::array<unsigned, 6> Phys32 = { { R0, R1, R2, R3, R4, R5 } };
+  static const std::array<unsigned, 3> Phys64 = { { D0, D1, D2 } };
   const unsigned Num32 = sizeof(Phys32)/sizeof(unsigned);
   const unsigned Num64 = sizeof(Phys64)/sizeof(unsigned);
 

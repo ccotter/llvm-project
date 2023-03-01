@@ -49,6 +49,7 @@
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -505,7 +506,7 @@ public:
 
   void emitInst(uint32_t Inst, char Suffix) {
     unsigned Size;
-    char Buffer[4];
+    std::array<char, 4> Buffer;
     const bool LittleEndian = getContext().getAsmInfo()->isLittleEndian();
 
     switch (Suffix) {
@@ -540,7 +541,7 @@ public:
       llvm_unreachable("Invalid Suffix");
     }
 
-    MCELFStreamer::emitBytes(StringRef(Buffer, Size));
+    MCELFStreamer::emitBytes(StringRef(Buffer.begin(), Size));
   }
 
   /// This is one of the functions used to emit data into an ELF section, so the

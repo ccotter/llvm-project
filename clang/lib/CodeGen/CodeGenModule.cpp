@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenModule.h"
+
+#include <array>
 #include "ABIInfo.h"
 #include "CGBlocks.h"
 #include "CGCUDARuntime.h"
@@ -5740,13 +5742,13 @@ QualType CodeGenModule::getObjCFastEnumerationStateType() {
     RecordDecl *D = Context.buildImplicitRecord("__objcFastEnumerationState");
     D->startDefinition();
 
-    QualType FieldTypes[] = {
+    std::array<QualType, 4> FieldTypes = { {
       Context.UnsignedLongTy,
       Context.getPointerType(Context.getObjCIdType()),
       Context.getPointerType(Context.UnsignedLongTy),
       Context.getConstantArrayType(Context.UnsignedLongTy,
                            llvm::APInt(32, 5), nullptr, ArrayType::Normal, 0)
-    };
+    } };
 
     for (size_t i = 0; i < 4; ++i) {
       FieldDecl *Field = FieldDecl::Create(Context,

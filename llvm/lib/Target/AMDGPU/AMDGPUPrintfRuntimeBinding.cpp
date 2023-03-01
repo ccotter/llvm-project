@@ -18,6 +18,8 @@
 // The backend passes will need to store metadata in the kernel
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AMDGPU.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/InstructionSimplify.h"
@@ -107,12 +109,12 @@ void AMDGPUPrintfRuntimeBindingImpl::getConversionSpecifiers(
   // are %p and %s, which use to know if we
   // are either storing a literal string or a
   // pointer to the printf buffer.
-  static const char ConvSpecifiers[] = "cdieEfgGaosuxXp";
+  static const std::array<char, 16> ConvSpecifiers = { "cdieEfgGaosuxXp" };
   size_t CurFmtSpecifierIdx = 0;
   size_t PrevFmtSpecifierIdx = 0;
 
   while ((CurFmtSpecifierIdx = Fmt.find_first_of(
-              ConvSpecifiers, CurFmtSpecifierIdx)) != StringRef::npos) {
+              ConvSpecifiers.begin(), CurFmtSpecifierIdx)) != StringRef::npos) {
     bool ArgDump = false;
     StringRef CurFmt = Fmt.substr(PrevFmtSpecifierIdx,
                                   CurFmtSpecifierIdx - PrevFmtSpecifierIdx);
@@ -151,7 +153,7 @@ bool AMDGPUPrintfRuntimeBindingImpl::lowerPrintfForGpu(Module &M) {
   Type *I32Ty = Type::getInt32Ty(Ctx);
   unsigned UniqID = 0;
   // NB: This is important for this string size to be divisible by 4
-  const char NonLiteralStr[4] = "???";
+  const std::array<char, 4> NonLiteralStr = { "???" };
 
   for (auto *CI : Printfs) {
     unsigned NumOps = CI->arg_size();
@@ -418,7 +420,7 @@ bool AMDGPUPrintfRuntimeBindingImpl::lowerPrintfForGpu(Module &M) {
           WhatToStore.push_back(Arg);
         } else if (ArgType->getTypeID() == Type::PointerTyID) {
           if (shouldPrintAsStr(OpConvSpecifiers[ArgCount - 1], ArgType)) {
-            const char *S = NonLiteralStr;
+            const char *S = NonLiteralStr.begin();
             if (auto *ConstExpr = dyn_cast<ConstantExpr>(Arg)) {
               auto *GV = dyn_cast<GlobalVariable>(ConstExpr->getOperand(0));
               if (GV && GV->hasInitializer()) {

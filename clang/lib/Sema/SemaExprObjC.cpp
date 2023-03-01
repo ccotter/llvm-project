@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ExprObjC.h"
@@ -662,11 +664,11 @@ ExprResult Sema::BuildObjCBoxedExpr(SourceRange SR, Expr *ValueExpr) {
     }
 
     if (!ValueWithBytesObjCTypeMethod) {
-      IdentifierInfo *II[] = {
+      std::array II = {
         &Context.Idents.get("valueWithBytes"),
         &Context.Idents.get("objCType")
       };
-      Selector ValueWithBytesObjCType = Context.Selectors.getSelector(2, II);
+      Selector ValueWithBytesObjCType = Context.Selectors.getSelector(2, II.begin());
 
       // Look for the appropriate method within NSValue.
       BoxingMethod = NSValueDecl->lookupClassMethod(ValueWithBytesObjCType);
@@ -1036,11 +1038,11 @@ ExprResult Sema::BuildObjCDictionaryLiteral(SourceRange SR,
           // key argument of selector is id<NSCopying>?
           if (ObjCProtocolDecl *NSCopyingPDecl =
               LookupProtocol(&Context.Idents.get("NSCopying"), SR.getBegin())) {
-            ObjCProtocolDecl *PQ[] = {NSCopyingPDecl};
+            std::array PQ = {NSCopyingPDecl};
             QIDNSCopying =
               Context.getObjCObjectType(Context.ObjCBuiltinIdTy, { },
                                         llvm::makeArrayRef(
-                                          (ObjCProtocolDecl**) PQ,
+                                          (ObjCProtocolDecl**) PQ.begin(),
                                           1),
                                         false);
             QIDNSCopying = Context.getObjCObjectPointerType(QIDNSCopying);
@@ -4334,11 +4336,11 @@ Sema::CheckObjCBridgeRelatedConversions(SourceLocation Loc,
 
         QualType receiverType = Context.getObjCInterfaceType(RelatedClass);
         // Argument.
-        Expr *args[] = { SrcExpr };
+        std::array args = { SrcExpr };
         ExprResult msg = BuildClassMessageImplicit(receiverType, false,
                                       ClassMethod->getLocation(),
                                       ClassMethod->getSelector(), ClassMethod,
-                                      MultiExprArg(args, 1));
+                                      MultiExprArg(args.begin(), 1));
         SrcExpr = msg.get();
       }
       return true;

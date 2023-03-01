@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGObjCRuntime.h"
@@ -1709,7 +1711,7 @@ struct PerformSEHFinally final : EHScopeStack::Cleanup {
     CallArgList Args;
 
     // Compute the two argument values.
-    QualType ArgTys[2] = {Context.UnsignedCharTy, Context.VoidPtrTy};
+    std::array<QualType, 2> ArgTys = { {Context.UnsignedCharTy, Context.VoidPtrTy} };
     llvm::Value *FP = nullptr;
     // If CFG.IsOutlinedSEHHelper is true, then we are within a finally block.
     if (CGF.IsOutlinedSEHHelper) {

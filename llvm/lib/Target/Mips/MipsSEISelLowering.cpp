@@ -43,6 +43,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -83,7 +84,7 @@ MipsSETargetLowering::MipsSETargetLowering(const MipsTargetMachine &TM,
   }
 
   if (Subtarget.hasDSP()) {
-    MVT::SimpleValueType VecTys[2] = {MVT::v2i16, MVT::v4i8};
+    std::array<MVT::SimpleValueType, 2> VecTys = { {MVT::v2i16, MVT::v4i8} };
 
     for (const auto &VecTy : VecTys) {
       addRegisterClass(VecTy, &Mips::DSPRRegClass);
@@ -505,10 +506,10 @@ static SDValue performANDCombine(SDNode *N, SelectionDAG &DAG,
 
     if ((Op0Opcode == MipsISD::VEXTRACT_ZEXT_ELT && Log2 >= ExtendTySize) ||
         Log2 == ExtendTySize) {
-      SDValue Ops[] = { Op0->getOperand(0), Op0->getOperand(1), Op0Op2 };
+      std::array Ops = { Op0->getOperand(0), Op0->getOperand(1), Op0Op2 };
       return DAG.getNode(MipsISD::VEXTRACT_ZEXT_ELT, SDLoc(Op0),
                          Op0->getVTList(),
-                         makeArrayRef(Ops, Op0->getNumOperands()));
+                         makeArrayRef(Ops.begin(), Op0->getNumOperands()));
     }
   }
 
@@ -913,11 +914,11 @@ static SDValue performSRACombine(SDNode *N, SelectionDAG &DAG,
       if (TotalBits == 32 ||
           (Op0Op0->getOpcode() == MipsISD::VEXTRACT_SEXT_ELT &&
            TotalBits <= 32)) {
-        SDValue Ops[] = { Op0Op0->getOperand(0), Op0Op0->getOperand(1),
+        std::array Ops = { Op0Op0->getOperand(0), Op0Op0->getOperand(1),
                           Op0Op0->getOperand(2) };
         return DAG.getNode(MipsISD::VEXTRACT_SEXT_ELT, SDLoc(Op0Op0),
                            Op0Op0->getVTList(),
-                           makeArrayRef(Ops, Op0Op0->getNumOperands()));
+                           makeArrayRef(Ops.begin(), Op0Op0->getNumOperands()));
       }
     }
   }
@@ -1392,11 +1393,11 @@ static SDValue lowerMSASplatZExt(SDValue Op, unsigned OpNr, SelectionDAG &DAG) {
   } else
     LaneB = LaneA;
 
-  SDValue Ops[16] = { LaneA, LaneB, LaneA, LaneB, LaneA, LaneB, LaneA, LaneB,
-                      LaneA, LaneB, LaneA, LaneB, LaneA, LaneB, LaneA, LaneB };
+  std::array<SDValue, 16> Ops = { { LaneA, LaneB, LaneA, LaneB, LaneA, LaneB, LaneA, LaneB,
+                      LaneA, LaneB, LaneA, LaneB, LaneA, LaneB, LaneA, LaneB } };
 
   SDValue Result = DAG.getBuildVector(
-      ViaVecTy, DL, makeArrayRef(Ops, ViaVecTy.getVectorNumElements()));
+      ViaVecTy, DL, makeArrayRef(Ops.begin(), ViaVecTy.getVectorNumElements()));
 
   if (ViaVecTy != ResVecTy) {
     SDValue One = DAG.getConstant(1, DL, ViaVecTy);
@@ -1438,13 +1439,13 @@ static SDValue getBuildVectorSplat(EVT VecTy, SDValue SplatValue,
   if (BigEndian)
     std::swap(SplatValueA, SplatValueB);
 
-  SDValue Ops[16] = { SplatValueA, SplatValueB, SplatValueA, SplatValueB,
+  std::array<SDValue, 16> Ops = { { SplatValueA, SplatValueB, SplatValueA, SplatValueB,
                       SplatValueA, SplatValueB, SplatValueA, SplatValueB,
                       SplatValueA, SplatValueB, SplatValueA, SplatValueB,
-                      SplatValueA, SplatValueB, SplatValueA, SplatValueB };
+                      SplatValueA, SplatValueB, SplatValueA, SplatValueB } };
 
   SDValue Result = DAG.getBuildVector(
-      ViaVecTy, DL, makeArrayRef(Ops, ViaVecTy.getVectorNumElements()));
+      ViaVecTy, DL, makeArrayRef(Ops.begin(), ViaVecTy.getVectorNumElements()));
 
   if (VecTy != ViaVecTy)
     Result = DAG.getNode(ISD::BITCAST, DL, VecTy, Result);
@@ -2545,7 +2546,7 @@ SDValue MipsSETargetLowering::lowerBUILD_VECTOR(SDValue Op,
 static SDValue lowerVECTOR_SHUFFLE_SHF(SDValue Op, EVT ResTy,
                                        SmallVector<int, 16> Indices,
                                        SelectionDAG &DAG) {
-  int SHFIndices[4] = { -1, -1, -1, -1 };
+  std::array<int, 4> SHFIndices = { { -1, -1, -1, -1 } };
 
   if (Indices.size() < 4)
     return SDValue();

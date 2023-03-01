@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "WebAssemblyRegisterInfo.h"
+
+#include <array>
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssemblyFrameLowering.h"
 #include "WebAssemblyInstrInfo.h"
@@ -37,8 +39,8 @@ WebAssemblyRegisterInfo::WebAssemblyRegisterInfo(const Triple &TT)
 
 const MCPhysReg *
 WebAssemblyRegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
-  static const MCPhysReg CalleeSavedRegs[] = {0};
-  return CalleeSavedRegs;
+  static const std::array<MCPhysReg, 1> CalleeSavedRegs = { {0} };
+  return CalleeSavedRegs.begin();
 }
 
 BitVector

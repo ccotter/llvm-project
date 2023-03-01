@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
 #include <cstdlib>
 #include "llvm/Demangle/Demangle.h"
 #include "gtest/gtest.h"
@@ -109,7 +110,7 @@ TEST(PartialDemanglerTest, TestNameMeta) {
 }
 
 TEST(PartialDemanglerTest, TestCtorOrDtor) {
-  static const char *Pos[] = {
+  static std::array<const char *, 7>Pos = { {
       "_ZN1AC1Ev",        // A::A()
       "_ZN1AC1IiEET_",    // A::A<int>(int)
       "_ZN1AD2Ev",        // A::~A()
@@ -117,11 +118,11 @@ TEST(PartialDemanglerTest, TestCtorOrDtor) {
       "_ZN1AC1B1TEv",     // A::A[abi:T]()
       "_ZNSt1AD2Ev",      // std::A::~A()
       "_ZN2ns1AD1Ev",      // ns::A::~A()
-  };
-  static const char *Neg[] = {
+  } };
+  static std::array<const char *, 2>Neg = { {
       "_Z1fv",
       "_ZN1A1gIiEEvT_", // void A::g<int>(int)
-  };
+  } };
 
   llvm::ItaniumPartialDemangler D;
   for (const char *N : Pos) {

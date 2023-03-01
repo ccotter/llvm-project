@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iomanip>  // for setprecision
@@ -178,11 +179,11 @@ bool JSONReporter::ReportContext(const Context& context) {
   out << "],\n";
 
 #if defined(NDEBUG)
-  const char build_type[] = "release";
+  const std::array<char, 8> build_type = { "release" };
 #else
   const char build_type[] = "debug";
 #endif
-  out << indent << FormatKV("library_build_type", build_type);
+  out << indent << FormatKV("library_build_type", build_type.begin());
 
   if (internal::global_context != nullptr) {
     for (const auto& kv : *internal::global_context) {

@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/PrettyDeclStackTrace.h"
@@ -619,7 +621,7 @@ bool Parser::ParseMicrosoftDeclSpecArgs(IdentifierInfo *AttrName,
       AK_Put = 0,
       AK_Get = 1 // indices into AccessorNames
     };
-    IdentifierInfo *AccessorNames[] = {nullptr, nullptr};
+    std::array<IdentifierInfo *, 2>AccessorNames = { {nullptr, nullptr} };
     bool HasInvalidAccessor = false;
 
     // Parse the accessor specifications.
@@ -1102,7 +1104,7 @@ void Parser::ParseAvailabilityAttribute(IdentifierInfo &Availability,
                                         SourceLocation ScopeLoc,
                                         ParsedAttr::Syntax Syntax) {
   enum { Introduced, Deprecated, Obsoleted, Unknown };
-  AvailabilityChange Changes[Unknown];
+  std::array<AvailabilityChange, Unknown> Changes;
   ExprResult MessageExpr, ReplacementExpr;
 
   // Opening '('.

@@ -48,6 +48,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Triple.h"
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <functional>
 #include <unordered_map>
@@ -57,8 +58,8 @@ using namespace sema;
 
 Sema::DeclGroupPtrTy Sema::ConvertDeclToDeclGroup(Decl *Ptr, Decl *OwnedType) {
   if (OwnedType) {
-    Decl *Group[2] = { OwnedType, Ptr };
-    return DeclGroupPtrTy::make(DeclGroupRef::Create(Context, Group, 2));
+    std::array<Decl *, 2>Group = { { OwnedType, Ptr } };
+    return DeclGroupPtrTy::make(DeclGroupRef::Create(Context, Group.begin(), 2));
   }
 
   return DeclGroupPtrTy::make(DeclGroupRef(Ptr));
@@ -11929,7 +11930,7 @@ void Sema::CheckMain(FunctionDecl* FD, const DeclSpec& DS) {
 
   QualType CharPP =
     Context.getPointerType(Context.getPointerType(Context.CharTy));
-  QualType Expected[] = { Context.IntTy, CharPP, CharPP, CharPP };
+  std::array<QualType, 4> Expected = { { Context.IntTy, CharPP, CharPP, CharPP } };
 
   for (unsigned i = 0; i < nparams; ++i) {
     QualType AT = FTP->getParamType(i);

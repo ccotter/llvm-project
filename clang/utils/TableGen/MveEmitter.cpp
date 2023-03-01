@@ -66,6 +66,7 @@
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/StringToOffsetTable.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1765,7 +1766,7 @@ void MveEmitter::EmitHeader(raw_ostream &OS) {
   constexpr unsigned UseUserNamespace = 2;
 
   constexpr unsigned NumParts = 4;
-  raw_self_contained_string_ostream parts[NumParts];
+  std::array<raw_self_contained_string_ostream, NumParts> parts;
 
   // Write typedefs for all the required vector types, and a few scalar
   // types that don't already have the name we want them to have.
@@ -2029,7 +2030,7 @@ void CdeEmitter::EmitHeader(raw_ostream &OS) {
   constexpr unsigned MVEFloat = 2;
 
   constexpr unsigned NumParts = 3;
-  raw_self_contained_string_ostream parts[NumParts];
+  std::array<raw_self_contained_string_ostream, NumParts> parts;
 
   // Write typedefs for all the required vector types, and a few scalar
   // types that don't already have the name we want them to have.

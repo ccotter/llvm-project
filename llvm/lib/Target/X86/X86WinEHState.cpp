@@ -28,6 +28,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
+#include <array>
 #include <deque>
 
 using namespace llvm;
@@ -386,8 +387,8 @@ Function *WinEHStatePass::generateLSDAInEAXThunk(Function *ParentFunc) {
   LLVMContext &Context = ParentFunc->getContext();
   Type *Int32Ty = Type::getInt32Ty(Context);
   Type *Int8PtrType = Type::getInt8PtrTy(Context);
-  Type *ArgTys[5] = {Int8PtrType, Int8PtrType, Int8PtrType, Int8PtrType,
-                     Int8PtrType};
+  std::array<Type *, 5>ArgTys = { {Int8PtrType, Int8PtrType, Int8PtrType, Int8PtrType,
+                     Int8PtrType} };
   FunctionType *TrampolineTy =
       FunctionType::get(Int32Ty, makeArrayRef(&ArgTys[0], 4),
                         /*isVarArg=*/false);

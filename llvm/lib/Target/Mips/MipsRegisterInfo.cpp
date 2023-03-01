@@ -30,6 +30,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstdint>
 
 using namespace llvm;
@@ -148,13 +149,13 @@ const uint32_t *MipsRegisterInfo::getMips16RetHelperMask() {
 
 BitVector MipsRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const {
-  static const MCPhysReg ReservedGPR32[] = {
+  static const std::array<MCPhysReg, 4> ReservedGPR32 = { {
     Mips::ZERO, Mips::K0, Mips::K1, Mips::SP
-  };
+  } };
 
-  static const MCPhysReg ReservedGPR64[] = {
+  static const std::array<MCPhysReg, 4> ReservedGPR64 = { {
     Mips::ZERO_64, Mips::K0_64, Mips::K1_64, Mips::SP_64
-  };
+  } };
 
   BitVector Reserved(getNumRegs());
   const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();

@@ -8,6 +8,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPUInstPrinter.h"
+
+#include <array>
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "SIDefines.h"
 #include "SIRegisterInfo.h"
@@ -1181,7 +1183,7 @@ void AMDGPUInstPrinter::printPackedModifier(const MCInst *MI,
                                             raw_ostream &O) {
   unsigned Opc = MI->getOpcode();
   int NumOps = 0;
-  int Ops[3];
+  std::array<int, 3> Ops;
 
   for (int OpName : { AMDGPU::OpName::src0_modifiers,
                       AMDGPU::OpName::src1_modifiers,
@@ -1201,7 +1203,7 @@ void AMDGPUInstPrinter::printPackedModifier(const MCInst *MI,
   const bool IsPacked =
     MII.get(MI->getOpcode()).TSFlags & SIInstrFlags::IsPacked;
 
-  if (allOpsDefaultValue(Ops, NumOps, Mod, IsPacked, HasDstSel))
+  if (allOpsDefaultValue(Ops.begin(), NumOps, Mod, IsPacked, HasDstSel))
     return;
 
   O << Name;

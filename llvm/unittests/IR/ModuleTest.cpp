@@ -15,6 +15,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
 
+#include <array>
 #include <random>
 
 using namespace llvm;
@@ -64,7 +65,7 @@ TEST(ModuleTest, randomNumberGenerator) {
   std::uniform_int_distribution<int> dist;
   const size_t NBCheck = 10;
 
-  std::array<int, NBCheck> RandomStreams[2];
+  std::array<std::array<int, NBCheck>, 2> RandomStreams;
   for (auto &RandomStream : RandomStreams) {
     std::unique_ptr<RandomNumberGenerator> RNG = M.createRNG(DP.getPassName());
     std::generate(RandomStream.begin(), RandomStream.end(),

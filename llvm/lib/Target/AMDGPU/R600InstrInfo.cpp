@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "R600InstrInfo.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600.h"
@@ -379,19 +381,19 @@ static unsigned getTransSwizzle(R600InstrInfo::BankSwizzle Swz, unsigned Op) {
   assert(Op < 3 && "Out of range swizzle index");
   switch (Swz) {
   case R600InstrInfo::ALU_VEC_012_SCL_210: {
-    unsigned Cycles[3] = { 2, 1, 0};
+    std::array<unsigned, 3> Cycles = { { 2, 1, 0} };
     return Cycles[Op];
   }
   case R600InstrInfo::ALU_VEC_021_SCL_122: {
-    unsigned Cycles[3] = { 1, 2, 2};
+    std::array<unsigned, 3> Cycles = { { 1, 2, 2} };
     return Cycles[Op];
   }
   case R600InstrInfo::ALU_VEC_120_SCL_212: {
-    unsigned Cycles[3] = { 2, 1, 2};
+    std::array<unsigned, 3> Cycles = { { 2, 1, 2} };
     return Cycles[Op];
   }
   case R600InstrInfo::ALU_VEC_102_SCL_221: {
-    unsigned Cycles[3] = { 2, 2, 1};
+    std::array<unsigned, 3> Cycles = { { 2, 2, 1} };
     return Cycles[Op];
   }
   default:
@@ -533,12 +535,12 @@ R600InstrInfo::fitsReadPortLimitations(const std::vector<MachineInstr *> &IG,
   IGSrcs.pop_back();
   ValidSwizzle.pop_back();
 
-  static const R600InstrInfo::BankSwizzle TransSwz[] = {
+  static const std::array<R600InstrInfo::BankSwizzle, 4> TransSwz = { {
     ALU_VEC_012_SCL_210,
     ALU_VEC_021_SCL_122,
     ALU_VEC_120_SCL_212,
     ALU_VEC_102_SCL_221
-  };
+  } };
   for (R600InstrInfo::BankSwizzle TransBS : TransSwz) {
     if (!isConstCompatible(TransBS, TransOps, ConstCount))
       continue;
@@ -1303,7 +1305,7 @@ MachineInstr *R600InstrInfo::buildSlotOfVectorInstruction(
       getOperandIdx(MI->getOpcode(), getSlotedOps(R600::OpName::src1, Slot)));
   MachineInstr *MIB = buildDefaultInstruction(
       MBB, I, Opcode, DstReg, Src0.getReg(), Src1.getReg());
-  static const unsigned  Operands[14] = {
+  static const std::array<unsigned, 14>  Operands = { {
     R600::OpName::update_exec_mask,
     R600::OpName::update_pred,
     R600::OpName::write,
@@ -1318,7 +1320,7 @@ MachineInstr *R600InstrInfo::buildSlotOfVectorInstruction(
     R600::OpName::src1_rel,
     R600::OpName::src1_abs,
     R600::OpName::src1_sel,
-  };
+  } };
 
   MachineOperand &MO = MI->getOperand(getOperandIdx(MI->getOpcode(),
       getSlotedOps(R600::OpName::pred_sel, Slot)));

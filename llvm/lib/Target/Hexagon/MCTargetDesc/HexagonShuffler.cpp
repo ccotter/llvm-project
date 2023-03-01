@@ -27,6 +27,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <optional>
 #include <utility>
@@ -279,8 +280,8 @@ void HexagonShuffler::restrictBranchOrder(HexagonPacketSummary const &Summary) {
     return;
   }
 
-  const static std::pair<unsigned, unsigned> jumpSlots[] = {
-      {8, 4}, {8, 2}, {8, 1}, {4, 2}, {4, 1}, {2, 1}};
+  const static std::array<std::pair<unsigned, unsigned>, 6> jumpSlots = { {
+      {8, 4}, {8, 2}, {8, 1}, {4, 2}, {4, 1}, {2, 1}} };
   // try all possible choices
   for (std::pair<unsigned, unsigned> jumpSlot : jumpSlots) {
     // validate first jump with this slot rule

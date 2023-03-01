@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/BinaryItemStream.h"
@@ -265,7 +267,7 @@ TEST_F(BinaryStreamTest, StreamRefBounds) {
 }
 
 TEST_F(BinaryStreamTest, StreamRefDynamicSize) {
-  StringRef Strings[] = {"1", "2", "3", "4"};
+  std::array<StringRef, 4> Strings = { {"1", "2", "3", "4"} };
   AppendingBinaryByteStream Stream(support::little);
 
   BinaryStreamWriter Writer(Stream);
@@ -365,7 +367,7 @@ TEST_F(BinaryStreamTest, MutableBinaryByteStreamBounds) {
 
     // 1. Try two reads that are supposed to work.  One from offset 0, and one
     // from the middle.
-    uint32_t Offsets[] = {0, 3};
+    std::array<uint32_t, 2> Offsets = { {0, 3} };
     for (auto Offset : Offsets) {
       uint64_t ExpectedSize = Stream.Input->getLength() - Offset;
 
@@ -873,7 +875,7 @@ TEST_F(BinaryStreamTest, StreamWriterPadToAlignment) {
 }
 
 TEST_F(BinaryStreamTest, StreamWriterAppend) {
-  StringRef Strings[] = {"First", "Second", "Third", "Fourth"};
+  std::array<StringRef, 4> Strings = { {"First", "Second", "Third", "Fourth"} };
   AppendingBinaryByteStream Stream(support::little);
   BinaryStreamWriter Writer(Stream);
 

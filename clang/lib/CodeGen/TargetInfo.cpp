@@ -35,6 +35,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 
 using namespace clang;
 using namespace CodeGen;
@@ -5610,7 +5611,7 @@ public:
     assert(Error.empty());
 
     auto *Fn = cast<llvm::Function>(GV);
-    static const char *SignReturnAddrStr[] = {"none", "non-leaf", "all"};
+    static std::array<const char *, 3>SignReturnAddrStr = { {"none", "non-leaf", "all"} };
     Fn->addFnAttr("sign-return-address", SignReturnAddrStr[static_cast<int>(BPI.SignReturnAddr)]);
 
     if (BPI.SignReturnAddr != LangOptions::SignReturnAddressScopeKind::None) {
@@ -6442,7 +6443,7 @@ public:
               diag::warn_target_unsupported_branch_protection_attribute)
               << Arch;
         } else {
-          static const char *SignReturnAddrStr[] = {"none", "non-leaf", "all"};
+          static std::array<const char *, 3>SignReturnAddrStr = { {"none", "non-leaf", "all"} };
           assert(static_cast<unsigned>(BPI.SignReturnAddr) <= 2 &&
                  "Unexpected SignReturnAddressScopeKind");
           Fn->addFnAttr(
@@ -10724,7 +10725,7 @@ static bool appendEnumType(SmallStringEnc &Enc, const EnumType *ET,
 /// This is done prior to appending the type's encoding.
 static void appendQualifier(SmallStringEnc &Enc, QualType QT) {
   // Qualifiers are emitted in alphabetical order.
-  static const char *const Table[]={"","c:","r:","cr:","v:","cv:","rv:","crv:"};
+  static const std::array<const char *, 8>Table={ {"","c:","r:","cr:","v:","cv:","rv:","crv:"} };
   int Lookup = 0;
   if (QT.isConstQualified())
     Lookup += 1<<0;

@@ -16,6 +16,7 @@
 #include "llvm/MC/MCWasmObjectWriter.h"
 #include "llvm/MC/MCWinCOFFObjectWriter.h"
 #include "llvm/MC/MCXCOFFObjectWriter.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -78,7 +79,7 @@ std::optional<MCFixupKind> MCAsmBackend::getFixupKind(StringRef Name) const {
 }
 
 const MCFixupKindInfo &MCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
-  static const MCFixupKindInfo Builtins[] = {
+  static const std::array<MCFixupKindInfo, 22> Builtins = { {
       {"FK_NONE", 0, 0, 0},
       {"FK_Data_1", 0, 8, 0},
       {"FK_Data_2", 0, 16, 0},
@@ -101,7 +102,7 @@ const MCFixupKindInfo &MCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"FK_SecRel_2", 0, 16, 0},
       {"FK_SecRel_4", 0, 32, 0},
       {"FK_SecRel_8", 0, 64, 0},
-  };
+  } };
 
   assert((size_t)Kind <= std::size(Builtins) && "Unknown fixup kind");
   return Builtins[Kind];

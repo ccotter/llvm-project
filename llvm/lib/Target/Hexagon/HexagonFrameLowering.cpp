@@ -53,6 +53,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -1071,7 +1072,7 @@ void HexagonFrameLowering::insertCFIInstructionsAt(MachineBasicBlock &MBB,
         .addCFIIndex(MF.addFrameInst(OffR30));
   }
 
-  static Register RegsToMove[] = {
+  static std::array<Register, 25> RegsToMove = { {
     Hexagon::R1,  Hexagon::R0,  Hexagon::R3,  Hexagon::R2,
     Hexagon::R17, Hexagon::R16, Hexagon::R19, Hexagon::R18,
     Hexagon::R21, Hexagon::R20, Hexagon::R23, Hexagon::R22,
@@ -1079,7 +1080,7 @@ void HexagonFrameLowering::insertCFIInstructionsAt(MachineBasicBlock &MBB,
     Hexagon::D0,  Hexagon::D1,  Hexagon::D8,  Hexagon::D9,
     Hexagon::D10, Hexagon::D11, Hexagon::D12, Hexagon::D13,
     Hexagon::NoRegister
-  };
+  } };
 
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
 
@@ -1204,22 +1205,22 @@ static const char *getSpillFunctionFor(Register MaxReg, SpillKind SpillType,
     "__save_r16_through_r25_stkchk",
     "__save_r16_through_r27_stkchk" };
 
-  const char * V4SpillFromMemoryFunctions[] = {
+  std::array<const char *, 6> V4SpillFromMemoryFunctions = { {
     "__restore_r16_through_r17_and_deallocframe",
     "__restore_r16_through_r19_and_deallocframe",
     "__restore_r16_through_r21_and_deallocframe",
     "__restore_r16_through_r23_and_deallocframe",
     "__restore_r16_through_r25_and_deallocframe",
-    "__restore_r16_through_r27_and_deallocframe" };
+    "__restore_r16_through_r27_and_deallocframe" } };
 
-  const char * V4SpillFromMemoryTailcallFunctions[] = {
+  std::array<const char *, 6> V4SpillFromMemoryTailcallFunctions = { {
     "__restore_r16_through_r17_and_deallocframe_before_tailcall",
     "__restore_r16_through_r19_and_deallocframe_before_tailcall",
     "__restore_r16_through_r21_and_deallocframe_before_tailcall",
     "__restore_r16_through_r23_and_deallocframe_before_tailcall",
     "__restore_r16_through_r25_and_deallocframe_before_tailcall",
     "__restore_r16_through_r27_and_deallocframe_before_tailcall"
-  };
+  } };
 
   const char **SpillFunc = nullptr;
 
@@ -1229,10 +1230,10 @@ static const char *getSpillFunctionFor(Register MaxReg, SpillKind SpillType,
                        : V4SpillToMemoryFunctions;
     break;
   case SK_FromMem:
-    SpillFunc = V4SpillFromMemoryFunctions;
+    SpillFunc = V4SpillFromMemoryFunctions.begin();
     break;
   case SK_FromMemTailcall:
-    SpillFunc = V4SpillFromMemoryTailcallFunctions;
+    SpillFunc = V4SpillFromMemoryTailcallFunctions.begin();
     break;
   }
   assert(SpillFunc && "Unknown spill kind");

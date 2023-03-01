@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TestFS.h"
 #include "TweakTesting.h"
 #include "gmock/gmock.h"
@@ -522,7 +524,7 @@ TEST_F(DefineOutlineTest, FailsMacroSpecifier) {
   ExtraFiles["Test.cpp"] = "";
   ExtraArgs.push_back("-DFINALOVER=final override");
 
-  std::pair<StringRef, StringRef> Cases[] = {
+  std::array<std::pair<StringRef, StringRef>, 3> Cases = { {
       {
           R"cpp(
           #define VIRT virtual void
@@ -553,7 +555,7 @@ TEST_F(DefineOutlineTest, FailsMacroSpecifier) {
           "fail: define outline: Can't move out of line as function has a "
           "macro `override` specifier.\ndefine outline: Can't move out of line "
           "as function has a macro `final` specifier."},
-  };
+  } };
   for (const auto &Case : Cases) {
     EXPECT_EQ(apply(Case.first), Case.second);
   }

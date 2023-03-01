@@ -17,6 +17,7 @@
 #include "llvm/Testing/Support/SupportHelpers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <map>
 #include <string>
 
@@ -582,7 +583,7 @@ TEST(VirtualFileSystemTest, BasicRealFSRecursiveIteration) {
 
   // Check contents, which may be in any order
   EXPECT_EQ(4U, Contents.size());
-  int Counts[4] = {0, 0, 0, 0};
+  std::array<int, 4> Counts = { {0, 0, 0, 0} };
   for (const std::string &Name : Contents) {
     ASSERT_FALSE(Name.empty());
     int Index = Name[Name.size() - 1] - 'a';
@@ -660,7 +661,7 @@ TEST(VirtualFileSystemTest, BasicRealFSRecursiveIterationNoPush) {
 
     // Check contents, which may be in any order
     EXPECT_EQ(4U, Contents.size());
-    int Counts[7] = {0, 0, 0, 0, 0, 0, 0};
+    std::array<int, 7> Counts = { {0, 0, 0, 0, 0, 0, 0} };
     for (const std::string &Name : Contents) {
       ASSERT_FALSE(Name.empty());
       int Index = Name[Name.size() - 1] - 'a';

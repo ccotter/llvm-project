@@ -18,6 +18,7 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/StringMatcher.h"
 #include "llvm/TableGen/TableGenBackend.h"
+#include <array>
 #include <vector>
 
 using namespace llvm;
@@ -28,12 +29,12 @@ using namespace llvm;
 /// \returns true on success.
 static bool translateCodePointToUTF8(unsigned CodePoint,
                                      SmallVectorImpl<char> &CLiteral) {
-  char Translated[UNI_MAX_UTF8_BYTES_PER_CODE_POINT];
-  char *TranslatedPtr = Translated;
+  std::array<char, UNI_MAX_UTF8_BYTES_PER_CODE_POINT> Translated;
+  char *TranslatedPtr = Translated.begin();
   if (!ConvertCodePointToUTF8(CodePoint, TranslatedPtr))
     return false;
 
-  StringRef UTF8(Translated, TranslatedPtr - Translated);
+  StringRef UTF8(Translated.begin(), TranslatedPtr - Translated.begin());
 
   raw_svector_ostream OS(CLiteral);
   OS << "\"";

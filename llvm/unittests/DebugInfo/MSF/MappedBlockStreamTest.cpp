@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/BinaryStreamReader.h"
@@ -319,19 +321,19 @@ TEST(MappedBlockStreamTest, TestWriteThenRead) {
   enum class MyEnum : uint32_t { Val1 = 2908234, Val2 = 120891234 };
   using support::ulittle32_t;
 
-  uint16_t u16[] = {31468, 0};
-  uint32_t u32[] = {890723408, 0};
-  MyEnum Enum[] = {MyEnum::Val1, MyEnum::Val2};
-  StringRef ZStr[] = {"Zero Str", ""};
-  StringRef FStr[] = {"Fixed Str", ""};
+  std::array<uint16_t, 2> u16 = { {31468, 0} };
+  std::array<uint32_t, 2> u32 = { {890723408, 0} };
+  std::array<MyEnum, 2> Enum = { {MyEnum::Val1, MyEnum::Val2} };
+  std::array<StringRef, 2> ZStr = { {"Zero Str", ""} };
+  std::array<StringRef, 2> FStr = { {"Fixed Str", ""} };
   uint8_t byteArray0[] = {'1', '2'};
   uint8_t byteArray1[] = {'0', '0'};
   ArrayRef<uint8_t> byteArrayRef0(byteArray0);
   ArrayRef<uint8_t> byteArrayRef1(byteArray1);
-  ArrayRef<uint8_t> byteArray[] = {byteArrayRef0, byteArrayRef1};
+  std::array<ArrayRef<uint8_t>, 2> byteArray = { {byteArrayRef0, byteArrayRef1} };
   uint32_t intArr0[] = {890723408, 29082234};
   uint32_t intArr1[] = {890723408, 29082234};
-  ArrayRef<uint32_t> intArray[] = {intArr0, intArr1};
+  std::array<ArrayRef<uint32_t>, 2> intArray = { {intArr0, intArr1} };
 
   BinaryStreamReader Reader(*S);
   BinaryStreamWriter Writer(*S);
@@ -472,7 +474,7 @@ TEST(MappedBlockStreamTest, DataLivesAfterStreamDestruction) {
   MutableArrayRef<uint8_t> Data(DataBytes);
   const uint32_t Blocks[] = {2, 1, 0, 6, 3, 4, 5, 7, 9, 8};
 
-  StringRef Str[] = {"Zero Str", ""};
+  std::array<StringRef, 2> Str = { {"Zero Str", ""} };
 
   DiscontiguousStream F(Blocks, Data);
   {

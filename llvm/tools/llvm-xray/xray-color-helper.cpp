@@ -13,6 +13,7 @@
 #include "xray-color-helper.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cmath>
 
 using namespace llvm;
@@ -82,8 +83,8 @@ ColorHelper::ColorHelper(ColorHelper::DivergingScheme S)
 // HSV represented by a tuple of doubles
 static std::tuple<double, double, double>
 convertToHSV(const std::tuple<uint8_t, uint8_t, uint8_t> &Color) {
-  double Scaled[3] = {std::get<0>(Color) / 255.0, std::get<1>(Color) / 255.0,
-                      std::get<2>(Color) / 255.0};
+  std::array<double, 3> Scaled = { {std::get<0>(Color) / 255.0, std::get<1>(Color) / 255.0,
+                      std::get<2>(Color) / 255.0} };
   int Min = 0;
   int Max = 0;
   for (int i = 1; i < 3; ++i) {
@@ -128,7 +129,7 @@ convertToRGB(const std::tuple<double, double, double> &Color) {
   double HPrime = H / 60;
   double X = C * (1 - std::abs(std::fmod(HPrime, 2.0) - 1));
 
-  double RGB1[3];
+  std::array<double, 3> RGB1;
   int HPrimeInt = static_cast<int>(HPrime);
   if (HPrimeInt % 2 == 0) {
     RGB1[(HPrimeInt / 2) % 3] = C;
@@ -141,7 +142,7 @@ convertToRGB(const std::tuple<double, double, double> &Color) {
   }
 
   double Min = V - C;
-  double RGB2[3] = {RGB1[0] + Min, RGB1[1] + Min, RGB1[2] + Min};
+  std::array<double, 3> RGB2 = { {RGB1[0] + Min, RGB1[1] + Min, RGB1[2] + Min} };
 
   return std::make_tuple(unitIntervalTo8BitChar(RGB2[0]),
                          unitIntervalTo8BitChar(RGB2[1]),

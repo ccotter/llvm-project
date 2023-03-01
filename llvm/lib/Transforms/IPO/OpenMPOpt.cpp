@@ -50,6 +50,7 @@
 #include "llvm/Transforms/Utils/CallGraphUpdater.h"
 
 #include <algorithm>
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -851,8 +852,8 @@ struct OpenMPOpt {
   /// Print initial ICV values for testing.
   /// FIXME: This should be done from the Attributor once it is added.
   void printICVs() const {
-    InternalControlVar ICVs[] = {ICV_nthreads, ICV_active_levels, ICV_cancel,
-                                 ICV_proc_bind};
+    std::array<InternalControlVar, 4> ICVs = { {ICV_nthreads, ICV_active_levels, ICV_cancel,
+                                 ICV_proc_bind} };
 
     for (Function *F : SCC) {
       for (auto ICV : ICVs) {
@@ -1330,7 +1331,7 @@ private:
   bool deduplicateRuntimeCalls() {
     bool Changed = false;
 
-    RuntimeFunction DeduplicableRuntimeCallIDs[] = {
+    std::array<RuntimeFunction, 16> DeduplicableRuntimeCallIDs = { {
         OMPRTL_omp_get_num_threads,
         OMPRTL_omp_in_parallel,
         OMPRTL_omp_get_cancellation,
@@ -1346,7 +1347,7 @@ private:
         OMPRTL_omp_get_num_procs,
         OMPRTL_omp_get_place_num,
         OMPRTL_omp_get_partition_num_places,
-        OMPRTL_omp_get_partition_place_nums};
+        OMPRTL_omp_get_partition_place_nums} };
 
     // Global-tid is handled separately.
     SmallSetVector<Value *, 16> GTIdArgs;

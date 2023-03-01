@@ -22,6 +22,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include <array>
 #include <optional>
 #include <system_error>
 
@@ -429,11 +430,11 @@ void RocmInstallationDetector::detectDeviceLibrary() {
     // - ${ROCM_ROOT}/lib/*
     // - ${ROCM_ROOT}/lib/bitcode/*
     // so try to detect these layouts.
-    static constexpr std::array<const char *, 2> SubDirsList[] = {
+    static constexpr std::array<std::array<const char *, 2>, 3> SubDirsList = { {
         {"amdgcn", "bitcode"},
         {"lib", ""},
         {"lib", "bitcode"},
-    };
+    } };
 
     // Make a path by appending sub-directories to InstallPath.
     auto MakePath = [&](const llvm::ArrayRef<const char *> &SubDirs) {

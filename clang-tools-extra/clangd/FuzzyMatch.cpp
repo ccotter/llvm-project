@@ -56,6 +56,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "FuzzyMatch.h"
+
+#include <array>
 #include "llvm/ADT/Optional.h"
 #include "llvm/Support/Format.h"
 
@@ -335,8 +337,8 @@ llvm::SmallString<256> FuzzyMatcher::dumpLast(llvm::raw_ostream &OS) const {
       (Scores[PatN][WordN][Match].Score > Scores[PatN][WordN][Miss].Score)
           ? Match
           : Miss;
-  int S[MaxWord];
-  Action A[MaxWord];
+  std::array<int, MaxWord> S;
+  std::array<Action, MaxWord> A;
   for (int W = WordN - 1, P = PatN - 1; W >= 0; --W) {
     A[W] = Last;
     const auto &Cell = Scores[P + 1][W + 1][Last];

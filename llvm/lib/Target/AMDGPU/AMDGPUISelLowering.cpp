@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPUISelLowering.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "AMDGPUInstrInfo.h"
 #include "AMDGPUMachineFunction.h"
@@ -375,7 +377,7 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FP16_TO_FP, MVT::f64, Expand);
   setOperationAction(ISD::FP_TO_FP16, {MVT::f64, MVT::f32}, Custom);
 
-  const MVT ScalarIntVTs[] = { MVT::i32, MVT::i64 };
+  const std::array<MVT, 2> ScalarIntVTs = { { MVT::i32, MVT::i64 } };
   for (MVT VT : ScalarIntVTs) {
     // These should use [SU]DIVREM, so set them to expand
     setOperationAction({ISD::SDIV, ISD::UDIV, ISD::SREM, ISD::UREM}, VT,
@@ -415,9 +417,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
       {ISD::CTTZ, ISD::CTTZ_ZERO_UNDEF, ISD::CTLZ, ISD::CTLZ_ZERO_UNDEF},
       MVT::i64, Custom);
 
-  static const MVT::SimpleValueType VectorIntTypes[] = {
+  static const std::array<MVT::SimpleValueType, 10> VectorIntTypes = { {
       MVT::v2i32, MVT::v3i32, MVT::v4i32, MVT::v5i32, MVT::v6i32, MVT::v7i32,
-      MVT::v9i32, MVT::v10i32, MVT::v11i32, MVT::v12i32};
+      MVT::v9i32, MVT::v10i32, MVT::v11i32, MVT::v12i32} };
 
   for (MVT VT : VectorIntTypes) {
     // Expand the following operations for the current type by default.
@@ -436,9 +438,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
                        VT, Expand);
   }
 
-  static const MVT::SimpleValueType FloatVectorTypes[] = {
+  static const std::array<MVT::SimpleValueType, 10> FloatVectorTypes = { {
       MVT::v2f32, MVT::v3f32,  MVT::v4f32, MVT::v5f32, MVT::v6f32, MVT::v7f32,
-      MVT::v9f32, MVT::v10f32, MVT::v11f32, MVT::v12f32};
+      MVT::v9f32, MVT::v10f32, MVT::v11f32, MVT::v12f32} };
 
   for (MVT VT : FloatVectorTypes) {
     setOperationAction(

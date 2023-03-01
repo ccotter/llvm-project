@@ -108,6 +108,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -3147,7 +3148,7 @@ bool DFSanVisitor::visitWrappedCallBase(Function &F, CallBase &CB) {
 
 Value *DFSanVisitor::makeAddAcquireOrderingTable(IRBuilder<> &IRB) {
   constexpr int NumOrderings = (int)AtomicOrderingCABI::seq_cst + 1;
-  uint32_t OrderingTable[NumOrderings] = {};
+  std::array<uint32_t, NumOrderings> OrderingTable = { {} };
 
   OrderingTable[(int)AtomicOrderingCABI::relaxed] =
       OrderingTable[(int)AtomicOrderingCABI::acquire] =
@@ -3160,7 +3161,7 @@ Value *DFSanVisitor::makeAddAcquireOrderingTable(IRBuilder<> &IRB) {
       (int)AtomicOrderingCABI::seq_cst;
 
   return ConstantDataVector::get(IRB.getContext(),
-                                 makeArrayRef(OrderingTable, NumOrderings));
+                                 makeArrayRef(OrderingTable.begin(), NumOrderings));
 }
 
 void DFSanVisitor::visitLibAtomicLoad(CallBase &CB) {
@@ -3192,7 +3193,7 @@ void DFSanVisitor::visitLibAtomicLoad(CallBase &CB) {
 
 Value *DFSanVisitor::makeAddReleaseOrderingTable(IRBuilder<> &IRB) {
   constexpr int NumOrderings = (int)AtomicOrderingCABI::seq_cst + 1;
-  uint32_t OrderingTable[NumOrderings] = {};
+  std::array<uint32_t, NumOrderings> OrderingTable = { {} };
 
   OrderingTable[(int)AtomicOrderingCABI::relaxed] =
       OrderingTable[(int)AtomicOrderingCABI::release] =
@@ -3205,7 +3206,7 @@ Value *DFSanVisitor::makeAddReleaseOrderingTable(IRBuilder<> &IRB) {
       (int)AtomicOrderingCABI::seq_cst;
 
   return ConstantDataVector::get(IRB.getContext(),
-                                 makeArrayRef(OrderingTable, NumOrderings));
+                                 makeArrayRef(OrderingTable.begin(), NumOrderings));
 }
 
 void DFSanVisitor::visitLibAtomicStore(CallBase &CB) {

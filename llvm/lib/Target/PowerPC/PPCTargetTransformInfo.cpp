@@ -21,6 +21,7 @@
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -133,8 +134,8 @@ PPCTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
         Value *Result = UndefValue::get(Op0->getType());
 
         // Only extract each element once.
-        Value *ExtractedElts[32];
-        memset(ExtractedElts, 0, sizeof(ExtractedElts));
+        std::array<Value *, 32>ExtractedElts;
+        memset(ExtractedElts.begin(), 0, sizeof(ExtractedElts));
 
         for (unsigned i = 0; i != 16; ++i) {
           if (isa<UndefValue>(Mask->getAggregateElement(i)))

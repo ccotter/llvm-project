@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 //
 
+#include <array>
+
 #include "llvm/Object/Wasm.h"
 #include "llvm/ObjectYAML/ObjectYAML.h"
 #include "llvm/ObjectYAML/yaml2obj.h"
@@ -89,23 +91,23 @@ public:
 } // end anonymous namespace
 
 static int writeUint64(raw_ostream &OS, uint64_t Value) {
-  char Data[sizeof(Value)];
-  support::endian::write64le(Data, Value);
-  OS.write(Data, sizeof(Data));
+  std::array<char, sizeof(Value)> Data;
+  support::endian::write64le(Data.begin(), Value);
+  OS.write(Data.begin(), sizeof(Data));
   return 0;
 }
 
 static int writeUint32(raw_ostream &OS, uint32_t Value) {
-  char Data[sizeof(Value)];
-  support::endian::write32le(Data, Value);
-  OS.write(Data, sizeof(Data));
+  std::array<char, sizeof(Value)> Data;
+  support::endian::write32le(Data.begin(), Value);
+  OS.write(Data.begin(), sizeof(Data));
   return 0;
 }
 
 static int writeUint8(raw_ostream &OS, uint8_t Value) {
-  char Data[sizeof(Value)];
-  memcpy(Data, &Value, sizeof(Data));
-  OS.write(Data, sizeof(Data));
+  std::array<char, sizeof(Value)> Data;
+  memcpy(Data.begin(), &Value, sizeof(Data));
+  OS.write(Data.begin(), sizeof(Data));
   return 0;
 }
 

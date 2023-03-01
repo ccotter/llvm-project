@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/TrailingObjects.h"
 #include "gtest/gtest.h"
 
@@ -105,8 +107,8 @@ public:
 };
 
 TEST(TrailingObjects, OneArg) {
-  int arr[] = {1, 2, 3};
-  Class1 *C = Class1::create(arr, 3);
+  std::array arr = {1, 2, 3};
+  Class1 *C = Class1::create(arr.begin(), 3);
   EXPECT_EQ(sizeof(Class1), sizeof(unsigned));
   EXPECT_EQ(Class1::additionalSizeToAlloc<short>(1), sizeof(short));
   EXPECT_EQ(Class1::additionalSizeToAlloc<short>(3), sizeof(short) * 3);

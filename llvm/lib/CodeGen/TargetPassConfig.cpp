@@ -46,6 +46,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
+#include <array>
 #include <cassert>
 #include <optional>
 #include <string>
@@ -671,10 +672,10 @@ TargetPassConfig::getLimitedCodeGenPipelineReason(const char *Separator) {
   if (!hasLimitedCodeGenPipeline())
     return std::string();
   std::string Res;
-  static cl::opt<std::string> *PassNames[] = {&StartAfterOpt, &StartBeforeOpt,
-                                              &StopAfterOpt, &StopBeforeOpt};
-  static const char *OptNames[] = {StartAfterOptName, StartBeforeOptName,
-                                   StopAfterOptName, StopBeforeOptName};
+  static std::array<cl::opt<std::string> *, 4>PassNames = { {&StartAfterOpt, &StartBeforeOpt,
+                                              &StopAfterOpt, &StopBeforeOpt} };
+  static std::array<const char *, 4>OptNames = { {StartAfterOptName, StartBeforeOptName,
+                                   StopAfterOptName, StopBeforeOptName} };
   bool IsFirst = true;
   for (int Idx = 0; Idx < 4; ++Idx)
     if (!PassNames[Idx]->empty()) {

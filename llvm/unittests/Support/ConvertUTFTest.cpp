@@ -9,6 +9,7 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -62,12 +63,12 @@ TEST(ConvertUTFTest, ConvertUTF32BigEndianToUTF8String) {
 
 TEST(ConvertUTFTest, ConvertUTF8ToUTF16String) {
   // Src is the look of disapproval.
-  static const char Src[] = "\xe0\xb2\xa0_\xe0\xb2\xa0";
-  StringRef Ref(Src, sizeof(Src) - 1);
+  static const std::array<char, 8> Src = { "\xe0\xb2\xa0_\xe0\xb2\xa0" };
+  StringRef Ref(Src.begin(), sizeof(Src) - 1);
   SmallVector<UTF16, 5> Result;
   bool Success = convertUTF8ToUTF16String(Ref, Result);
   EXPECT_TRUE(Success);
-  static const UTF16 Expected[] = {0x0CA0, 0x005f, 0x0CA0, 0};
+  static const std::array<UTF16, 4> Expected = { {0x0CA0, 0x005f, 0x0CA0, 0} };
   ASSERT_EQ(3u, Result.size());
   for (int I = 0, E = 3; I != E; ++I)
     EXPECT_EQ(Expected[I], Result[I]);
@@ -116,23 +117,23 @@ TEST(ConvertUTFTest, UTF16WrappersForConvertUTF16ToUTF8String) {
 
 TEST(ConvertUTFTest, ConvertUTF8toWide) {
   // Src is the look of disapproval.
-  static const char Src[] = "\xe0\xb2\xa0_\xe0\xb2\xa0";
+  static const std::array<char, 8> Src = { "\xe0\xb2\xa0_\xe0\xb2\xa0" };
   std::wstring Result;
-  bool Success = ConvertUTF8toWide((const char*)Src, Result);
+  bool Success = ConvertUTF8toWide((const char*)Src.begin(), Result);
   EXPECT_TRUE(Success);
   std::wstring Expected(L"\x0ca0_\x0ca0");
   EXPECT_EQ(Expected, Result);
   Result.clear();
-  Success = ConvertUTF8toWide(StringRef(Src, 7), Result);
+  Success = ConvertUTF8toWide(StringRef(Src.begin(), 7), Result);
   EXPECT_TRUE(Success);
   EXPECT_EQ(Expected, Result);
 }
 
 TEST(ConvertUTFTest, convertWideToUTF8) {
   // Src is the look of disapproval.
-  static const wchar_t Src[] = L"\x0ca0_\x0ca0";
+  static const std::array<wchar_t, 4> Src = { L"\x0ca0_\x0ca0" };
   std::string Result;
-  bool Success = convertWideToUTF8(Src, Result);
+  bool Success = convertWideToUTF8(Src.begin(), Result);
   EXPECT_TRUE(Success);
   std::string Expected("\xe0\xb2\xa0_\xe0\xb2\xa0");
   EXPECT_EQ(Expected, Result);

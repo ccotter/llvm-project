@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SparcInstrInfo.h"
+
+#include <array>
 #include "Sparc.h"
 #include "SparcMachineFunctionInfo.h"
 #include "SparcSubtarget.h"
@@ -349,18 +351,18 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   const unsigned *subRegIdx = nullptr;
   bool ExtraG0 = false;
 
-  const unsigned DW_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd };
-  const unsigned DFP_FP_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd };
-  const unsigned QFP_DFP_SubRegsIdx[] = { SP::sub_even64, SP::sub_odd64 };
-  const unsigned QFP_FP_SubRegsIdx[]  = { SP::sub_even, SP::sub_odd,
+  const std::array<unsigned, 2> DW_SubRegsIdx = { { SP::sub_even, SP::sub_odd } };
+  const std::array<unsigned, 2> DFP_FP_SubRegsIdx = { { SP::sub_even, SP::sub_odd } };
+  const std::array<unsigned, 2> QFP_DFP_SubRegsIdx = { { SP::sub_even64, SP::sub_odd64 } };
+  const std::array<unsigned, 4> QFP_FP_SubRegsIdx = { { SP::sub_even, SP::sub_odd,
                                           SP::sub_odd64_then_sub_even,
-                                          SP::sub_odd64_then_sub_odd };
+                                          SP::sub_odd64_then_sub_odd } };
 
   if (SP::IntRegsRegClass.contains(DestReg, SrcReg))
     BuildMI(MBB, I, DL, get(SP::ORrr), DestReg).addReg(SP::G0)
       .addReg(SrcReg, getKillRegState(KillSrc));
   else if (SP::IntPairRegClass.contains(DestReg, SrcReg)) {
-    subRegIdx  = DW_SubRegsIdx;
+    subRegIdx  = DW_SubRegsIdx.begin();
     numSubRegs = 2;
     movOpc     = SP::ORrr;
     ExtraG0 = true;
@@ -373,7 +375,7 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
         .addReg(SrcReg, getKillRegState(KillSrc));
     } else {
       // Use two FMOVS instructions.
-      subRegIdx  = DFP_FP_SubRegsIdx;
+      subRegIdx  = DFP_FP_SubRegsIdx.begin();
       numSubRegs = 2;
       movOpc     = SP::FMOVS;
     }
@@ -384,13 +386,13 @@ void SparcInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
           .addReg(SrcReg, getKillRegState(KillSrc));
       } else {
         // Use two FMOVD instructions.
-        subRegIdx  = QFP_DFP_SubRegsIdx;
+        subRegIdx  = QFP_DFP_SubRegsIdx.begin();
         numSubRegs = 2;
         movOpc     = SP::FMOVD;
       }
     } else {
       // Use four FMOVS instructions.
-      subRegIdx  = QFP_FP_SubRegsIdx;
+      subRegIdx  = QFP_FP_SubRegsIdx.begin();
       numSubRegs = 4;
       movOpc     = SP::FMOVS;
     }

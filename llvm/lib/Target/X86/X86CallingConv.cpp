@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "X86CallingConv.h"
+
+#include <array>
 #include "X86Subtarget.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/CallingConvLower.h"
@@ -30,8 +32,8 @@ static bool CC_X86_32_RegCall_Assign2Regs(unsigned &ValNo, MVT &ValVT,
                                           CCState &State) {
   // List of GPR registers that are available to store values in regcall
   // calling convention.
-  static const MCPhysReg RegList[] = {X86::EAX, X86::ECX, X86::EDX, X86::EDI,
-                                      X86::ESI};
+  static const std::array<MCPhysReg, 5> RegList = { {X86::EAX, X86::ECX, X86::EDX, X86::EDI,
+                                      X86::ESI} };
 
   // The vector will save all the available registers for allocation.
   SmallVector<unsigned, 5> AvailableRegs;

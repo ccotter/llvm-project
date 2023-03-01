@@ -29,6 +29,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include <array>
 #include <system_error>
 
 using namespace clang::driver;
@@ -1126,9 +1127,9 @@ static bool findMipsCsMultilibs(const Multilib::flags_list &Flags,
 
   // Sort candidates. Toolchain that best meets the directories tree goes first.
   // Then select the first toolchains matches command line flags.
-  MultilibSet *Candidates[] = {&CSMipsMultilibs, &DebianMipsMultilibs};
+  std::array Candidates = {&CSMipsMultilibs, &DebianMipsMultilibs};
   if (CSMipsMultilibs.size() < DebianMipsMultilibs.size())
-    std::iter_swap(Candidates, Candidates + 1);
+    std::iter_swap(Candidates.begin(), Candidates.begin() + 1);
   for (const MultilibSet *Candidate : Candidates) {
     if (Candidate->select(Flags, Result.SelectedMultilib)) {
       if (Candidate == &DebianMipsMultilibs)
@@ -1691,10 +1692,10 @@ static void findRISCVBareMetalMultilibs(const Driver &D,
   };
   // currently only support the set of multilibs like riscv-gnu-toolchain does.
   // TODO: support MULTILIB_REUSE
-  constexpr RiscvMultilib RISCVMultilibSet[] = {
+  constexpr std::array<RiscvMultilib, 7> RISCVMultilibSet = { {
       {"rv32i", "ilp32"},     {"rv32im", "ilp32"},     {"rv32iac", "ilp32"},
       {"rv32imac", "ilp32"},  {"rv32imafc", "ilp32f"}, {"rv64imac", "lp64"},
-      {"rv64imafdc", "lp64d"}};
+      {"rv64imafdc", "lp64d"}} };
 
   std::vector<Multilib> Ms;
   for (auto Element : RISCVMultilibSet) {
@@ -3172,14 +3173,14 @@ bool Generic_GCC::addGCCLibStdCxxIncludePaths(
 
   // Otherwise, fall back on a bunch of options which don't use multiarch
   // layouts for simplicity.
-  const std::string LibStdCXXIncludePathCandidates[] = {
+  const std::array<std::string, 3> LibStdCXXIncludePathCandidates = { {
       // Gentoo is weird and places its headers inside the GCC install,
       // so if the first attempt to find the headers fails, try these patterns.
       InstallDir.str() + "/include/g++-v" + Version.Text,
       InstallDir.str() + "/include/g++-v" + Version.MajorStr + "." +
           Version.MinorStr,
       InstallDir.str() + "/include/g++-v" + Version.MajorStr,
-  };
+  } };
 
   for (const auto &IncludePath : LibStdCXXIncludePathCandidates) {
     if (addLibStdCXXIncludePaths(IncludePath, TripleStr,

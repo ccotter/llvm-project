@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/GlobPattern.h"
 #include "gtest/gtest.h"
 
@@ -139,7 +141,7 @@ TEST_F(GlobPatternTest, IsTrivialMatchAll) {
   EXPECT_TRUE((bool)Pat1);
   EXPECT_TRUE(Pat1->isTrivialMatchAll());
 
-  const char *NegativeCases[] = {"a*", "*a", "?*", "*?", "**", "\\*"};
+  std::array<const char *, 6>NegativeCases = { {"a*", "*a", "?*", "*?", "**", "\\*"} };
   for (auto *P : NegativeCases) {
     Expected<GlobPattern> Pat2 = GlobPattern::create(P);
     EXPECT_TRUE((bool)Pat2);

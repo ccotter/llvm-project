@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/SparcInstPrinter.h"
 #include "MCTargetDesc/SparcMCExpr.h"
 #include "MCTargetDesc/SparcTargetStreamer.h"
@@ -276,7 +278,7 @@ void SparcAsmPrinter::emitFunctionBodyStart() {
     return;
 
   const MachineRegisterInfo &MRI = MF->getRegInfo();
-  const unsigned globalRegs[] = { SP::G2, SP::G3, SP::G6, SP::G7, 0 };
+  const std::array<unsigned, 5> globalRegs = { { SP::G2, SP::G3, SP::G6, SP::G7, 0 } };
   for (unsigned i = 0; globalRegs[i] != 0; ++i) {
     unsigned reg = globalRegs[i];
     if (MRI.use_empty(reg))

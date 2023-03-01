@@ -23,6 +23,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include <array>
 #include <system_error>
 
 using namespace clang::driver;
@@ -661,7 +662,7 @@ void Linux::addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
   const Multilib &Multilib = GCCInstallation.getMultilib();
   const GCCVersion &Version = GCCInstallation.getVersion();
 
-  const std::string LibStdCXXIncludePathCandidates[] = {
+  const std::array<std::string, 3> LibStdCXXIncludePathCandidates = { {
       // Android standalone toolchain has C++ headers in yet another place.
       LibDir.str() + "/../" + TripleStr.str() + "/include/c++/" + Version.Text,
       // Freescale SDK C++ headers are directly in <sysroot>/usr/include/c++,
@@ -670,7 +671,7 @@ void Linux::addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
       // Cray's gcc installation puts headers under "g++" without a
       // version suffix.
       LibDir.str() + "/../include/g++",
-  };
+  } };
 
   for (const auto &IncludePath : LibStdCXXIncludePathCandidates) {
     if (addLibStdCXXIncludePaths(IncludePath, TripleStr,

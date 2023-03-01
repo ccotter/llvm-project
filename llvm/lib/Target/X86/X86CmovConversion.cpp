@@ -69,6 +69,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/CGPassBuilderOption.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <iterator>
 #include <utility>
@@ -399,10 +400,10 @@ bool X86CmovConverterPass::checkForProfitableCmovCandidates(
   /// Number of loop iterations to calculate depth for ?!
   static const unsigned LoopIterations = 2;
   DenseMap<MachineInstr *, DepthInfo> DepthMap;
-  DepthInfo LoopDepth[LoopIterations] = {{0, 0}, {0, 0}};
+  std::array<DepthInfo, LoopIterations> LoopDepth = { {{0, 0}, {0, 0}} };
   enum { PhyRegType = 0, VirRegType = 1, RegTypeNum = 2 };
   /// For each register type maps the register to its last def instruction.
-  DenseMap<unsigned, MachineInstr *> RegDefMaps[RegTypeNum];
+  std::array<DenseMap<unsigned, MachineInstr *>, RegTypeNum> RegDefMaps;
   /// Maps register operand to its def instruction, which can be nullptr if it
   /// is unknown (e.g., operand is defined outside the loop).
   DenseMap<MachineOperand *, MachineInstr *> OperandToDefMap;
@@ -484,8 +485,8 @@ bool X86CmovConverterPass::checkForProfitableCmovCandidates(
     }
   }
 
-  unsigned Diff[LoopIterations] = {LoopDepth[0].Depth - LoopDepth[0].OptDepth,
-                                   LoopDepth[1].Depth - LoopDepth[1].OptDepth};
+  std::array<unsigned, LoopIterations> Diff = { {LoopDepth[0].Depth - LoopDepth[0].OptDepth,
+                                   LoopDepth[1].Depth - LoopDepth[1].OptDepth} };
 
   //===--------------------------------------------------------------------===//
   // Step 2: Check if Loop worth to be optimized.

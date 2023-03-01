@@ -26,6 +26,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstdint>
 
@@ -2292,8 +2293,8 @@ static DecodeStatus DecodeANDI16Imm(MCInst &Inst, unsigned Insn,
                                     const MCDisassembler *Decoder) {
   // Insn must be >= 0, since it is unsigned that condition is always true.
   assert(Insn < 16);
-  int32_t DecodedValues[] = {128, 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64,
-                             255, 32768, 65535};
+  std::array<int32_t, 16> DecodedValues = { {128, 1, 2, 3, 4, 7, 8, 15, 16, 31, 32, 63, 64,
+                             255, 32768, 65535} };
   Inst.addOperand(MCOperand::createImm(DecodedValues[Insn]));
   return MCDisassembler::Success;
 }
@@ -2301,8 +2302,8 @@ static DecodeStatus DecodeANDI16Imm(MCInst &Inst, unsigned Insn,
 static DecodeStatus DecodeRegListOperand(MCInst &Inst, unsigned Insn,
                                          uint64_t Address,
                                          const MCDisassembler *Decoder) {
-  unsigned Regs[] = {Mips::S0, Mips::S1, Mips::S2, Mips::S3, Mips::S4, Mips::S5,
-                     Mips::S6, Mips::S7, Mips::FP};
+  std::array<unsigned, 9> Regs = { {Mips::S0, Mips::S1, Mips::S2, Mips::S3, Mips::S4, Mips::S5,
+                     Mips::S6, Mips::S7, Mips::FP} };
   unsigned RegNum;
 
   unsigned RegLst = fieldFromInstruction(Insn, 21, 5);
@@ -2329,7 +2330,7 @@ static DecodeStatus DecodeRegListOperand(MCInst &Inst, unsigned Insn,
 static DecodeStatus DecodeRegListOperand16(MCInst &Inst, unsigned Insn,
                                            uint64_t Address,
                                            const MCDisassembler *Decoder) {
-  unsigned Regs[] = {Mips::S0, Mips::S1, Mips::S2, Mips::S3};
+  std::array<unsigned, 4> Regs = { {Mips::S0, Mips::S1, Mips::S2, Mips::S3} };
   unsigned RegLst;
   switch(Inst.getOpcode()) {
   default:

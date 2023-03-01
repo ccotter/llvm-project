@@ -36,6 +36,7 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cstring>
 using namespace clang;
 
@@ -1213,7 +1214,7 @@ void StringLiteral::outputString(raw_ostream &OS) const {
   case UTF32: OS << 'U'; break;
   }
   OS << '"';
-  static const char Hex[] = "0123456789ABCDEF";
+  static const std::array<char, 17> Hex = { "0123456789ABCDEF" };
 
   unsigned LastSlashX = getLength();
   for (unsigned I = 0, N = getLength(); I != N; ++I) {
@@ -2167,7 +2168,7 @@ BinaryOperator::getOverloadedOpcode(OverloadedOperatorKind OO) {
 }
 
 OverloadedOperatorKind BinaryOperator::getOverloadedOperator(Opcode Opc) {
-  static const OverloadedOperatorKind OverOps[] = {
+  static const std::array<OverloadedOperatorKind, 33> OverOps = { {
     /* .* Cannot be overloaded */OO_None, OO_ArrowStar,
     OO_Star, OO_Slash, OO_Percent,
     OO_Plus, OO_Minus,
@@ -2187,7 +2188,7 @@ OverloadedOperatorKind BinaryOperator::getOverloadedOperator(Opcode Opc) {
     OO_AmpEqual, OO_CaretEqual,
     OO_PipeEqual,
     OO_Comma
-  };
+  } };
   return OverOps[Opc];
 }
 

@@ -17,6 +17,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGRecordLayout.h"
@@ -4188,7 +4190,7 @@ llvm::Constant *ItaniumCXXABI::getAddrOfRTTIDescriptor(QualType Ty) {
 
 void ItaniumCXXABI::EmitFundamentalRTTIDescriptors(const CXXRecordDecl *RD) {
   // Types added here must also be added to TypeInfoIsInStandardLibrary.
-  QualType FundamentalTypes[] = {
+  std::array<QualType, 25> FundamentalTypes = { {
       getContext().VoidTy,             getContext().NullPtrTy,
       getContext().BoolTy,             getContext().WCharTy,
       getContext().CharTy,             getContext().UnsignedCharTy,
@@ -4202,7 +4204,7 @@ void ItaniumCXXABI::EmitFundamentalRTTIDescriptors(const CXXRecordDecl *RD) {
       getContext().LongDoubleTy,       getContext().Float128Ty,
       getContext().Char8Ty,            getContext().Char16Ty,
       getContext().Char32Ty
-  };
+  } };
   llvm::GlobalValue::DLLStorageClassTypes DLLStorageClass =
       RD->hasAttr<DLLExportAttr>() || CGM.shouldMapVisibilityToDLLExport(RD)
           ? llvm::GlobalValue::DLLExportStorageClass

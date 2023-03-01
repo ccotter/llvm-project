@@ -63,6 +63,7 @@
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/YAMLParser.h"
+#include <array>
 #include <optional>
 
 using namespace clang::driver;
@@ -2153,10 +2154,10 @@ void tools::AddStaticDeviceLibs(Compilation *C, const Tool *T,
 
   // Build list of Static Device Libraries SDLs specified by -l option
   llvm::SmallSet<std::string, 16> SDLNames;
-  static const StringRef HostOnlyArchives[] = {
-      "omp", "cudart", "m", "gcc", "gcc_s", "pthread", "hip_hcc"};
+  static const std::array<StringRef, 7> HostOnlyArchives = { {
+      "omp", "cudart", "m", "gcc", "gcc_s", "pthread", "hip_hcc"} };
   for (auto SDLName : DriverArgs.getAllArgValues(options::OPT_l)) {
-    if (!HostOnlyArchives->contains(SDLName)) {
+    if (!HostOnlyArchives.begin()->contains(SDLName)) {
       SDLNames.insert(std::string("-l") + SDLName);
     }
   }

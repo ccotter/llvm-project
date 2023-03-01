@@ -16,6 +16,7 @@
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/Debug.h"
+#include <array>
 #include <optional>
 
 #define DEBUG_TYPE "orc"
@@ -88,9 +89,9 @@ private:
   }
 
   ArrayRef<char> getDSOHandleContent(size_t PointerSize) {
-    static const char Content[8] = {0};
+    static const std::array<char, 8> Content = { {0} };
     assert(PointerSize <= sizeof Content);
-    return {Content, PointerSize};
+    return {Content.begin(), PointerSize};
   }
 
   ELFNixPlatform &ENP;
@@ -514,13 +515,13 @@ void ELFNixPlatform::rt_lookupSymbol(SendSymbolAddressFn SendResult,
 
 Error ELFNixPlatform::bootstrapELFNixRuntime(JITDylib &PlatformJD) {
 
-  std::pair<const char *, ExecutorAddr *> Symbols[] = {
+  std::array<std::pair<const char *, ExecutorAddr *>, 4> Symbols = { {
       {"__orc_rt_elfnix_platform_bootstrap", &orc_rt_elfnix_platform_bootstrap},
       {"__orc_rt_elfnix_platform_shutdown", &orc_rt_elfnix_platform_shutdown},
       {"__orc_rt_elfnix_register_object_sections",
        &orc_rt_elfnix_register_object_sections},
       {"__orc_rt_elfnix_create_pthread_key",
-       &orc_rt_elfnix_create_pthread_key}};
+       &orc_rt_elfnix_create_pthread_key}} };
 
   SymbolLookupSet RuntimeSymbols;
   std::vector<std::pair<SymbolStringPtr, ExecutorAddr *>> AddrsToRecord;

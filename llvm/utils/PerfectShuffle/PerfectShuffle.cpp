@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
 #include <cassert>
 #include <cstdlib>
 #include <iomanip>
@@ -400,10 +401,10 @@ int main() {
 
           // Figure out the cost to evaluate this, knowing that CSE's only need
           // to be evaluated once.
-          unsigned short Vals[30];
+          std::array<unsigned short, 30> Vals;
           unsigned NumVals = 0;
-          EvaluateOps(LHS, Vals, NumVals);
-          EvaluateOps(RHS, Vals, NumVals);
+          EvaluateOps(LHS, Vals.begin(), NumVals);
+          EvaluateOps(RHS, Vals.begin(), NumVals);
 
           unsigned Cost = NumVals + Op->getCost();
           if (Cost < ShufTab[ResultMask].Cost) {
@@ -421,7 +422,7 @@ int main() {
   std::cerr << "Finished Table has " << getNumEntered()
             << " entries established.\n";
 
-  unsigned CostArray[10] = { 0 };
+  std::array<unsigned, 10> CostArray = { { 0 } };
 
   // Compute a cost histogram.
   for (unsigned i = 0; i != 65536; ++i) {
@@ -499,12 +500,12 @@ int main() {
         PrintMask(i, std::cerr);
         std::cerr << " - Cost " << ShufTab[i].Cost << " - ";
 
-        unsigned short Vals[30];
+        std::array<unsigned short, 30> Vals;
         unsigned NumVals = 0;
-        EvaluateOps(i, Vals, NumVals);
+        EvaluateOps(i, Vals.begin(), NumVals);
 
         for (unsigned j = 0, e = NumVals; j != e; ++j)
-          PrintOperation(j, Vals);
+          PrintOperation(j, Vals.begin());
         std::cerr << "\n";
       }
     }

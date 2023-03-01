@@ -18,6 +18,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "LegalizeTypes.h"
 #include "llvm/IR/DataLayout.h"
 using namespace llvm;
@@ -315,7 +317,7 @@ void DAGTypeLegalizer::IntegerToVector(SDValue Op, unsigned NumElements,
                                        EVT EltVT) {
   assert(Op.getValueType().isInteger());
   SDLoc DL(Op);
-  SDValue Parts[2];
+  std::array<SDValue, 2> Parts;
 
   if (NumElements > 1) {
     NumElements >>= 1;

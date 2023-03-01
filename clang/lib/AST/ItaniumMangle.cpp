@@ -14,6 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
@@ -1162,10 +1164,10 @@ void CXXNameMangler::mangleFloat(const llvm::APFloat &f) {
     hexDigit &= 0xF;
 
     // Map that over to a lowercase hex digit.
-    static const char charForHex[16] = {
+    static const std::array<char, 16> charForHex = { {
       '0', '1', '2', '3', '4', '5', '6', '7',
       '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-    };
+    } };
     buffer[stringIndex] = charForHex[hexDigit];
   }
 

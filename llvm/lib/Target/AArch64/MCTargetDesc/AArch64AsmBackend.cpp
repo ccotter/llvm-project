@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/AArch64FixupKinds.h"
 #include "MCTargetDesc/AArch64MCExpr.h"
 #include "MCTargetDesc/AArch64MCTargetDesc.h"
@@ -49,7 +51,7 @@ public:
   std::optional<MCFixupKind> getFixupKind(StringRef Name) const override;
 
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
-    const static MCFixupKindInfo Infos[AArch64::NumTargetFixupKinds] = {
+    const static std::array<MCFixupKindInfo, AArch64::NumTargetFixupKinds> Infos = { {
         // This table *must* be in the order that the fixup_* kinds are defined
         // in AArch64FixupKinds.h.
         //
@@ -67,7 +69,7 @@ public:
         {"fixup_aarch64_pcrel_branch14", 5, 14, PCRelFlagVal},
         {"fixup_aarch64_pcrel_branch19", 5, 19, PCRelFlagVal},
         {"fixup_aarch64_pcrel_branch26", 0, 26, PCRelFlagVal},
-        {"fixup_aarch64_pcrel_call26", 0, 26, PCRelFlagVal}};
+        {"fixup_aarch64_pcrel_call26", 0, 26, PCRelFlagVal}} };
 
     // Fixup kinds from .reloc directive are like R_AARCH64_NONE. They do not
     // require any extra processing.

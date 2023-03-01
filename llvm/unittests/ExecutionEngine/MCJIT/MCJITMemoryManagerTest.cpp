@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "gtest/gtest.h"
 
@@ -82,8 +84,8 @@ TEST(MCJITMemoryManagerTest, LargeAllocations) {
 TEST(MCJITMemoryManagerTest, ManyAllocations) {
   std::unique_ptr<SectionMemoryManager> MemMgr(new SectionMemoryManager());
 
-  uint8_t* code[10000];
-  uint8_t* data[10000];
+  std::array<uint8_t*, 10000> code;
+  std::array<uint8_t*, 10000> data;
 
   for (unsigned i = 0; i < 10000; ++i) {
     const bool isReadOnly = i % 2 == 0;
@@ -117,8 +119,8 @@ TEST(MCJITMemoryManagerTest, ManyAllocations) {
 TEST(MCJITMemoryManagerTest, ManyVariedAllocations) {
   std::unique_ptr<SectionMemoryManager> MemMgr(new SectionMemoryManager());
 
-  uint8_t* code[10000];
-  uint8_t* data[10000];
+  std::array<uint8_t*, 10000> code;
+  std::array<uint8_t*, 10000> data;
 
   for (unsigned i = 0; i < 10000; ++i) {
     uintptr_t CodeSize = i % 16 + 1;

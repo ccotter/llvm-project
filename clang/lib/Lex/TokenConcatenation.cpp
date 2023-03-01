@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Lex/TokenConcatenation.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Lex/Preprocessor.h"
@@ -57,8 +59,8 @@ bool TokenConcatenation::IsIdentifierStringPrefix(const Token &Tok) const {
   }
 
   if (Tok.getLength() < 256) {
-    char Buffer[256];
-    const char *TokPtr = Buffer;
+    std::array<char, 256> Buffer;
+    const char *TokPtr = Buffer.begin();
     unsigned length = PP.getSpelling(Tok, TokPtr);
     return IsStringPrefix(StringRef(TokPtr, length), LangOpts.CPlusPlus11);
   }
@@ -137,8 +139,8 @@ static char GetFirstChar(const Preprocessor &PP, const Token &Tok) {
       return *SM.getCharacterData(SM.getSpellingLoc(Tok.getLocation()));
     }
   } else if (Tok.getLength() < 256) {
-    char Buffer[256];
-    const char *TokPtr = Buffer;
+    std::array<char, 256> Buffer;
+    const char *TokPtr = Buffer.begin();
     PP.getSpelling(Tok, TokPtr);
     return TokPtr[0];
   } else {

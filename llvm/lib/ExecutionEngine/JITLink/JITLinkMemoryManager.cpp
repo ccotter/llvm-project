@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ExecutionEngine/JITLink/JITLinkMemoryManager.h"
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -148,11 +150,11 @@ void SimpleSegmentAlloc::Create(JITLinkMemoryManager &MemMgr,
 
   static_assert(orc::AllocGroup::NumGroups == 16,
                 "AllocGroup has changed. Section names below must be updated");
-  StringRef AGSectionNames[] = {
+  std::array<StringRef, 16> AGSectionNames = { {
       "__---.standard", "__R--.standard", "__-W-.standard", "__RW-.standard",
       "__--X.standard", "__R-X.standard", "__-WX.standard", "__RWX.standard",
       "__---.finalize", "__R--.finalize", "__-W-.finalize", "__RW-.finalize",
-      "__--X.finalize", "__R-X.finalize", "__-WX.finalize", "__RWX.finalize"};
+      "__--X.finalize", "__R-X.finalize", "__-WX.finalize", "__RWX.finalize"} };
 
   auto G =
       std::make_unique<LinkGraph>("", Triple(), 0, support::native, nullptr);

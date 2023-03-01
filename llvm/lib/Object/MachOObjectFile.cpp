@@ -39,6 +39,7 @@
 #include "llvm/Support/SwapByteOrder.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -2274,13 +2275,13 @@ void MachOObjectFile::getRelocationTypeName(
 
   switch (Arch) {
     case Triple::x86: {
-      static const char *const Table[] =  {
+      static const std::array<const char *, 6>Table =  { {
         "GENERIC_RELOC_VANILLA",
         "GENERIC_RELOC_PAIR",
         "GENERIC_RELOC_SECTDIFF",
         "GENERIC_RELOC_PB_LA_PTR",
         "GENERIC_RELOC_LOCAL_SECTDIFF",
-        "GENERIC_RELOC_TLV" };
+        "GENERIC_RELOC_TLV" } };
 
       if (RType > 5)
         res = "Unknown";
@@ -2289,7 +2290,7 @@ void MachOObjectFile::getRelocationTypeName(
       break;
     }
     case Triple::x86_64: {
-      static const char *const Table[] =  {
+      static const std::array<const char *, 10>Table =  { {
         "X86_64_RELOC_UNSIGNED",
         "X86_64_RELOC_SIGNED",
         "X86_64_RELOC_BRANCH",
@@ -2299,7 +2300,7 @@ void MachOObjectFile::getRelocationTypeName(
         "X86_64_RELOC_SIGNED_1",
         "X86_64_RELOC_SIGNED_2",
         "X86_64_RELOC_SIGNED_4",
-        "X86_64_RELOC_TLV" };
+        "X86_64_RELOC_TLV" } };
 
       if (RType > 9)
         res = "Unknown";
@@ -2308,7 +2309,7 @@ void MachOObjectFile::getRelocationTypeName(
       break;
     }
     case Triple::arm: {
-      static const char *const Table[] =  {
+      static const std::array<const char *, 10>Table =  { {
         "ARM_RELOC_VANILLA",
         "ARM_RELOC_PAIR",
         "ARM_RELOC_SECTDIFF",
@@ -2318,7 +2319,7 @@ void MachOObjectFile::getRelocationTypeName(
         "ARM_THUMB_RELOC_BR22",
         "ARM_THUMB_32BIT_BRANCH",
         "ARM_RELOC_HALF",
-        "ARM_RELOC_HALF_SECTDIFF" };
+        "ARM_RELOC_HALF_SECTDIFF" } };
 
       if (RType > 9)
         res = "Unknown";
@@ -2344,7 +2345,7 @@ void MachOObjectFile::getRelocationTypeName(
       break;
     }
     case Triple::ppc: {
-      static const char *const Table[] =  {
+      static const std::array<const char *, 16>Table =  { {
         "PPC_RELOC_VANILLA",
         "PPC_RELOC_PAIR",
         "PPC_RELOC_BR14",
@@ -2360,7 +2361,7 @@ void MachOObjectFile::getRelocationTypeName(
         "PPC_RELOC_HA16_SECTDIFF",
         "PPC_RELOC_JBSR",
         "PPC_RELOC_LO14_SECTDIFF",
-        "PPC_RELOC_LOCAL_SECTDIFF" };
+        "PPC_RELOC_LOCAL_SECTDIFF" } };
 
       if (RType > 15)
         res = "Unknown";

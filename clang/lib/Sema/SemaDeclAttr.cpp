@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTMutationListener.h"
@@ -3196,7 +3198,7 @@ static void handleWeakImportAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
 // Handles reqd_work_group_size and work_group_size_hint.
 template <typename WorkGroupAttr>
 static void handleWorkGroupSize(Sema &S, Decl *D, const ParsedAttr &AL) {
-  uint32_t WGSize[3];
+  std::array<uint32_t, 3> WGSize;
   for (unsigned i = 0; i < 3; ++i) {
     const Expr *E = AL.getArgAsExpr(i);
     if (!checkUInt32Argument(S, AL, E, WGSize[i], i,

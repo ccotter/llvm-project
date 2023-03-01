@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64ELFStreamer.h"
+
+#include <array>
 #include "AArch64MCTargetDesc.h"
 #include "AArch64TargetStreamer.h"
 #include "AArch64WinCOFFStreamer.h"
@@ -212,7 +214,7 @@ public:
   /// Emit a 32-bit value as an instruction. This is only used for the .inst
   /// directive, EmitInstruction should be used in other cases.
   void emitInst(uint32_t Inst) {
-    char Buffer[4];
+    std::array<char, 4> Buffer;
 
     // We can't just use EmitIntValue here, as that will emit a data mapping
     // symbol, and swap the endianness on big-endian systems (instructions are
@@ -223,7 +225,7 @@ public:
     }
 
     emitA64MappingSymbol();
-    MCELFStreamer::emitBytes(StringRef(Buffer, 4));
+    MCELFStreamer::emitBytes(StringRef(Buffer.begin(), 4));
   }
 
   /// This is one of the functions used to emit data into an ELF section, so the

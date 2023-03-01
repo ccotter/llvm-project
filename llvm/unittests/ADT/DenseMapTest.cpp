@@ -10,6 +10,7 @@
 #include "llvm/ADT/DenseMapInfo.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <map>
 #include <set>
 #include <utility>
@@ -23,12 +24,12 @@ uint32_t getTestKey(int i, uint32_t *) { return i; }
 uint32_t getTestValue(int i, uint32_t *) { return 42 + i; }
 
 uint32_t *getTestKey(int i, uint32_t **) {
-  static uint32_t dummy_arr1[8192];
+  static std::array<uint32_t, 8192> dummy_arr1;
   assert(i < 8192 && "Only support 8192 dummy keys.");
   return &dummy_arr1[i];
 }
 uint32_t *getTestValue(int i, uint32_t **) {
-  static uint32_t dummy_arr1[8192];
+  static std::array<uint32_t, 8192> dummy_arr1;
   assert(i < 8192 && "Only support 8192 dummy keys.");
   return &dummy_arr1[i];
 }
@@ -300,7 +301,7 @@ TYPED_TEST(DenseMapTest, SwapTest) {
 
 // A more complex iteration test
 TYPED_TEST(DenseMapTest, IterationTest) {
-  bool visited[100];
+  std::array<bool, 100> visited;
   std::map<typename TypeParam::key_type, unsigned> visitedIndex;
 
   // Insert 100 numbers into the map
@@ -653,7 +654,7 @@ TEST(DenseMapCustomTest, OpaquePointerKey) {
   // This is an important build time optimization, since many classes have
   // DenseMap members.
   DenseMap<IncompleteStruct *, int> Map;
-  int Keys[3] = {0, 0, 0};
+  std::array<int, 3> Keys = { {0, 0, 0} };
   IncompleteStruct *K1 = reinterpret_cast<IncompleteStruct *>(&Keys[0]);
   IncompleteStruct *K2 = reinterpret_cast<IncompleteStruct *>(&Keys[1]);
   IncompleteStruct *K3 = reinterpret_cast<IncompleteStruct *>(&Keys[2]);
@@ -699,7 +700,7 @@ TEST(DenseMapCustomTest, SFINAEMapInfo) {
   // This is an important build time optimization, since many classes have
   // DenseMap members.
   DenseMap<B, int> Map;
-  B Keys[3] = {{0}, {1}, {2}};
+  std::array<B, 3> Keys = { {{0}, {1}, {2}} };
   Map.insert({Keys[0], 1});
   Map.insert({Keys[1], 2});
   Map.insert({Keys[2], 3});
@@ -716,10 +717,10 @@ TEST(DenseMapCustomTest, SFINAEMapInfo) {
 TEST(DenseMapCustomTest, VariantSupport) {
   using variant = std::variant<int, int>;
   DenseMap<variant, int> Map;
-  variant Keys[] = {
+  std::array<variant, 2> Keys = { {
       variant(std::in_place_index<0>, 1),
       variant(std::in_place_index<1>, 1),
-  };
+  } };
   Map.try_emplace(Keys[0], 0);
   Map.try_emplace(Keys[1], 1);
   EXPECT_THAT(Map, testing::SizeIs(2));

@@ -26,6 +26,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/EndianStream.h"
 
+#include <array>
 #include <sstream>
 
 using namespace llvm;
@@ -90,7 +91,7 @@ public:
   }
 
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
-    const static MCFixupKindInfo Infos[Hexagon::NumTargetFixupKinds] = {
+    const static std::array<MCFixupKindInfo, Hexagon::NumTargetFixupKinds> Infos = { {
       // This table *must* be in same the order of fixup_* kinds in
       // HexagonFixupKinds.h.
       //
@@ -193,7 +194,7 @@ public:
       { "fixup_Hexagon_GD_PLT_B32_PCREL_X",0,     32,     MCFixupKindInfo::FKF_IsPCRel },
       { "fixup_Hexagon_LD_PLT_B22_PCREL_X",0,     32,     MCFixupKindInfo::FKF_IsPCRel },
       { "fixup_Hexagon_LD_PLT_B32_PCREL_X",0,     32,     MCFixupKindInfo::FKF_IsPCRel }
-    };
+    } };
 
     if (Kind < FirstTargetFixupKind)
       return MCAsmBackend::getFixupKindInfo(Kind);

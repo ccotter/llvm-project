@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/CodeView/TypeHashing.h"
 #include "llvm/DebugInfo/CodeView/AppendingTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
@@ -76,12 +78,12 @@ TEST(TypeHashingTest, ContentHash) {
   // We're going to the same type sequence with two different orderings, and
   // then confirm all records are hashed the same.
 
-  TypeIndex CharPP[2];
-  TypeIndex IntPP[2];
-  TypeIndex IntPPP[2];
-  TypeIndex DoublePP[2];
-  TypeIndex Args[2];
-  TypeIndex Proc[2];
+  std::array<TypeIndex, 2> CharPP;
+  std::array<TypeIndex, 2> IntPP;
+  std::array<TypeIndex, 2> IntPPP;
+  std::array<TypeIndex, 2> DoublePP;
+  std::array<TypeIndex, 2> Args;
+  std::array<TypeIndex, 2> Proc;
 
   // Ordering 1
   // ----------------------------------------

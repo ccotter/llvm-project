@@ -23,6 +23,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cstring>
 #include <limits.h>
 
@@ -634,11 +635,11 @@ ulpsFromBoundary(const APFloatBase::integerPart *parts, unsigned int bits,
    DST must be at least one part larger than size of the answer.  */
 static unsigned int
 powerOf5(APFloatBase::integerPart *dst, unsigned int power) {
-  static const APFloatBase::integerPart firstEightPowers[] = { 1, 5, 25, 125, 625, 3125, 15625, 78125 };
-  APFloatBase::integerPart pow5s[maxPowerOfFiveParts * 2 + 5];
+  static const std::array<APFloatBase::integerPart, 8> firstEightPowers = { { 1, 5, 25, 125, 625, 3125, 15625, 78125 } };
+  std::array<APFloatBase::integerPart, maxPowerOfFiveParts * 2 + 5> pow5s;
   pow5s[0] = 78125 * 5;
 
-  unsigned int partsCount[16] = { 1 };
+  std::array<unsigned int, 16> partsCount = { { 1 } };
   APFloatBase::integerPart scratch[maxPowerOfFiveParts], *p1, *p2, *pow5;
   unsigned int result;
   assert(power <= maxExponent);
@@ -650,7 +651,7 @@ powerOf5(APFloatBase::integerPart *dst, unsigned int power) {
   power >>= 3;
 
   result = 1;
-  pow5 = pow5s;
+  pow5 = pow5s.begin();
 
   for (unsigned int n = 0; power; power >>= 1, n++) {
     unsigned int pc;
@@ -1111,7 +1112,7 @@ lostFraction IEEEFloat::multiplySignificand(const IEEEFloat &rhs,
   unsigned int omsb;        // One, not zero, based MSB.
   unsigned int partsCount, newPartsCount, precision;
   integerPart *lhsSignificand;
-  integerPart scratch[4];
+  std::array<integerPart, 4> scratch;
   integerPart *fullSignificand;
   lostFraction lost_fraction;
   bool ignored;
@@ -1127,7 +1128,7 @@ lostFraction IEEEFloat::multiplySignificand(const IEEEFloat &rhs,
   if (newPartsCount > 4)
     fullSignificand = new integerPart[newPartsCount];
   else
-    fullSignificand = scratch;
+    fullSignificand = scratch.begin();
 
   lhsSignificand = significandParts();
   partsCount = partCount();
@@ -1247,7 +1248,7 @@ lostFraction IEEEFloat::divideSignificand(const IEEEFloat &rhs) {
   unsigned int bit, i, partsCount;
   const integerPart *rhsSignificand;
   integerPart *lhsSignificand, *dividend, *divisor;
-  integerPart scratch[4];
+  std::array<integerPart, 4> scratch;
   lostFraction lost_fraction;
 
   assert(semantics == rhs.semantics);
@@ -1259,7 +1260,7 @@ lostFraction IEEEFloat::divideSignificand(const IEEEFloat &rhs) {
   if (partsCount > 2)
     dividend = new integerPart[partsCount * 2];
   else
-    dividend = scratch;
+    dividend = scratch.begin();
 
   divisor = dividend + partsCount;
 
@@ -2761,7 +2762,7 @@ IEEEFloat::roundSignificandWithExponent(const integerPart *decSigParts,
                                         roundingMode rounding_mode) {
   unsigned int parts, pow5PartCount;
   fltSemantics calcSemantics = { 32767, -32767, 0, 0 };
-  integerPart pow5Parts[maxPowerOfFiveParts];
+  std::array<integerPart, maxPowerOfFiveParts> pow5Parts;
   bool isNearest;
 
   isNearest = (rounding_mode == rmNearestTiesToEven ||
@@ -2770,7 +2771,7 @@ IEEEFloat::roundSignificandWithExponent(const integerPart *decSigParts,
   parts = partCountForBits(semantics->precision + 11);
 
   /* Calculate pow(5, abs(exp)).  */
-  pow5PartCount = powerOf5(pow5Parts, exp >= 0 ? exp: -exp);
+  pow5PartCount = powerOf5(pow5Parts.begin(), exp >= 0 ? exp: -exp);
 
   for (;; parts *= 2) {
     opStatus sigStatus, powStatus;
@@ -2786,7 +2787,7 @@ IEEEFloat::roundSignificandWithExponent(const integerPart *decSigParts,
 
     sigStatus = decSig.convertFromUnsignedParts(decSigParts, sigPartCount,
                                                 rmNearestTiesToEven);
-    powStatus = pow5.convertFromUnsignedParts(pow5Parts, pow5PartCount,
+    powStatus = pow5.convertFromUnsignedParts(pow5Parts.begin(), pow5PartCount,
                                               rmNearestTiesToEven);
     /* Add exp, as 10^n = 5^n * 2^n.  */
     decSig.exponent += exp;
@@ -4929,11 +4930,11 @@ hash_code hash_value(const DoubleAPFloat &Arg) {
 
 APInt DoubleAPFloat::bitcastToAPInt() const {
   assert(Semantics == &semPPCDoubleDouble && "Unexpected Semantics");
-  uint64_t Data[] = {
+  std::array<uint64_t, 2> Data = { {
       Floats[0].bitcastToAPInt().getRawData()[0],
       Floats[1].bitcastToAPInt().getRawData()[0],
-  };
-  return APInt(128, 2, Data);
+  } };
+  return APInt(128, 2, Data.begin());
 }
 
 Expected<APFloat::opStatus> DoubleAPFloat::convertFromString(StringRef S,

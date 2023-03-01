@@ -57,6 +57,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Instrumentation/HWAddressSanitizer.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <map>
@@ -332,7 +333,7 @@ void AArch64AsmPrinter::LowerKCFI_CHECK(const MachineInstr &MI) {
 
   // Default to using the intra-procedure-call temporary registers for
   // comparing the hashes.
-  unsigned ScratchRegs[] = {AArch64::W16, AArch64::W17};
+  std::array<unsigned, 2> ScratchRegs = { {AArch64::W16, AArch64::W17} };
   if (AddrReg == AArch64::XZR) {
     // Checking XZR makes no sense. Instead of emitting a load, zero
     // ScratchRegs[0] and use it for the ESR AddrIndex below.

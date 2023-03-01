@@ -25,6 +25,7 @@
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 using namespace llvm;
 
 #define DEBUG_TYPE "legalize-types"
@@ -835,7 +836,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_Overflow(SDNode *N) {
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(1));
   EVT VT = N->getValueType(0);
   EVT SVT = getSetCCResultType(VT);
-  SDValue Ops[3] = { N->getOperand(0), N->getOperand(1) };
+  std::array<SDValue, 3> Ops = { { N->getOperand(0), N->getOperand(1) } };
   unsigned NumOps = N->getNumOperands();
   assert(NumOps <= 3 && "Too many operands");
   if (NumOps == 3)
@@ -843,7 +844,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_Overflow(SDNode *N) {
 
   SDLoc dl(N);
   SDValue Res = DAG.getNode(N->getOpcode(), dl, DAG.getVTList(VT, SVT),
-                            makeArrayRef(Ops, NumOps));
+                            makeArrayRef(Ops.begin(), NumOps));
 
   // Modified the sum result - switch anything that used the old sum to use
   // the new one.

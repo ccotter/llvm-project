@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallBitVector.h"
@@ -782,37 +784,37 @@ TYPED_TEST(BitVectorTest, ProxyIndex) {
 
 TYPED_TEST(BitVectorTest, PortableBitMask) {
   TypeParam A;
-  const uint32_t Mask1[] = { 0x80000000, 6, 5 };
+  const std::array<uint32_t, 3> Mask1 = { { 0x80000000, 6, 5 } };
 
   A.resize(10);
-  A.setBitsInMask(Mask1, 1);
+  A.setBitsInMask(Mask1.begin(), 1);
   EXPECT_EQ(10u, A.size());
   EXPECT_FALSE(A.test(0));
 
   A.resize(32);
-  A.setBitsInMask(Mask1, 1);
+  A.setBitsInMask(Mask1.begin(), 1);
   EXPECT_FALSE(A.test(0));
   EXPECT_TRUE(A.test(31));
   EXPECT_EQ(1u, A.count());
 
   A.resize(33);
-  A.setBitsInMask(Mask1, 1);
+  A.setBitsInMask(Mask1.begin(), 1);
   EXPECT_EQ(1u, A.count());
-  A.setBitsInMask(Mask1, 2);
+  A.setBitsInMask(Mask1.begin(), 2);
   EXPECT_EQ(1u, A.count());
 
   A.resize(34);
-  A.setBitsInMask(Mask1, 2);
+  A.setBitsInMask(Mask1.begin(), 2);
   EXPECT_EQ(2u, A.count());
 
   A.resize(65);
-  A.setBitsInMask(Mask1, 3);
+  A.setBitsInMask(Mask1.begin(), 3);
   EXPECT_EQ(4u, A.count());
 
-  A.setBitsNotInMask(Mask1, 1);
+  A.setBitsNotInMask(Mask1.begin(), 1);
   EXPECT_EQ(32u+3u, A.count());
 
-  A.setBitsNotInMask(Mask1, 3);
+  A.setBitsNotInMask(Mask1.begin(), 3);
   EXPECT_EQ(65u, A.count());
 
   A.resize(96);
@@ -820,10 +822,10 @@ TYPED_TEST(BitVectorTest, PortableBitMask) {
 
   A.clear();
   A.resize(128);
-  A.setBitsNotInMask(Mask1, 3);
+  A.setBitsNotInMask(Mask1.begin(), 3);
   EXPECT_EQ(96u-5u, A.count());
 
-  A.clearBitsNotInMask(Mask1, 1);
+  A.clearBitsNotInMask(Mask1.begin(), 1);
   EXPECT_EQ(64-4u, A.count());
 }
 
@@ -1158,7 +1160,7 @@ TYPED_TEST(BitVectorTest, Iterators) {
   ToFill.reset(0);
   EXPECT_EQ(ToFill.set_bits_begin(), ToFill.set_bits_end());
 
-  const unsigned List[] = {1, 10, 25, 99};
+  const std::array<unsigned, 4> List = { {1, 10, 25, 99} };
   for (unsigned Num : List)
     ToFill.set(Num);
   unsigned i = 0;

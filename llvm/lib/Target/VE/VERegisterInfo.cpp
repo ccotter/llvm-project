@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "VERegisterInfo.h"
+
+#include <array>
 #include "VE.h"
 #include "VESubtarget.h"
 #include "llvm/ADT/BitVector.h"
@@ -66,7 +68,7 @@ const uint32_t *VERegisterInfo::getNoPreservedMask() const {
 BitVector VERegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
 
-  const Register ReservedRegs[] = {
+  const std::array<Register, 10> ReservedRegs = { {
       VE::SX8,  // Stack limit
       VE::SX9,  // Frame pointer
       VE::SX10, // Link register (return address)
@@ -82,7 +84,7 @@ BitVector VERegisterInfo::getReservedRegs(const MachineFunction &MF) const {
       VE::SX17, // Linkage-area register
                 // sx18-sx33 are callee-saved registers
                 // sx34-sx63 are temporary registers
-  };
+  } };
 
   for (auto R : ReservedRegs)
     for (MCRegAliasIterator ItAlias(R, this, true); ItAlias.isValid();

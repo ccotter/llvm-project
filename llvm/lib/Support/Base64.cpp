@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #define INVALID_BASE64_BYTE 64
+#include <array>
+
 #include "llvm/Support/Base64.h"
 
 static char decodeBase64Byte(uint8_t Ch) {
@@ -50,7 +52,7 @@ llvm::Error llvm::decodeBase64(llvm::StringRef Input,
                              "Base64 encoded strings must be a multiple of 4 "
                              "bytes in length");
   const uint64_t FirstValidEqualIdx = InputLength - 2;
-  char Hex64Bytes[4];
+  std::array<char, 4> Hex64Bytes;
   for (uint64_t Idx = 0; Idx < InputLength; Idx += 4) {
     for (uint64_t ByteOffset = 0; ByteOffset < 4; ++ByteOffset) {
       const uint64_t ByteIdx = Idx + ByteOffset;

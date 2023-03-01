@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/simple_ilist.h"
 #include "llvm/ADT/STLExtras.h"
 #include "gtest/gtest.h"
@@ -418,7 +420,7 @@ TEST(SimpleIListTest, spliceRange) {
 TEST(SimpleIListTest, merge) {
   for (bool IsL1LHS : {false, true}) {
     simple_ilist<Node> L1, L2;
-    Node Ns[10];
+    std::array<Node, 10> Ns;
 
     // Fill L1.
     L1.push_back(Ns[0]);
@@ -511,7 +513,7 @@ TEST(SimpleIListTest, mergeIsStable) {
 TEST(SimpleIListTest, mergeEmpty) {
   for (bool IsL1LHS : {false, true}) {
     simple_ilist<Node> L1, L2;
-    Node Ns[4];
+    std::array<Node, 4> Ns;
 
     // Fill L1.
     L1.push_back(Ns[0]);
@@ -547,7 +549,7 @@ TEST(SimpleIListTest, mergeBothEmpty) {
 
 TEST(SimpleIListTest, sort) {
   simple_ilist<Node> L;
-  Node Ns[10];
+  std::array<Node, 10> Ns;
 
   // Fill L.
   for (int I : {3, 4, 0, 8, 1, 2, 6, 7, 9, 5})
@@ -625,7 +627,7 @@ TEST(SimpleIListTest, TaggedLists) {
   TaggedList2Type L2;
 
   // Build the two lists, sharing a couple of nodes.
-  DoubleNode Ns[10];
+  std::array<DoubleNode, 10> Ns;
   int Order1[] = {0, 1, 2, 3, 4, 7, 9};
   int Order2[] = {2, 5, 6, 7, 8, 4, 9, 1};
   for (int I : Order1)

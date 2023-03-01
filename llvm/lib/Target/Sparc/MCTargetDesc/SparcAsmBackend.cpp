@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/SparcFixupKinds.h"
 #include "MCTargetDesc/SparcMCTargetDesc.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -159,7 +161,7 @@ namespace {
     }
 
     const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
-      const static MCFixupKindInfo InfosBE[Sparc::NumTargetFixupKinds] = {
+      const static std::array<MCFixupKindInfo, Sparc::NumTargetFixupKinds> InfosBE = { {
         // name                    offset bits  flags
         { "fixup_sparc_call30",     2,     30,  MCFixupKindInfo::FKF_IsPCRel },
         { "fixup_sparc_br22",      10,     22,  MCFixupKindInfo::FKF_IsPCRel },
@@ -204,9 +206,9 @@ namespace {
         { "fixup_sparc_gotdata_hix22",  0,  0,  0 },
         { "fixup_sparc_gotdata_lox10",  0,  0,  0 },
         { "fixup_sparc_gotdata_op",     0,  0,  0 },
-      };
+      } };
 
-      const static MCFixupKindInfo InfosLE[Sparc::NumTargetFixupKinds] = {
+      const static std::array<MCFixupKindInfo, Sparc::NumTargetFixupKinds> InfosLE = { {
         // name                    offset bits  flags
         { "fixup_sparc_call30",     0,     30,  MCFixupKindInfo::FKF_IsPCRel },
         { "fixup_sparc_br22",       0,     22,  MCFixupKindInfo::FKF_IsPCRel },
@@ -251,7 +253,7 @@ namespace {
         { "fixup_sparc_gotdata_hix22",  0,  0,  0 },
         { "fixup_sparc_gotdata_lox10",  0,  0,  0 },
         { "fixup_sparc_gotdata_op",     0,  0,  0 },
-      };
+      } };
 
       // Fixup kinds from .reloc directive are like R_SPARC_NONE. They do
       // not require any extra processing.

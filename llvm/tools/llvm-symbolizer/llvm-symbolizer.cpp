@@ -38,6 +38,7 @@
 #include "llvm/Support/StringSaver.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -135,7 +136,7 @@ static bool parseCommand(StringRef BinaryName, bool IsAddr2Line,
                          StringRef InputString, Command &Cmd,
                          std::string &ModuleName, object::BuildID &BuildID,
                          uint64_t &ModuleOffset) {
-  const char kDelimiters[] = " \n\r";
+  const std::array<char, 4> kDelimiters = { " \n\r" };
   ModuleName = "";
   if (InputString.consume_front("CODE ")) {
     Cmd = Command::Code;
@@ -172,7 +173,7 @@ static bool parseCommand(StringRef BinaryName, bool IsAddr2Line,
       return false;
 
     Pos = InputString.data();
-    Pos += strspn(Pos, kDelimiters);
+    Pos += strspn(Pos, kDelimiters.begin());
     if (*Pos == '"' || *Pos == '\'') {
       char Quote = *Pos;
       Pos++;
@@ -182,7 +183,7 @@ static bool parseCommand(StringRef BinaryName, bool IsAddr2Line,
       ModuleName = std::string(Pos, End - Pos);
       Pos = End + 1;
     } else {
-      int NameLength = strcspn(Pos, kDelimiters);
+      int NameLength = strcspn(Pos, kDelimiters.begin());
       ModuleName = std::string(Pos, NameLength);
       Pos += NameLength;
     }
@@ -197,8 +198,8 @@ static bool parseCommand(StringRef BinaryName, bool IsAddr2Line,
     ModuleName = BinaryName.str();
   }
   // Skip delimiters and parse module offset.
-  Pos += strspn(Pos, kDelimiters);
-  int OffsetLength = strcspn(Pos, kDelimiters);
+  Pos += strspn(Pos, kDelimiters.begin());
+  int OffsetLength = strcspn(Pos, kDelimiters.begin());
   StringRef Offset(Pos, OffsetLength);
   // GNU addr2line assumes the offset is hexadecimal and allows a redundant
   // "0x" or "0X" prefix; do the same for compatibility.
@@ -279,8 +280,8 @@ static void symbolizeInput(const opt::InputArgList &Args,
 
 static void printHelp(StringRef ToolName, const SymbolizerOptTable &Tbl,
                       raw_ostream &OS) {
-  const char HelpText[] = " [options] addresses...";
-  Tbl.printHelp(OS, (ToolName + HelpText).str().c_str(),
+  const std::array<char, 24> HelpText = { " [options] addresses..." };
+  Tbl.printHelp(OS, (ToolName + HelpText.begin()).str().c_str(),
                 ToolName.str().c_str());
   // TODO Replace this with OptTable API once it adds extrahelp support.
   OS << "\nPass @FILE as argument to read options from FILE.\n";
@@ -481,11 +482,11 @@ int main(int argc, char **argv) {
   std::vector<std::string> InputAddresses = Args.getAllArgValues(OPT_INPUT);
   if (InputAddresses.empty()) {
     const int kMaxInputStringLength = 1024;
-    char InputString[kMaxInputStringLength];
+    std::array<char, kMaxInputStringLength> InputString;
 
-    while (fgets(InputString, sizeof(InputString), stdin)) {
+    while (fgets(InputString.begin(), sizeof(InputString), stdin)) {
       // Strip newline characters.
-      std::string StrippedInputString(InputString);
+      std::string StrippedInputString(InputString.begin());
       llvm::erase_if(StrippedInputString,
                      [](char c) { return c == '\r' || c == '\n'; });
       symbolizeInput(Args, BuildID, AdjustVMA, IsAddr2Line, Style,

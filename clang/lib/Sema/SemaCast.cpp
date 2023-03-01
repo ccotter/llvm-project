@@ -25,6 +25,7 @@
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallVector.h"
+#include <array>
 #include <set>
 using namespace clang;
 
@@ -1063,8 +1064,8 @@ static bool argTypeIsABIEquivalent(QualType SrcType, QualType DestType,
 static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
                                           QualType DestType) {
   unsigned int DiagID = 0;
-  const unsigned int DiagList[] = {diag::warn_cast_function_type_strict,
-                                   diag::warn_cast_function_type};
+  const std::array<unsigned int, 2> DiagList = { {diag::warn_cast_function_type_strict,
+                                   diag::warn_cast_function_type} };
   for (auto ID : DiagList) {
     if (!Self.Diags.isIgnored(ID, SrcExpr.get()->getExprLoc())) {
       DiagID = ID;

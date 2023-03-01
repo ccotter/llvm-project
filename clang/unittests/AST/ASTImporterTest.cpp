@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/SmallVectorMemoryBuffer.h"
@@ -6113,7 +6115,7 @@ TEST_P(LLDBLookupTest, ImporterShouldFindInTransparentContext) {
 struct SVEBuiltins : ASTImporterOptionSpecificTestBase {};
 
 TEST_P(SVEBuiltins, ImportTypes) {
-  static const char *const TypeNames[] = {
+  static const std::array<const char *, 13>TypeNames = { {
     "__SVInt8_t",
     "__SVInt16_t",
     "__SVInt32_t",
@@ -6127,7 +6129,7 @@ TEST_P(SVEBuiltins, ImportTypes) {
     "__SVFloat32_t",
     "__SVFloat64_t",
     "__SVBool_t"
-  };
+  } };
 
   TranslationUnitDecl *ToTU = getToTuDecl("", Lang_CXX03);
   TranslationUnitDecl *FromTU = getTuDecl("", Lang_CXX03, "input.cc");

@@ -8,6 +8,8 @@
 
 #include "ImplicitConversionInLoopCheck.h"
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -92,13 +94,13 @@ void ImplicitConversionInLoopCheck::reportAndFix(const ASTContext *Context,
   // type.
   QualType ConstType = OperatorCall->getType().withConst();
   QualType ConstRefType = Context->getLValueReferenceType(ConstType);
-  const char Message[] =
-      "the type of the loop variable %0 is different from the one returned "
+  const std::array<char, 299> Message =
+      { "the type of the loop variable %0 is different from the one returned "
       "by the iterator and generates an implicit conversion; you can either "
       "change the type to the matching one (%1 but 'const auto&' is always a "
       "valid option) or remove the reference to make it explicit that you are "
-      "creating a new value";
-  diag(VD->getBeginLoc(), Message) << VD << ConstRefType;
+      "creating a new value" };
+  diag(VD->getBeginLoc(), Message.begin()) << VD << ConstRefType;
 }
 
 } // namespace performance

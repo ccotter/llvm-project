@@ -1600,7 +1600,7 @@ bool MipsFastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
         updateValueMap(II, DestReg);
         return true;
       } else {
-        unsigned TempReg[3];
+        std::array<unsigned, 3> TempReg;
         for (unsigned &R : TempReg) {
           R = createResultReg(&Mips::GPR32RegClass);
           if (R == 0)
@@ -1621,7 +1621,7 @@ bool MipsFastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
         updateValueMap(II, DestReg);
         return true;
       } else {
-        unsigned TempReg[8];
+        std::array<unsigned, 8> TempReg;
         for (unsigned &R : TempReg) {
           R = createResultReg(&Mips::GPR32RegClass);
           if (R == 0)

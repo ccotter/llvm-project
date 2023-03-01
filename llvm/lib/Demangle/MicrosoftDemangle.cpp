@@ -537,7 +537,7 @@ Demangler::translateIntrinsicFunctionCode(char CH,
   // Not all ? identifiers are intrinsics *functions*.  This function only maps
   // operator codes for the special functions, all others are handled elsewhere,
   // hence the IFK::None entries in the table.
-  static IFK Basic[36] = {
+  static std::array<IFK, 36> Basic = { {
       IFK::None,             // ?0 # Foo::Foo()
       IFK::None,             // ?1 # Foo::~Foo()
       IFK::New,              // ?2 # operator new
@@ -574,8 +574,8 @@ Demangler::translateIntrinsicFunctionCode(char CH,
       IFK::TimesEqual,       // ?X operator*=
       IFK::PlusEqual,        // ?Y operator+=
       IFK::MinusEqual,       // ?Z operator-=
-  };
-  static IFK Under[36] = {
+  } };
+  static std::array<IFK, 36> Under = { {
       IFK::DivEqual,           // ?_0 operator/=
       IFK::ModEqual,           // ?_1 operator%=
       IFK::RshEqual,           // ?_2 operator>>=
@@ -612,8 +612,8 @@ Demangler::translateIntrinsicFunctionCode(char CH,
       IFK::None,                    // ?_X <unused>
       IFK::None,                    // ?_Y <unused>
       IFK::None,                    // ?_Z <unused>
-  };
-  static IFK DoubleUnder[36] = {
+  } };
+  static std::array<IFK, 36> DoubleUnder = { {
       IFK::None,                       // ?__0 <unused>
       IFK::None,                       // ?__1 <unused>
       IFK::None,                       // ?__2 <unused>
@@ -651,7 +651,7 @@ Demangler::translateIntrinsicFunctionCode(char CH,
       IFK::None,                       // ?__X <unused>
       IFK::None,                       // ?__Y <unused>
       IFK::None,                       // ?__Z <unused>
-  };
+  } };
 
   int Index = (CH >= '0' && CH <= '9') ? (CH - '0') : (CH - 'A' + 10);
   switch (Group) {
@@ -1062,20 +1062,20 @@ uint8_t Demangler::demangleCharLiteral(StringView &MangledName) {
   }
 
   if (MangledName[0] >= 'a' && MangledName[0] <= 'z') {
-    char Lookup[26] = {'\xE1', '\xE2', '\xE3', '\xE4', '\xE5', '\xE6', '\xE7',
+    std::array<char, 26> Lookup = { {'\xE1', '\xE2', '\xE3', '\xE4', '\xE5', '\xE6', '\xE7',
                        '\xE8', '\xE9', '\xEA', '\xEB', '\xEC', '\xED', '\xEE',
                        '\xEF', '\xF0', '\xF1', '\xF2', '\xF3', '\xF4', '\xF5',
-                       '\xF6', '\xF7', '\xF8', '\xF9', '\xFA'};
+                       '\xF6', '\xF7', '\xF8', '\xF9', '\xFA'} };
     char C = Lookup[MangledName[0] - 'a'];
     MangledName = MangledName.dropFront();
     return C;
   }
 
   if (MangledName[0] >= 'A' && MangledName[0] <= 'Z') {
-    char Lookup[26] = {'\xC1', '\xC2', '\xC3', '\xC4', '\xC5', '\xC6', '\xC7',
+    std::array<char, 26> Lookup = { {'\xC1', '\xC2', '\xC3', '\xC4', '\xC5', '\xC6', '\xC7',
                        '\xC8', '\xC9', '\xCA', '\xCB', '\xCC', '\xCD', '\xCE',
                        '\xCF', '\xD0', '\xD1', '\xD2', '\xD3', '\xD4', '\xD5',
-                       '\xD6', '\xD7', '\xD8', '\xD9', '\xDA'};
+                       '\xD6', '\xD7', '\xD8', '\xD9', '\xDA'} };
     char C = Lookup[MangledName[0] - 'A'];
     MangledName = MangledName.dropFront();
     return C;
@@ -1116,9 +1116,9 @@ static void outputHex(OutputBuffer &OB, unsigned C) {
   // buffer first, then output the temporary buffer.  Each byte is of the form
   // \xAB, which means that each byte needs 4 characters.  Since there are at
   // most 4 bytes, we need a 4*4+1 = 17 character temporary buffer.
-  char TempBuffer[17];
+  std::array<char, 17> TempBuffer;
 
-  ::memset(TempBuffer, 0, sizeof(TempBuffer));
+  ::memset(TempBuffer.begin(), 0, sizeof(TempBuffer));
   constexpr int MaxPos = sizeof(TempBuffer) - 1;
 
   int Pos = MaxPos - 1; // TempBuffer[MaxPos] is the terminating \0.
@@ -1333,7 +1333,7 @@ Demangler::demangleStringLiteral(StringView &MangledName) {
     // The max byte length is actually 32, but some compilers mangled strings
     // incorrectly, so we have to assume it can go higher.
     constexpr unsigned MaxStringByteLength = 32 * 4;
-    uint8_t StringBytes[MaxStringByteLength];
+    std::array<uint8_t, MaxStringByteLength> StringBytes;
 
     unsigned BytesDecoded = 0;
     while (!MangledName.consumeFront('@')) {
@@ -1346,7 +1346,7 @@ Demangler::demangleStringLiteral(StringView &MangledName) {
       Result->IsTruncated = true;
 
     unsigned CharBytes =
-        guessCharByteSize(StringBytes, BytesDecoded, StringByteSize);
+        guessCharByteSize(StringBytes.begin(), BytesDecoded, StringByteSize);
     assert(StringByteSize % CharBytes == 0);
     switch (CharBytes) {
     case 1:
@@ -1364,7 +1364,7 @@ Demangler::demangleStringLiteral(StringView &MangledName) {
     const unsigned NumChars = BytesDecoded / CharBytes;
     for (unsigned CharIndex = 0; CharIndex < NumChars; ++CharIndex) {
       unsigned NextChar =
-          decodeMultiByteChar(StringBytes, CharIndex, CharBytes);
+          decodeMultiByteChar(StringBytes.begin(), CharIndex, CharBytes);
       if (CharIndex + 1 < NumChars || Result->IsTruncated)
         outputEscapedChar(OB, NextChar);
     }

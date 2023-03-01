@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "MipsABIInfo.h"
+
+#include <array>
 #include "MipsRegisterInfo.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
@@ -117,12 +119,12 @@ unsigned MipsABIInfo::GetGPRMoveOp() const {
 }
 
 unsigned MipsABIInfo::GetEhDataReg(unsigned I) const {
-  static const unsigned EhDataReg[] = {
+  static const std::array<unsigned, 4> EhDataReg = { {
     Mips::A0, Mips::A1, Mips::A2, Mips::A3
-  };
-  static const unsigned EhDataReg64[] = {
+  } };
+  static const std::array<unsigned, 4> EhDataReg64 = { {
     Mips::A0_64, Mips::A1_64, Mips::A2_64, Mips::A3_64
-  };
+  } };
 
   return IsN64() ? EhDataReg64[I] : EhDataReg[I];
 }

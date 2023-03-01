@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIRegisterInfo.h"
+
+#include <array>
 #include "AMDGPU.h"
 #include "AMDGPURegisterBankInfo.h"
 #include "GCNSubtarget.h"
@@ -2828,7 +2830,7 @@ SIRegisterInfo::getSGPRClassForBitWidth(unsigned BitWidth) {
 // register class.
 const TargetRegisterClass *
 SIRegisterInfo::getPhysRegClass(MCRegister Reg) const {
-  static const TargetRegisterClass *const BaseClasses[] = {
+  static const std::array BaseClasses = {
     &AMDGPU::VGPR_LO16RegClass,
     &AMDGPU::VGPR_HI16RegClass,
     &AMDGPU::SReg_LO16RegClass,
@@ -3118,10 +3120,10 @@ unsigned SIRegisterInfo::getRegPressureSetLimit(const MachineFunction &MF,
 }
 
 const int *SIRegisterInfo::getRegUnitPressureSets(unsigned RegUnit) const {
-  static const int Empty[] = { -1 };
+  static const std::array Empty = { -1 };
 
   if (RegPressureIgnoredUnits[RegUnit])
-    return Empty;
+    return Empty.begin();
 
   return AMDGPUGenRegisterInfo::getRegUnitPressureSets(RegUnit);
 }

@@ -14,6 +14,8 @@
 // is a need (but D45420 needs to happen first).
 //
 
+#include <array>
+
 #include "llvm/Transforms/Vectorize/LoopVectorizationLegality.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -293,7 +295,7 @@ void LoopVectorizeHints::setHint(StringRef Name, Metadata *Arg) {
     return;
   unsigned Val = C->getZExtValue();
 
-  Hint *Hints[] = {&Width,        &Interleave, &Force,
+  std::array Hints = {&Width,        &Interleave, &Force,
                    &IsVectorized, &Predicate,  &Scalable};
   for (auto *H : Hints) {
     if (Name == H->Name) {

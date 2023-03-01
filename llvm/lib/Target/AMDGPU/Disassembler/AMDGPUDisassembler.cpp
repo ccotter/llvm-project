@@ -17,6 +17,8 @@
 // ToDo: What to do with instruction suffixes (v_mov_b32 vs v_mov_b32_e32)?
 
 #include "Disassembler/AMDGPUDisassembler.h"
+
+#include <array>
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "SIDefines.h"
 #include "SIRegisterInfo.h"
@@ -768,9 +770,9 @@ static VOPModifiers collectVOPModifiers(const MCInst &MI,
                                         bool IsVOP3P = false) {
   VOPModifiers Modifiers;
   unsigned Opc = MI.getOpcode();
-  const int ModOps[] = {AMDGPU::OpName::src0_modifiers,
+  const std::array<int, 3> ModOps = { {AMDGPU::OpName::src0_modifiers,
                         AMDGPU::OpName::src1_modifiers,
-                        AMDGPU::OpName::src2_modifiers};
+                        AMDGPU::OpName::src2_modifiers} };
   for (int J = 0; J < 3; ++J) {
     int OpIdx = AMDGPU::getNamedOperandIdx(Opc, ModOps[J]);
     if (OpIdx == -1)

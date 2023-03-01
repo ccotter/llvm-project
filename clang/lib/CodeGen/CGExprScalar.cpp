@@ -42,6 +42,7 @@
 #include "llvm/IR/MatrixBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/TypeSize.h"
+#include <array>
 #include <cstdarg>
 
 using namespace clang;
@@ -4930,9 +4931,9 @@ Value *ScalarExprEmitter::VisitBlockExpr(const BlockExpr *block) {
 // Convert a vec3 to vec4, or vice versa.
 static Value *ConvertVec3AndVec4(CGBuilderTy &Builder, CodeGenFunction &CGF,
                                  Value *Src, unsigned NumElementsDst) {
-  static constexpr int Mask[] = {0, 1, 2, -1};
+  static constexpr std::array Mask = {0, 1, 2, -1};
   return Builder.CreateShuffleVector(Src,
-                                     llvm::makeArrayRef(Mask, NumElementsDst));
+                                     llvm::makeArrayRef(Mask.begin(), NumElementsDst));
 }
 
 // Create cast instructions for converting LLVM value \p Src to LLVM type \p

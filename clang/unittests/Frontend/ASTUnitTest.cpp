@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
 #include <fstream>
 
 #include "clang/Basic/FileManager.h"
@@ -160,7 +161,7 @@ TEST_F(ASTUnitTest, LoadFromCommandLineEarlyError) {
   input_file = std::make_unique<ToolOutputFile>(InputFileName, FD);
   input_file->os() << "";
 
-  const char *Args[] = {"clang", "-target", "foobar", InputFileName.c_str()};
+  std::array<const char *, 4>Args = { {"clang", "-target", "foobar", InputFileName.c_str()} };
 
   auto Diags = CompilerInstance::createDiagnostics(new DiagnosticOptions());
   auto PCHContainerOps = std::make_shared<PCHContainerOperations>();

@@ -54,6 +54,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
+#include <array>
 #include <cassert>
 #include <cerrno>
 #include <cfenv>
@@ -602,8 +603,8 @@ Constant *FoldReinterpretLoadFromConst(Constant *C, Type *LoadTy,
   if (Offset >= (int64_t)InitializerSize.getFixedValue())
     return PoisonValue::get(IntType);
 
-  unsigned char RawBytes[32] = {0};
-  unsigned char *CurPtr = RawBytes;
+  std::array<unsigned char, 32> RawBytes = { {0} };
+  unsigned char *CurPtr = RawBytes.begin();
   unsigned BytesLeft = BytesLoaded;
 
   // If we're loading off the beginning of the global, some bytes may be valid.
@@ -2228,7 +2229,7 @@ static Constant *ConstantFoldScalarCall1(StringRef Name,
         double V4 = V * 4.0;
         if (V4 == floor(V4)) {
           // Force exact results for quarter-integer inputs.
-          const double SinVals[4] = { 0.0, 1.0, 0.0, -1.0 };
+          const std::array<double, 4> SinVals = { { 0.0, 1.0, 0.0, -1.0 } };
           V = SinVals[((int)V4 + (IsCos ? 1 : 0)) & 3];
         } else {
           if (IsCos)

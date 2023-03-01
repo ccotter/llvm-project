@@ -15,6 +15,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
 #include "TestUtils.h"
+#include <array>
 #include <fstream>
 #include <functional>
 #include <map>
@@ -539,9 +540,9 @@ TEST_F(LibclangReparseTest, ReparseWithModule) {
 TEST_F(LibclangReparseTest, clang_parseTranslationUnit2FullArgv) {
   // Provide a fake GCC 99.9.9 standard library that always overrides any local
   // GCC installation.
-  std::string EmptyFiles[] = {"lib/gcc/arm-linux-gnueabi/99.9.9/crtbegin.o",
+  std::array<std::string, 3> EmptyFiles = { {"lib/gcc/arm-linux-gnueabi/99.9.9/crtbegin.o",
                               "include/arm-linux-gnueabi/.keep",
-                              "include/c++/99.9.9/vector"};
+                              "include/c++/99.9.9/vector"} };
 
   for (auto &Name : EmptyFiles)
     WriteFile(Name, "\n");
@@ -893,8 +894,8 @@ TEST_F(LibclangParseTest, clang_getNonReferenceTypeRemovesRefQualifiers) {
            (type.kind == CXType_RValueReference);
   };
 
-  const char *Args[] = {"-xc++"};
-  ClangTU = clang_parseTranslationUnit(Index, Header.c_str(), Args, 1, nullptr,
+  std::array<const char *, 1>Args = { {"-xc++"} };
+  ClangTU = clang_parseTranslationUnit(Index, Header.c_str(), Args.begin(), 1, nullptr,
                                        0, TUFlags);
 
   Traverse([&is_ref_qualified](CXCursor cursor, CXCursor) {
@@ -916,7 +917,7 @@ TEST_F(LibclangParseTest, clang_getNonReferenceTypeRemovesRefQualifiers) {
 }
 
 TEST_F(LibclangParseTest, VisitUsingTypeLoc) {
-  const char testSource[] = R"cpp(
+  const std::array<char, 97> testSource = { R"cpp(
 namespace ns1 {
 class Class1
 {
@@ -927,11 +928,11 @@ class Class1
 using ns1::Class1;
 
 void Class1::fun() {}
-)cpp";
+)cpp" };
   std::string fileName = "main.cpp";
-  WriteFile(fileName, testSource);
-  const char *Args[] = {"-xc++"};
-  ClangTU = clang_parseTranslationUnit(Index, fileName.c_str(), Args, 1,
+  WriteFile(fileName, testSource.begin());
+  std::array<const char *, 1>Args = { {"-xc++"} };
+  ClangTU = clang_parseTranslationUnit(Index, fileName.c_str(), Args.begin(), 1,
                                        nullptr, 0, TUFlags);
 
   llvm::Optional<CXCursor> typeRefCsr;

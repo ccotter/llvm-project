@@ -97,6 +97,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include <array>
 #include <cstddef>
 #include <iterator>
 #include <limits>
@@ -3735,7 +3736,7 @@ void SelectionDAGBuilder::visitShuffleVector(const User &I) {
   if (SrcNumElts > MaskNumElts) {
     // Analyze the access pattern of the vector to see if we can extract
     // two subvectors and do the shuffle.
-    int StartIdx[2] = { -1, -1 };  // StartIdx to extract from
+    std::array<int, 2> StartIdx = { { -1, -1 } };  // StartIdx to extract from
     bool CanExtract = true;
     for (int Idx : Mask) {
       unsigned Input = 0;
@@ -9746,9 +9747,9 @@ void SelectionDAGBuilder::visitPatchpoint(const CallBase &CB,
   // when the AnyReg calling convention is used and the intrinsic returns a
   // value.
   if (IsAnyRegCC && HasDef) {
-    SDValue From[] = {SDValue(Call, 0), SDValue(Call, 1)};
-    SDValue To[] = {PPV.getValue(1), PPV.getValue(2)};
-    DAG.ReplaceAllUsesOfValuesWith(From, To, 2);
+    std::array From = {SDValue(Call, 0), SDValue(Call, 1)};
+    std::array To = {PPV.getValue(1), PPV.getValue(2)};
+    DAG.ReplaceAllUsesOfValuesWith(From.begin(), To.begin(), 2);
   } else
     DAG.ReplaceAllUsesWith(Call, PPV.getNode());
   DAG.DeleteNode(Call);

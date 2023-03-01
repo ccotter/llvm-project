@@ -9,6 +9,8 @@
 //  This file implements semantic analysis member access expressions.
 //
 //===----------------------------------------------------------------------===//
+#include <array>
+
 #include "clang/Sema/Overload.h"
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/DeclCXX.h"
@@ -318,7 +320,7 @@ CheckExtVectorComponent(Sema &S, QualType baseType, ExprValueKind &VK,
   bool HexSwizzle = (*compStr == 's' || *compStr == 'S') && compStr[1];
 
   bool HasRepeated = false;
-  bool HasIndex[16] = {};
+  std::array<bool, 16> HasIndex = { {} };
 
   int Idx;
 

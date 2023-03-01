@@ -70,6 +70,8 @@
 
 #include "AMDGPURegisterBankInfo.h"
 
+#include <array>
+
 #include "AMDGPU.h"
 #include "AMDGPUGlobalISelUtils.h"
 #include "AMDGPUInstrInfo.h"
@@ -303,7 +305,7 @@ AMDGPURegisterBankInfo::addMappingFromTable(
 
   SmallVector<const ValueMapping *, 10> Operands(MI.getNumOperands());
 
-  unsigned Sizes[NumOps];
+  std::array<unsigned, NumOps> Sizes;
   for (unsigned I = 0; I < NumOps; ++I) {
     Register Reg = MI.getOperand(RegSrcOpIdx[I]).getReg();
     Sizes[I] = getSizeInBits(Reg, MRI, *TRI);

@@ -97,6 +97,8 @@
 //         - Other ObjectWriters ignore them.
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "AArch64.h"
 #include "AArch64InstrInfo.h"
 #include "AArch64MachineFunctionInfo.h"
@@ -540,11 +542,11 @@ bool AArch64CollectLOH::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "********** AArch64 Collect LOH **********\n"
                     << "Looking in function " << MF.getName() << '\n');
 
-  LOHInfo LOHInfos[N_GPR_REGS];
+  std::array<LOHInfo, N_GPR_REGS> LOHInfos;
   AArch64FunctionInfo &AFI = *MF.getInfo<AArch64FunctionInfo>();
   for (const MachineBasicBlock &MBB : MF) {
     // Reset register tracking state.
-    memset(LOHInfos, 0, sizeof(LOHInfos));
+    memset(LOHInfos.begin(), 0, sizeof(LOHInfos));
     // Live-out registers are used.
     for (const MachineBasicBlock *Succ : MBB.successors()) {
       for (const auto &LI : Succ->liveins()) {
@@ -579,12 +581,12 @@ bool AArch64CollectLOH::runOnMachineFunction(MachineFunction &MF) {
         const MachineOperand &Op0 = MI.getOperand(0);
         int Idx = mapRegToGPRIndex(Op0.getReg());
         if (Idx >= 0) {
-          handleADRP(MI, AFI, LOHInfos[Idx], LOHInfos);
+          handleADRP(MI, AFI, LOHInfos[Idx], LOHInfos.begin());
           continue;
         }
         break;
       }
-      handleNormalInst(MI, LOHInfos);
+      handleNormalInst(MI, LOHInfos.begin());
     }
   }
 

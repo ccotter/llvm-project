@@ -30,6 +30,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
+#include <array>
 #include <cstdint>
 
 using namespace llvm;
@@ -1023,8 +1024,8 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
                               CurDAG->getIntPtrConstant(Index, dl));
 
         --I;
-        SDValue To[] = {Res, NarrowBCast.getValue(1)};
-        CurDAG->ReplaceAllUsesWith(N, To);
+        std::array To = {Res, NarrowBCast.getValue(1)};
+        CurDAG->ReplaceAllUsesWith(N, To.begin());
         ++I;
         MadeChange = true;
         continue;

@@ -22,6 +22,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -139,17 +140,17 @@ protected:
 };
 
 TEST_F(FindAllSymbolsTest, VariableSymbols) {
-  static const char Header[] = R"(
+  static const std::array<char, 132> Header = { R"(
       extern int xargc;
       namespace na {
       static bool SSSS = false;
       namespace nb { const long long *XXXX; }
-      })";
-  static const char Main[] = R"(
+      })" };
+  static const std::array<char, 83> Main = { R"(
       auto y = &na::nb::XXXX;
       int main() { if (na::SSSS) return xargc; }
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("xargc", SymbolInfo::SymbolKind::Variable, HeaderName, {});
@@ -169,20 +170,20 @@ TEST_F(FindAllSymbolsTest, VariableSymbols) {
 }
 
 TEST_F(FindAllSymbolsTest, ExternCSymbols) {
-  static const char Header[] = R"(
+  static const std::array<char, 114> Header = { R"(
       extern "C" {
       int C_Func() { return 0; }
       struct C_struct {
         int Member;
       };
-      })";
-  static const char Main[] = R"(
+      })" };
+  static const std::array<char, 83> Main = { R"(
       C_struct q() {
         int(*ptr)() = C_Func;
         return {0};
       }
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("C_Func", SymbolInfo::SymbolKind::Function, HeaderName, {});
@@ -196,7 +197,7 @@ TEST_F(FindAllSymbolsTest, ExternCSymbols) {
 }
 
 TEST_F(FindAllSymbolsTest, CXXRecordSymbols) {
-  static const char Header[] = R"(
+  static const std::array<char, 256> Header = { R"(
       struct Glob {};
       struct A; // Not a definition, ignored.
       class NOP; // Not a definition, ignored
@@ -208,12 +209,12 @@ TEST_F(FindAllSymbolsTest, CXXRecordSymbols) {
         void f() {}
       };
       };  //
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 57> Main = { R"(
       static Glob glob;
       static na::A::AAAA* a;
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("Glob", SymbolInfo::SymbolKind::Class, HeaderName, {});
@@ -233,7 +234,7 @@ TEST_F(FindAllSymbolsTest, CXXRecordSymbols) {
 }
 
 TEST_F(FindAllSymbolsTest, CXXRecordSymbolsTemplate) {
-  static const char Header[] = R"(
+  static const std::array<char, 357> Header = { R"(
       template <typename T>
       struct T_TEMP {
         template <typename _Tp1>
@@ -247,11 +248,11 @@ TEST_F(FindAllSymbolsTest, CXXRecordSymbolsTemplate) {
       };
       // Ignore specialization.
       template <> class Observer<int> {};
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 51> Main = { R"(
       extern T_TEMP<int>::rebind<char> weirdo;
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("T_TEMP", SymbolInfo::SymbolKind::Class, HeaderName, {});
@@ -260,7 +261,7 @@ TEST_F(FindAllSymbolsTest, CXXRecordSymbolsTemplate) {
 }
 
 TEST_F(FindAllSymbolsTest, DontIgnoreTemplatePartialSpecialization) {
-  static const char Code[] = R"(
+  static const std::array<char, 217> Code = { R"(
       template<class> class Class; // undefined
       template<class R, class... ArgTypes>
       class Class<R(ArgTypes...)> {
@@ -268,8 +269,8 @@ TEST_F(FindAllSymbolsTest, DontIgnoreTemplatePartialSpecialization) {
 
       template<class T> void f() {};
       template<> void f<int>() {};
-      )";
-  runFindAllSymbols(Code, "");
+      )" };
+  runFindAllSymbols(Code.begin(), "");
   SymbolInfo Symbol =
       SymbolInfo("Class", SymbolInfo::SymbolKind::Class, HeaderName, {});
   EXPECT_EQ(1, seen(Symbol));
@@ -278,7 +279,7 @@ TEST_F(FindAllSymbolsTest, DontIgnoreTemplatePartialSpecialization) {
 }
 
 TEST_F(FindAllSymbolsTest, FunctionSymbols) {
-  static const char Header[] = R"(
+  static const std::array<char, 321> Header = { R"(
       namespace na {
       int gg(int);
       int f(const int &a) { int Local; static int StaticLocal; return 0; }
@@ -290,16 +291,16 @@ TEST_F(FindAllSymbolsTest, FunctionSymbols) {
       void fun(T t) {};
       } // namespace nb
       } // namespace na";
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 141> Main = { R"(
       int(*gg)(int) = &na::gg;
       int main() {
         (void)na::SSSFFF;
         na::nb::fun(0);
         return na::f(gg(0));
       }
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("gg", SymbolInfo::SymbolKind::Function, HeaderName,
@@ -325,22 +326,22 @@ TEST_F(FindAllSymbolsTest, FunctionSymbols) {
 }
 
 TEST_F(FindAllSymbolsTest, NamespaceTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 193> Header = { R"(
       int X1;
       namespace { int X2; }
       namespace { namespace { int X3; } }
       namespace { namespace nb { int X4; } }
       namespace na { inline namespace __1 { int X5; } }
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 113> Main = { R"(
       using namespace nb;
       int main() {
         X1 = X2;
         X3 = X4;
         (void)na::X5;
       }
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("X1", SymbolInfo::SymbolKind::Variable, HeaderName, {});
@@ -371,9 +372,9 @@ TEST_F(FindAllSymbolsTest, NamespaceTest) {
 }
 
 TEST_F(FindAllSymbolsTest, DecayedTypeTest) {
-  static const char Header[] = "void DecayedFunc(int x[], int y[10]) {}";
-  static const char Main[] = R"(int main() { DecayedFunc(nullptr, nullptr); })";
-  runFindAllSymbols(Header, Main);
+  static const std::array<char, 40> Header = { "void DecayedFunc(int x[], int y[10]) {}" };
+  static const std::array<char, 46> Main = { R"(int main() { DecayedFunc(nullptr, nullptr); })" };
+  runFindAllSymbols(Header.begin(), Main.begin());
   SymbolInfo Symbol = SymbolInfo(
       "DecayedFunc", SymbolInfo::SymbolKind::Function, HeaderName, {});
   EXPECT_EQ(1, seen(Symbol));
@@ -381,18 +382,18 @@ TEST_F(FindAllSymbolsTest, DecayedTypeTest) {
 }
 
 TEST_F(FindAllSymbolsTest, CTypedefTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 95> Header = { R"(
       typedef unsigned size_t_;
       typedef struct { int x; } X;
       using XX = X;
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 115> Main = { R"(
       size_t_ f;
       template<typename T> struct vector{};
       vector<X> list;
       void foo(const XX&){}
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol = SymbolInfo("size_t_", SymbolInfo::SymbolKind::TypedefName,
                                  HeaderName, {});
@@ -410,7 +411,7 @@ TEST_F(FindAllSymbolsTest, CTypedefTest) {
 }
 
 TEST_F(FindAllSymbolsTest, EnumTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 203> Header = { R"(
       enum Glob_E { G1, G2 };
       enum class Altitude { high='h', low='l'};
       enum { A1, A2 };
@@ -419,15 +420,15 @@ TEST_F(FindAllSymbolsTest, EnumTest) {
         enum A_ENUM { X1, X2 };
       };
       enum DECL : int;
-      )";
-  static const char Main[] = R"(
+      )" };
+  static const std::array<char, 177> Main = { R"(
       static auto flags = G1 | G2;
       static auto alt = Altitude::high;
       static auto nested = A::X1;
       extern DECL whatever;
       static auto flags2 = A1 | A2;
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("Glob_E", SymbolInfo::SymbolKind::EnumDecl, HeaderName, {});
@@ -483,15 +484,15 @@ TEST_F(FindAllSymbolsTest, EnumTest) {
 }
 
 TEST_F(FindAllSymbolsTest, IWYUPrivatePragmaTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 73> Header = { R"(
     // IWYU pragma: private, include "bar.h"
     struct Bar {
     };
-  )";
-  static const char Main[] = R"(
+  )" };
+  static const std::array<char, 17> Main = { R"(
     Bar bar;
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
 
   SymbolInfo Symbol =
       SymbolInfo("Bar", SymbolInfo::SymbolKind::Class, "bar.h", {});
@@ -500,17 +501,17 @@ TEST_F(FindAllSymbolsTest, IWYUPrivatePragmaTest) {
 }
 
 TEST_F(FindAllSymbolsTest, MacroTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 80> Header = { R"(
     #define X
     #define Y 1
     #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
-  )";
-  static const char Main[] = R"(
+  )" };
+  static const std::array<char, 64> Main = { R"(
     #ifdef X
     int main() { return MAX(0,Y); }
     #endif
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
   SymbolInfo Symbol =
       SymbolInfo("X", SymbolInfo::SymbolKind::Macro, HeaderName, {});
   EXPECT_EQ(1, seen(Symbol));
@@ -526,18 +527,18 @@ TEST_F(FindAllSymbolsTest, MacroTest) {
 }
 
 TEST_F(FindAllSymbolsTest, MacroTestWithIWYU) {
-  static const char Header[] = R"(
+  static const std::array<char, 127> Header = { R"(
     // IWYU pragma: private, include "bar.h"
     #define X 1
     #define Y 1
     #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
-  )";
-  static const char Main[] = R"(
+  )" };
+  static const std::array<char, 64> Main = { R"(
     #ifdef X
     int main() { return MAX(0,Y); }
     #endif
-  )";
-  runFindAllSymbols(Header, Main);
+  )" };
+  runFindAllSymbols(Header.begin(), Main.begin());
   SymbolInfo Symbol =
       SymbolInfo("X", SymbolInfo::SymbolKind::Macro, "bar.h", {});
   EXPECT_EQ(1, seen(Symbol));
@@ -553,13 +554,13 @@ TEST_F(FindAllSymbolsTest, MacroTestWithIWYU) {
 }
 
 TEST_F(FindAllSymbolsTest, NoFriendTest) {
-  static const char Header[] = R"(
+  static const std::array<char, 94> Header = { R"(
     class WorstFriend {
       friend void Friend();
       friend class BestFriend;
     };
-  )";
-  runFindAllSymbols(Header, "");
+  )" };
+  runFindAllSymbols(Header.begin(), "");
   SymbolInfo Symbol =
       SymbolInfo("WorstFriend", SymbolInfo::SymbolKind::Class, HeaderName, {});
   EXPECT_EQ(1, seen(Symbol));

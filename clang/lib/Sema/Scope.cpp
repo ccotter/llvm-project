@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/Sema/Scope.h"
 #include "clang/AST/Decl.h"
 #include "llvm/Support/raw_ostream.h"
@@ -197,7 +199,7 @@ void Scope::dumpImpl(raw_ostream &OS) const {
   if (HasFlags)
     OS << "Flags: ";
 
-  std::pair<unsigned, const char *> FlagInfo[] = {
+  std::array<std::pair<unsigned, const char *>, 25> FlagInfo = { {
       {FnScope, "FnScope"},
       {BreakScope, "BreakScope"},
       {ContinueScope, "ContinueScope"},
@@ -223,7 +225,7 @@ void Scope::dumpImpl(raw_ostream &OS) const {
       {CompoundStmtScope, "CompoundStmtScope"},
       {ClassInheritanceScope, "ClassInheritanceScope"},
       {CatchScope, "CatchScope"},
-  };
+  } };
 
   for (auto Info : FlagInfo) {
     if (Flags & Info.first) {

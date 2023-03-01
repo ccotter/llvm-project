@@ -34,6 +34,7 @@
 #include "llvm/Testing/Support/SupportHelpers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -1474,7 +1475,7 @@ TEST(SignatureHelpTest, ActiveArg) {
 }
 
 TEST(SignatureHelpTest, OpeningParen) {
-  llvm::StringLiteral Tests[] = {
+  std::array<llvm::StringLiteral, 9> Tests = { {
       // Recursive function call.
       R"cpp(
         int foo(int a, int b, int c);
@@ -1542,7 +1543,7 @@ TEST(SignatureHelpTest, OpeningParen) {
           Foo f;
           f.foo$p^(t, ^t);
         })cpp",
-  };
+  } };
 
   for (auto Test : Tests) {
     Annotations Code(Test);
@@ -2301,7 +2302,7 @@ TEST(CompletionTest, CompletionTokenRange) {
   TestTU TU;
   TU.AdditionalFiles["foo/abc/foo.h"] = "";
 
-  constexpr const char *TestCodes[] = {
+  constexpr std::array<const char *, 4>TestCodes = { {
       R"cpp(
         class Auxilary {
          public:
@@ -2328,7 +2329,7 @@ TEST(CompletionTest, CompletionTokenRange) {
       R"cpp(
         #include "foo/abc/[[fo^o.h"]]
       )cpp",
-  };
+  } };
   for (const auto &Text : TestCodes) {
     Annotations TestCode(Text);
     TU.Code = TestCode.code().str();
@@ -3689,15 +3690,15 @@ TEST(NoCompileCompletionTest, WithIndex) {
 }
 
 TEST(AllowImplicitCompletion, All) {
-  const char *Yes[] = {
+  std::array<const char *, 6>Yes = { {
       "foo.^bar",
       "foo->^bar",
       "foo::^bar",
       "  #  include <^foo.h>",
       "#import <foo/^bar.h>",
       "#include_next \"^",
-  };
-  const char *No[] = {
+  } };
+  std::array<const char *, 7>No = { {
       "foo>^bar",
       "foo:^bar",
       "foo\n^bar",
@@ -3705,7 +3706,7 @@ TEST(AllowImplicitCompletion, All) {
       "#include \"foo.h\"^",
       "#error <^",
       "#<^",
-  };
+  } };
   for (const char *Test : Yes) {
     llvm::Annotations A(Test);
     EXPECT_TRUE(allowImplicitCompletion(A.code(), A.point())) << Test;

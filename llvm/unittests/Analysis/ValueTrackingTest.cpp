@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/AsmParser/Parser.h"
@@ -647,7 +649,7 @@ TEST(ValueTracking, GuaranteedToTransferExecutionToSuccessor) {
   assert(F && "Bad assembly?");
 
   auto &BB = F->getEntryBlock();
-  bool ExpectedAnswers[] = {
+  std::array ExpectedAnswers = {
       false, // call void @nounwind_readonly(i32* %p)
       false, // call void @nounwind_argmemonly(i32* %p)
       true,  // call void @nounwind_willreturn(i32* %p)

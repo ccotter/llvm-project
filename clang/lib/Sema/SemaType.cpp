@@ -40,6 +40,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <array>
 #include <bitset>
 
 using namespace clang;
@@ -3245,7 +3246,7 @@ void Sema::diagnoseIgnoredQualifiers(unsigned DiagID, unsigned Quals,
   SmallString<32> QualStr;
   unsigned NumQuals = 0;
   SourceLocation Loc;
-  FixItHint FixIts[5];
+  std::array<FixItHint, 5> FixIts;
 
   // Build a string naming the redundant qualifiers.
   for (auto &E : QualKinds) {

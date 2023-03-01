@@ -11,6 +11,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/DataTypes.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <limits>
 #include <tuple>
 using namespace llvm;
@@ -207,7 +208,7 @@ TEST_F(StringMapTest, CopyCtorTest) {
 
 // A more complex iteration test.
 TEST_F(StringMapTest, IterationTest) {
-  bool visited[100];
+  std::array<bool, 100> visited;
 
   // Insert 100 numbers into the map
   for (int i = 0; i < 100; ++i) {

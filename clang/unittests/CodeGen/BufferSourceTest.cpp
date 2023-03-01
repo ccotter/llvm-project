@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "TestCompiler.h"
 
 #include "clang/AST/ASTContext.h"
@@ -31,19 +33,19 @@ TEST(BufferSourceTest, EmitCXXGlobalInitFunc) {
   // Emitting constructors for global objects involves looking
   // at the source file name. This makes sure that we don't crash
   // if the source file is a memory buffer.
-  const char TestProgram[] =
-    "class EmitCXXGlobalInitFunc    "
+  const std::array<char, 187> TestProgram =
+    { "class EmitCXXGlobalInitFunc    "
     "{                              "
     "public:                        "
     "   EmitCXXGlobalInitFunc() {}  "
     "};                             "
-    "EmitCXXGlobalInitFunc test;    ";
+    "EmitCXXGlobalInitFunc test;    " };
 
   clang::LangOptions LO;
   LO.CPlusPlus = 1;
   LO.CPlusPlus11 = 1;
   TestCompiler Compiler(LO);
-  Compiler.init(TestProgram);
+  Compiler.init(TestProgram.begin());
 
   clang::ParseAST(Compiler.compiler.getSema(), false, false);
 }

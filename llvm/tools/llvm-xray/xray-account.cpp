@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <numeric>
 #include <system_error>
@@ -393,15 +394,15 @@ void LatencyAccountant::exportStatsAsText(raw_ostream &OS,
   //   - debug info, function name: we format this as a concatenation of the
   //     debug info and the function name.
   //
-  static constexpr char StatsHeaderFormat[] =
-      "{0,+9} {1,+10} [{2,+9}, {3,+9}, {4,+9}, {5,+9}, {6,+9}] {7,+9}";
-  static constexpr char StatsFormat[] =
-      R"({0,+9} {1,+10} [{2,+9:f6}, {3,+9:f6}, {4,+9:f6}, {5,+9:f6}, {6,+9:f6}] {7,+9:f6})";
-  OS << llvm::formatv(StatsHeaderFormat, "funcid", "count", "min", "med", "90p",
+  static constexpr std::array<char, 63> StatsHeaderFormat =
+      { "{0,+9} {1,+10} [{2,+9}, {3,+9}, {4,+9}, {5,+9}, {6,+9}] {7,+9}" };
+  static constexpr std::array<char, 81> StatsFormat =
+      { R"({0,+9} {1,+10} [{2,+9:f6}, {3,+9:f6}, {4,+9:f6}, {5,+9:f6}, {6,+9:f6}] {7,+9:f6})" };
+  OS << llvm::formatv(StatsHeaderFormat.begin(), "funcid", "count", "min", "med", "90p",
                       "99p", "max", "sum")
      << llvm::formatv("  {0,-12}\n", "function");
   exportStats(Header, [&](int32_t FuncId, size_t Count, const ResultRow &Row) {
-    OS << llvm::formatv(StatsFormat, FuncId, Count, Row.Min, Row.Median,
+    OS << llvm::formatv(StatsFormat.begin(), FuncId, Count, Row.Min, Row.Median,
                         Row.Pct90, Row.Pct99, Row.Max, Row.Sum)
        << "  " << Row.DebugInfo << ": " << Row.Function << "\n";
   });

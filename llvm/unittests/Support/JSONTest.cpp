@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Testing/Support/Error.h"
@@ -53,8 +55,8 @@ TEST(JSONTest, Constructors) {
 }
 
 TEST(JSONTest, StringOwnership) {
-  char X[] = "Hello";
-  Value Alias = static_cast<const char *>(X);
+  std::array<char, 6> X = { "Hello" };
+  Value Alias = static_cast<const char *>(X.begin());
   X[1] = 'a';
   EXPECT_EQ(R"("Hallo")", s(Alias));
 

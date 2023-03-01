@@ -40,6 +40,7 @@
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <numeric>
 
@@ -11044,7 +11045,7 @@ emitX86DeclareSimdFunction(const FunctionDecl *FD, llvm::Function *Fn,
     char ISA;
     unsigned VecRegSize;
   };
-  ISADataTy ISAData[] = {
+  std::array<ISADataTy, 4> ISAData = { {
       {
           'b', 128
       }, // SSE
@@ -11057,7 +11058,7 @@ emitX86DeclareSimdFunction(const FunctionDecl *FD, llvm::Function *Fn,
       {
           'e', 512
       }, // AVX512
-  };
+  } };
   llvm::SmallVector<char, 2> Masked;
   switch (State) {
   case OMPDeclareSimdDeclAttr::BS_Undefined:

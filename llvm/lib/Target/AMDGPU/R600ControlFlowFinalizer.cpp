@@ -17,6 +17,7 @@
 #include "R600MachineFunctionInfo.h"
 #include "R600Subtarget.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include <array>
 #include <set>
 
 using namespace llvm;
@@ -327,12 +328,12 @@ private:
   }
 
   void getLiteral(MachineInstr &MI, std::vector<MachineOperand *> &Lits) const {
-    static const unsigned LiteralRegs[] = {
+    static const std::array<unsigned, 4> LiteralRegs = { {
       R600::ALU_LITERAL_X,
       R600::ALU_LITERAL_Y,
       R600::ALU_LITERAL_Z,
       R600::ALU_LITERAL_W
-    };
+    } };
     const SmallVector<std::pair<MachineOperand *, int64_t>, 3> Srcs =
         TII->getSrcs(MI);
     for (const auto &Src:Srcs) {

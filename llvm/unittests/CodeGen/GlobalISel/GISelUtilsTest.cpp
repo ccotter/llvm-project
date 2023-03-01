@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "GISelMITest.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "gtest/gtest.h"
@@ -251,7 +253,7 @@ TEST_F(AArch64GISelMITest, ConstFalseTest) {
   if (!TM)
     return;
   const auto &TLI = *B.getMF().getSubtarget().getTargetLowering();
-  bool BooleanChoices[2] = {true, false};
+  std::array<bool, 2> BooleanChoices = { {true, false} };
 
   // AArch64 uses ZeroOrOneBooleanContent for scalars, and
   // ZeroOrNegativeOneBooleanContent for vectors.

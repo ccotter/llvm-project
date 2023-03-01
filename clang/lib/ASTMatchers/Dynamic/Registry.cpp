@@ -23,6 +23,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <iterator>
 #include <memory>
@@ -645,7 +646,7 @@ static llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
 
 std::vector<ArgKind> Registry::getAcceptedCompletionTypes(
     ArrayRef<std::pair<MatcherCtor, unsigned>> Context) {
-  ASTNodeKind InitialTypes[] = {
+  std::array InitialTypes = {
       ASTNodeKind::getFromNodeKind<Decl>(),
       ASTNodeKind::getFromNodeKind<QualType>(),
       ASTNodeKind::getFromNodeKind<Type>(),

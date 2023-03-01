@@ -8,6 +8,8 @@
 
 #include "PPCRegisterInfo.h"
 #include "PPCCallingConv.h"
+
+#include <array>
 #include "PPCSubtarget.h"
 #include "PPCCCState.h"
 using namespace llvm;
@@ -112,7 +114,7 @@ static bool CC_PPC32_SPE_CustomSplitFP64(unsigned &ValNo, MVT &ValVT,
                                         ISD::ArgFlagsTy &ArgFlags,
                                         CCState &State) {
   static const MCPhysReg HiRegList[] = { PPC::R3, PPC::R5, PPC::R7, PPC::R9 };
-  static const MCPhysReg LoRegList[] = { PPC::R4, PPC::R6, PPC::R8, PPC::R10 };
+  static const std::array<MCPhysReg, 4> LoRegList = { { PPC::R4, PPC::R6, PPC::R8, PPC::R10 } };
 
   // Try to get the first register.
   unsigned Reg = State.AllocateReg(HiRegList);
@@ -141,10 +143,10 @@ static bool CC_PPC32_SPE_RetF64(unsigned &ValNo, MVT &ValVT,
                                ISD::ArgFlagsTy &ArgFlags,
                                CCState &State) {
   static const MCPhysReg HiRegList[] = { PPC::R3 };
-  static const MCPhysReg LoRegList[] = { PPC::R4 };
+  static const std::array<MCPhysReg, 1> LoRegList = { { PPC::R4 } };
 
   // Try to get the first register.
-  unsigned Reg = State.AllocateReg(HiRegList, LoRegList);
+  unsigned Reg = State.AllocateReg(HiRegList, LoRegList.begin());
   if (!Reg)
     return false;
 

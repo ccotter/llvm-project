@@ -18,6 +18,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <algorithm>
+#include <array>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -106,7 +107,7 @@ std::string expectedResult(Annotations Test, llvm::StringRef NewName) {
 TEST(RenameTest, WithinFileRename) {
   // For each "^" this test moves cursor to its location and applies renaming
   // while checking that all identifiers in [[]] ranges are also renamed.
-  llvm::StringRef Tests[] = {
+  std::array<llvm::StringRef, 54> Tests = { {
       // Function.
       R"cpp(
         void [[foo^]]() {
@@ -840,7 +841,7 @@ TEST(RenameTest, WithinFileRename) {
           foo('x');
         }
       )cpp",
-  };
+  } };
   llvm::StringRef NewName = "NewName";
   for (llvm::StringRef T : Tests) {
     SCOPED_TRACE(T);
@@ -870,7 +871,7 @@ TEST(RenameTest, Renameable) {
     llvm::StringRef NewName = "MockName";
   };
   const bool HeaderFile = true;
-  Case Cases[] = {
+  std::array<Case, 30> Cases = { {
       {R"cpp(// allow -- function-local
         void f(int [[Lo^cal]]) {
           [[Local]] = 2;
@@ -1093,7 +1094,7 @@ TEST(RenameTest, Renameable) {
         using ns::^foo;
       )cpp",
        "there are multiple symbols at the given location", !HeaderFile},
-  };
+  } };
 
   for (const auto& Case : Cases) {
     SCOPED_TRACE(Case.Code);

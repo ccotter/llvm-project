@@ -32,6 +32,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -484,7 +485,7 @@ TEST_F(TUSchedulerTests, ManyUpdates) {
     StringRef Contents2 = R"cpp(int main() { return 1; })cpp";
     StringRef Contents3 = R"cpp(int a; int b; int sum() { return a + b; })cpp";
 
-    StringRef AllContents[] = {Contents1, Contents2, Contents3};
+    std::array<StringRef, 3> AllContents = { {Contents1, Contents2, Contents3} };
     const int AllContentsSize = 3;
 
     // Scheduler may run tasks asynchronously, but should propagate the

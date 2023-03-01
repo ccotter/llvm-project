@@ -16,6 +16,7 @@
 #include "llvm/Support/type_traits.h"
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <array>
 #include <random>
 #include <vector>
 
@@ -431,7 +432,7 @@ TEST(TinyPtrVectorTest, SingleEltCtorTest) {
 }
 
 TEST(TinyPtrVectorTest, ArrayRefCtorTest) {
-  int data_array[128];
+  std::array<int, 128> data_array;
   std::vector<int *> data;
 
   for (unsigned i = 0, e = 128; i != e; ++i) {
@@ -448,7 +449,7 @@ TEST(TinyPtrVectorTest, ArrayRefCtorTest) {
 }
 
 TEST(TinyPtrVectorTest, MutableArrayRefTest) {
-  int data_array[128];
+  std::array<int, 128> data_array;
   std::vector<int *> data;
 
   for (unsigned i = 0, e = 128; i != e; ++i) {

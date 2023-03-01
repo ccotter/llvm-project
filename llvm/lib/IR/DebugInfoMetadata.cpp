@@ -21,6 +21,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 
+#include <array>
 #include <numeric>
 #include <optional>
 
@@ -740,10 +741,10 @@ DICompositeType *DICompositeType::buildODRType(
   // Mutate CT in place.  Keep this in sync with getImpl.
   CT->mutate(Tag, Line, RuntimeLang, SizeInBits, AlignInBits, OffsetInBits,
              Flags);
-  Metadata *Ops[] = {File,          Scope,        Name,           BaseType,
+  std::array<Metadata *, 14>Ops = { {File,          Scope,        Name,           BaseType,
                      Elements,      VTableHolder, TemplateParams, &Identifier,
                      Discriminator, DataLocation, Associated,     Allocated,
-                     Rank,          Annotations};
+                     Rank,          Annotations} };
   assert((std::end(Ops) - std::begin(Ops)) == (int)CT->getNumOperands() &&
          "Mismatched number of operands");
   for (unsigned I = 0, E = CT->getNumOperands(); I != E; ++I)

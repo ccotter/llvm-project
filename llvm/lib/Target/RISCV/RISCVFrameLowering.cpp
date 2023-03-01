@@ -24,6 +24,7 @@
 #include "llvm/Support/LEB128.h"
 
 #include <algorithm>
+#include <array>
 
 using namespace llvm;
 
@@ -175,7 +176,7 @@ static int getLibCallID(const MachineFunction &MF,
 static const char *
 getSpillLibCallName(const MachineFunction &MF,
                     const std::vector<CalleeSavedInfo> &CSI) {
-  static const char *const SpillLibCalls[] = {
+  static const std::array<const char *, 13>SpillLibCalls = { {
     "__riscv_save_0",
     "__riscv_save_1",
     "__riscv_save_2",
@@ -189,7 +190,7 @@ getSpillLibCallName(const MachineFunction &MF,
     "__riscv_save_10",
     "__riscv_save_11",
     "__riscv_save_12"
-  };
+  } };
 
   int LibCallID = getLibCallID(MF, CSI);
   if (LibCallID == -1)
@@ -202,7 +203,7 @@ getSpillLibCallName(const MachineFunction &MF,
 static const char *
 getRestoreLibCallName(const MachineFunction &MF,
                       const std::vector<CalleeSavedInfo> &CSI) {
-  static const char *const RestoreLibCalls[] = {
+  static const std::array<const char *, 13>RestoreLibCalls = { {
     "__riscv_restore_0",
     "__riscv_restore_1",
     "__riscv_restore_2",
@@ -216,7 +217,7 @@ getRestoreLibCallName(const MachineFunction &MF,
     "__riscv_restore_10",
     "__riscv_restore_11",
     "__riscv_restore_12"
-  };
+  } };
 
   int LibCallID = getLibCallID(MF, CSI);
   if (LibCallID == -1)
@@ -361,20 +362,20 @@ static MCCFIInstruction createDefCFAExpression(const TargetRegisterInfo &TRI,
   else
     Comment << printReg(Reg, &TRI);
 
-  uint8_t buffer[16];
+  std::array<uint8_t, 16> buffer;
   if (FixedOffset) {
     Expr.push_back(dwarf::DW_OP_consts);
-    Expr.append(buffer, buffer + encodeSLEB128(FixedOffset, buffer));
+    Expr.append(buffer.begin(), buffer.begin() + encodeSLEB128(FixedOffset, buffer.begin()));
     Expr.push_back((uint8_t)dwarf::DW_OP_plus);
     Comment << " + " << FixedOffset;
   }
 
   Expr.push_back((uint8_t)dwarf::DW_OP_consts);
-  Expr.append(buffer, buffer + encodeSLEB128(ScalableOffset, buffer));
+  Expr.append(buffer.begin(), buffer.begin() + encodeSLEB128(ScalableOffset, buffer.begin()));
 
   unsigned DwarfVlenb = TRI.getDwarfRegNum(RISCV::VLENB, true);
   Expr.push_back((uint8_t)dwarf::DW_OP_bregx);
-  Expr.append(buffer, buffer + encodeULEB128(DwarfVlenb, buffer));
+  Expr.append(buffer.begin(), buffer.begin() + encodeULEB128(DwarfVlenb, buffer.begin()));
   Expr.push_back(0);
 
   Expr.push_back((uint8_t)dwarf::DW_OP_mul);
@@ -384,7 +385,7 @@ static MCCFIInstruction createDefCFAExpression(const TargetRegisterInfo &TRI,
 
   SmallString<64> DefCfaExpr;
   DefCfaExpr.push_back(dwarf::DW_CFA_def_cfa_expression);
-  DefCfaExpr.append(buffer, buffer + encodeULEB128(Expr.size(), buffer));
+  DefCfaExpr.append(buffer.begin(), buffer.begin() + encodeULEB128(Expr.size(), buffer.begin()));
   DefCfaExpr.append(Expr.str());
 
   return MCCFIInstruction::createEscape(nullptr, DefCfaExpr.str(),
@@ -892,12 +893,12 @@ void RISCVFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   if (MF.getFunction().hasFnAttribute("interrupt") && MFI.hasCalls()) {
 
-    static const MCPhysReg CSRegs[] = { RISCV::X1,      /* ra */
+    static const std::array<MCPhysReg, 17> CSRegs = { { RISCV::X1,      /* ra */
       RISCV::X5, RISCV::X6, RISCV::X7,                  /* t0-t2 */
       RISCV::X10, RISCV::X11,                           /* a0-a1, a2-a7 */
       RISCV::X12, RISCV::X13, RISCV::X14, RISCV::X15, RISCV::X16, RISCV::X17,
       RISCV::X28, RISCV::X29, RISCV::X30, RISCV::X31, 0 /* t3-t6 */
-    };
+    } };
 
     for (unsigned i = 0; CSRegs[i]; ++i)
       SavedRegs.set(CSRegs[i]);

@@ -30,6 +30,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
+#include <array>
 #include <cassert>
 #include <utility>
 
@@ -517,7 +518,7 @@ Value *FAddCombine::simplifyFAdd(AddendVect& Addends, unsigned InstrQuota) {
 
   // For saving intermediate results;
   unsigned NextTmpIdx = 0;
-  FAddend TmpResult[3];
+  std::array<FAddend, 3> TmpResult;
 
   // Simplified addends are placed <SimpVect>.
   AddendVect SimpVect;

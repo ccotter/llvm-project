@@ -11,6 +11,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Testing/Support/SupportHelpers.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 
 using namespace llvm;
@@ -79,8 +80,8 @@ TEST(LockFileManagerTest, LinkLockExists) {
 TEST(LockFileManagerTest, RelativePath) {
   TempDir LockFileManagerTestDir("LockFileManagerTestDir", /*Unique*/ true);
 
-  char PathBuf[1024];
-  const char *OrigPath = getcwd(PathBuf, 1024);
+  std::array<char, 1024> PathBuf;
+  const char *OrigPath = getcwd(PathBuf.begin(), 1024);
   ASSERT_FALSE(chdir(LockFileManagerTestDir.c_str()));
 
   TempDir inner("inner");

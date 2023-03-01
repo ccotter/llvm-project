@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ExecutionEngine/Orc/EPCGenericRTDyldMemoryManager.h"
 #include "llvm/ExecutionEngine/Orc/EPCGenericMemoryAccess.h"
 #include "llvm/ExecutionEngine/Orc/Shared/OrcRTBridge.h"
@@ -218,19 +220,19 @@ bool EPCGenericRTDyldMemoryManager::finalizeMemory(std::string *ErrMsg) {
   // Loop over unfinalized objects to make finalization requests.
   for (auto &SecAllocGroup : SecAllocGroups) {
 
-    MemProt SegMemProts[3] = {MemProt::Read | MemProt::Exec, MemProt::Read,
-                              MemProt::Read | MemProt::Write};
+    std::array<MemProt, 3> SegMemProts = { {MemProt::Read | MemProt::Exec, MemProt::Read,
+                              MemProt::Read | MemProt::Write} };
 
-    ExecutorAddrRange *RemoteAddrs[3] = {&SecAllocGroup.RemoteCode,
+    std::array<ExecutorAddrRange *, 3>RemoteAddrs = { {&SecAllocGroup.RemoteCode,
                                          &SecAllocGroup.RemoteROData,
-                                         &SecAllocGroup.RemoteRWData};
+                                         &SecAllocGroup.RemoteRWData} };
 
-    std::vector<SectionAlloc> *SegSections[3] = {&SecAllocGroup.CodeAllocs,
+    std::array<std::vector<SectionAlloc> *, 3>SegSections = { {&SecAllocGroup.CodeAllocs,
                                                  &SecAllocGroup.RODataAllocs,
-                                                 &SecAllocGroup.RWDataAllocs};
+                                                 &SecAllocGroup.RWDataAllocs} };
 
     tpctypes::FinalizeRequest FR;
-    std::unique_ptr<char[]> AggregateContents[3];
+    std::array<std::unique_ptr<char[]>, 3> AggregateContents;
 
     for (unsigned I = 0; I != 3; ++I) {
       FR.Segments.push_back({});

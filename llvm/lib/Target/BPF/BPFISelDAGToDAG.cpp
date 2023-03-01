@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "BPF.h"
 #include "BPFRegisterInfo.h"
 #include "BPFSubtarget.h"
@@ -310,9 +312,9 @@ void BPFDAGToDAGISel::PreprocessLoad(SDNode *Node,
   // After replacement, the current node is dead, we need to
   // go backward one step to make iterator still work
   I--;
-  SDValue From[] = {SDValue(Node, 0), SDValue(Node, 1)};
-  SDValue To[] = {NVal, NVal};
-  CurDAG->ReplaceAllUsesOfValuesWith(From, To, 2);
+  std::array From = {SDValue(Node, 0), SDValue(Node, 1)};
+  std::array To = {NVal, NVal};
+  CurDAG->ReplaceAllUsesOfValuesWith(From.begin(), To.begin(), 2);
   I++;
   // It is safe to delete node now
   CurDAG->DeleteNode(Node);

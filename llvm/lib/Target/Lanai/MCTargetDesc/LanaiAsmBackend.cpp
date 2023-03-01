@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "LanaiFixupKinds.h"
 #include "MCTargetDesc/LanaiMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -129,7 +131,7 @@ LanaiAsmBackend::createObjectTargetWriter() const {
 
 const MCFixupKindInfo &
 LanaiAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
-  static const MCFixupKindInfo Infos[Lanai::NumTargetFixupKinds] = {
+  static const std::array<MCFixupKindInfo, Lanai::NumTargetFixupKinds> Infos = { {
       // This table *must* be in same the order of fixup_* kinds in
       // LanaiFixupKinds.h.
       // Note: The number of bits indicated here are assumed to be contiguous.
@@ -146,7 +148,7 @@ LanaiAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"FIXUP_LANAI_25", 7, 25, 0},
       {"FIXUP_LANAI_32", 0, 32, 0},
       {"FIXUP_LANAI_HI16", 16, 16, 0},
-      {"FIXUP_LANAI_LO16", 16, 16, 0}};
+      {"FIXUP_LANAI_LO16", 16, 16, 0}} };
 
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);

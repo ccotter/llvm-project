@@ -44,6 +44,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -722,8 +723,8 @@ template <> struct MappingTraits<FormatStyle> {
 
     StringRef BasedOnStyle;
     if (IO.outputting()) {
-      StringRef Styles[] = {"LLVM",   "Google", "Chromium", "Mozilla",
-                            "WebKit", "GNU",    "Microsoft"};
+      std::array<StringRef, 7> Styles = { {"LLVM",   "Google", "Chromium", "Mozilla",
+                            "WebKit", "GNU",    "Microsoft"} };
       for (StringRef StyleName : Styles) {
         FormatStyle PredefinedStyle;
         if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&

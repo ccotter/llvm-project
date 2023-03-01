@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/AnalysisDeclContext.h"
@@ -1003,10 +1005,10 @@ void WalkAST::checkUncheckedReturnValue(CallExpr *CE) {
     return;
 
   if (II_setid[0] == nullptr) {
-    static const char * const identifiers[num_setids] = {
+    static const std::array<const char *, num_setids> identifiers = { {
       "setuid", "setgid", "seteuid", "setegid",
       "setreuid", "setregid"
-    };
+    } };
 
     for (size_t i = 0; i < num_setids; i++)
       II_setid[i] = &BR.getContext().Idents.get(identifiers[i]);

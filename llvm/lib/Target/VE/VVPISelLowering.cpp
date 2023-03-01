@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "VECustomDAG.h"
 #include "VEISelLowering.h"
 
@@ -195,7 +197,7 @@ SDValue VETargetLowering::splitPackedLoadStore(SDValue Op,
 
   unsigned ChainResIdx = PackData ? 0 : 1;
 
-  SDValue PartOps[2];
+  std::array<SDValue, 2> PartOps;
 
   SDValue UpperPartAVL; // we will use this for packing things back together
   for (PackElem Part : {PackElem::Hi, PackElem::Lo}) {
@@ -353,7 +355,7 @@ SDValue VETargetLowering::splitVectorOp(SDValue Op, VECustomDAG &CDAG) const {
   assert(!AVLPair.second && "Expecting non pack-legalized oepration");
 
   // request the parts
-  SDValue PartOps[2];
+  std::array<SDValue, 2> PartOps;
 
   SDValue UpperPartAVL; // we will use this for packing things back together
   for (PackElem Part : {PackElem::Hi, PackElem::Lo}) {

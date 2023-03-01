@@ -17,6 +17,7 @@
 #include "llvm/XRay/InstrumentationMap.h"
 #include "llvm/XRay/Trace.h"
 
+#include <array>
 #include <cmath>
 
 using namespace llvm;
@@ -353,7 +354,7 @@ std::string
 GraphRenderer::TimeStat::getString(GraphRenderer::StatType T) const {
   std::string St;
   raw_string_ostream S{St};
-  double TimeStat::*DoubleStatPtrs[] = {&TimeStat::Min,   &TimeStat::Median,
+  std::array DoubleStatPtrs = {&TimeStat::Min,   &TimeStat::Median,
                                         &TimeStat::Pct90, &TimeStat::Pct99,
                                         &TimeStat::Max,   &TimeStat::Sum};
   switch (T) {
@@ -375,7 +376,7 @@ GraphRenderer::TimeStat::getString(GraphRenderer::StatType T) const {
 // a double
 double GraphRenderer::TimeStat::getDouble(StatType T) const {
   double retval = 0;
-  double TimeStat::*DoubleStatPtrs[] = {&TimeStat::Min,   &TimeStat::Median,
+  std::array DoubleStatPtrs = {&TimeStat::Min,   &TimeStat::Median,
                                         &TimeStat::Pct90, &TimeStat::Pct99,
                                         &TimeStat::Max,   &TimeStat::Sum};
   switch (T) {

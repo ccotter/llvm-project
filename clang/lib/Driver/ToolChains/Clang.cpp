@@ -54,6 +54,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/YAMLParser.h"
+#include <array>
 #include <cctype>
 
 using namespace clang::driver;
@@ -3406,7 +3407,7 @@ static void RenderOpenCLOptions(const ArgList &Args, ArgStringList &CmdArgs,
                                 types::ID InputType) {
   // cl-denorms-are-zero is not forwarded. It is translated into a generic flag
   // for denormal flushing handling based on the target.
-  const unsigned ForwardedArguments[] = {
+  const std::array<unsigned, 11> ForwardedArguments = { {
       options::OPT_cl_opt_disable,
       options::OPT_cl_strict_aliasing,
       options::OPT_cl_single_precision_constant,
@@ -3418,7 +3419,7 @@ static void RenderOpenCLOptions(const ArgList &Args, ArgStringList &CmdArgs,
       options::OPT_cl_no_signed_zeros,
       options::OPT_cl_fp32_correctly_rounded_divide_sqrt,
       options::OPT_cl_uniform_work_group_size
-  };
+  } };
 
   if (Arg *A = Args.getLastArg(options::OPT_cl_std_EQ)) {
     std::string CLStdStr = std::string("-cl-std=") + A->getValue();
@@ -3443,7 +3444,7 @@ static void RenderOpenCLOptions(const ArgList &Args, ArgStringList &CmdArgs,
 
 static void RenderHLSLOptions(const ArgList &Args, ArgStringList &CmdArgs,
                               types::ID InputType) {
-  const unsigned ForwardedArguments[] = {options::OPT_dxil_validator_version,
+  const std::array<unsigned, 10> ForwardedArguments = { {options::OPT_dxil_validator_version,
                                          options::OPT_D,
                                          options::OPT_I,
                                          options::OPT_S,
@@ -3452,7 +3453,7 @@ static void RenderHLSLOptions(const ArgList &Args, ArgStringList &CmdArgs,
                                          options::OPT_emit_obj,
                                          options::OPT_disable_llvm_passes,
                                          options::OPT_fnative_half_type,
-                                         options::OPT_hlsl_entrypoint};
+                                         options::OPT_hlsl_entrypoint} };
   if (!types::isHLSL(InputType))
     return;
   for (const auto &Arg : ForwardedArguments)
@@ -3657,8 +3658,8 @@ static bool RenderModulesOptions(Compilation &C, const Driver &D,
     // `HasPath` will only be false if getDefaultModuleCachePath() fails.
     // That being said, that failure is unlikely and not caching is harmless.
     if (HasPath) {
-      const char Arg[] = "-fmodules-cache-path=";
-      Path.insert(Path.begin(), Arg, Arg + strlen(Arg));
+      const std::array<char, 22> Arg = { "-fmodules-cache-path=" };
+      Path.insert(Path.begin(), Arg.begin(), Arg.begin() + strlen(Arg.begin()));
       CmdArgs.push_back(Args.MakeArgString(Path));
     }
   }

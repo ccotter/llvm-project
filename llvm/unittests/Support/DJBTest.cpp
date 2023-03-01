@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/DJB.h"
 #include "llvm/ADT/Twine.h"
 #include "gtest/gtest.h"
@@ -18,7 +20,7 @@ TEST(DJBTest, caseFolding) {
     StringLiteral Two;
   };
 
-  static constexpr TestCase Tests[] = {
+  static constexpr std::array<TestCase, 15> Tests = { {
       {{"ASDF"}, {"asdf"}},
       {{"qWeR"}, {"QwEr"}},
       {{"qqqqqqqqqqqqqqqqqqqq"}, {"QQQQQQQQQQQQQQQQQQQQ"}},
@@ -47,7 +49,7 @@ TEST(DJBTest, caseFolding) {
       {{u8"\uff2d"}, {u8"\uff4d"}},
       // Old Hungarian Capital Letter Ej
       {{u8"\U00010c92"}, {u8"\U00010cd2"}},
-  };
+  } };
 
   for (const TestCase &T : Tests) {
     SCOPED_TRACE("Comparing '" + T.One + "' and '" + T.Two + "'");
@@ -60,7 +62,7 @@ TEST(DJBTest, knownValuesLowerCase) {
     StringLiteral Text;
     uint32_t Hash;
   };
-  static constexpr TestCase Tests[] = {
+  static constexpr std::array<TestCase, 8> Tests = { {
       {{""}, 5381u},
       {{"f"}, 177675u},
       {{"fo"}, 5863386u},
@@ -69,7 +71,7 @@ TEST(DJBTest, knownValuesLowerCase) {
       {{"fooba"}, 259229388u},
       {{"foobar"}, 4259602622u},
       {{"pneumonoultramicroscopicsilicovolcanoconiosis"}, 3999417781u},
-  };
+  } };
 
   for (const TestCase &T : Tests) {
     SCOPED_TRACE("Text: '" + T.Text + "'");

@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -46,13 +48,13 @@ static void appendToGlobalArray(StringRef ArrayName, Module &M, Function *F,
   }
 
   // Build a 3 field global_ctor entry.  We don't take a comdat key.
-  Constant *CSVals[3];
+  std::array<Constant *, 3>CSVals;
   CSVals[0] = IRB.getInt32(Priority);
   CSVals[1] = F;
   CSVals[2] = Data ? ConstantExpr::getPointerCast(Data, IRB.getInt8PtrTy())
                    : Constant::getNullValue(IRB.getInt8PtrTy());
   Constant *RuntimeCtorInit =
-      ConstantStruct::get(EltTy, makeArrayRef(CSVals, EltTy->getNumElements()));
+      ConstantStruct::get(EltTy, makeArrayRef(CSVals.begin(), EltTy->getNumElements()));
 
   CurrentCtors.push_back(RuntimeCtorInit);
 

@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "XCoreRegisterInfo.h"
+
+#include <array>
 #include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
@@ -210,20 +212,20 @@ const MCPhysReg *
 XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   // The callee saved registers LR & FP are explicitly handled during
   // emitPrologue & emitEpilogue and related functions.
-  static const MCPhysReg CalleeSavedRegs[] = {
+  static const std::array<MCPhysReg, 8> CalleeSavedRegs = { {
     XCore::R4, XCore::R5, XCore::R6, XCore::R7,
     XCore::R8, XCore::R9, XCore::R10,
     0
-  };
-  static const MCPhysReg CalleeSavedRegsFP[] = {
+  } };
+  static const std::array<MCPhysReg, 7> CalleeSavedRegsFP = { {
     XCore::R4, XCore::R5, XCore::R6, XCore::R7,
     XCore::R8, XCore::R9,
     0
-  };
+  } };
   const XCoreFrameLowering *TFI = getFrameLowering(*MF);
   if (TFI->hasFP(*MF))
-    return CalleeSavedRegsFP;
-  return CalleeSavedRegs;
+    return CalleeSavedRegsFP.begin();
+  return CalleeSavedRegs.begin();
 }
 
 BitVector XCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {

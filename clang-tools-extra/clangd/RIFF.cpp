@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "RIFF.h"
+
+#include <array>
 #include "support/Logger.h"
 #include "llvm/Support/Endian.h"
 
@@ -36,9 +38,9 @@ llvm::Expected<Chunk> readChunk(llvm::StringRef &Stream) {
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const Chunk &C) {
   OS.write(C.ID.data(), C.ID.size());
-  char Size[4];
-  llvm::support::endian::write32le(Size, C.Data.size());
-  OS.write(Size, sizeof(Size));
+  std::array<char, 4> Size;
+  llvm::support::endian::write32le(Size.begin(), C.Data.size());
+  OS.write(Size.begin(), sizeof(Size));
   OS << C.Data;
   if (C.Data.size() % 2)
     OS.write(0);
@@ -69,9 +71,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const File &F) {
   for (const auto &C : F.Chunks)
     DataLen += 4 + 4 + C.Data.size() + (C.Data.size() % 2);
   OS << "RIFF";
-  char Size[4];
-  llvm::support::endian::write32le(Size, DataLen);
-  OS.write(Size, sizeof(Size));
+  std::array<char, 4> Size;
+  llvm::support::endian::write32le(Size.begin(), DataLen);
+  OS.write(Size.begin(), sizeof(Size));
   OS.write(F.Type.data(), F.Type.size());
   for (const auto &C : F.Chunks)
     OS << C;

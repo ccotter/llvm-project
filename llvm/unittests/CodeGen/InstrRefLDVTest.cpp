@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/CodeGen/MIRParser/MIRParser.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -525,7 +527,7 @@ TEST_F(InstrRefLDVTest, MTransferDefs) {
   // Code contains only one register write: that should assign to each of the
   // aliasing registers. Test that all of them get locations, and have a
   // corresponding def at the first instr in the function.
-  const char *RegNames[] = {"RAX", "HAX", "EAX", "AX", "AH", "AL"};
+  std::array<const char *, 6>RegNames = { {"RAX", "HAX", "EAX", "AX", "AH", "AL"} };
   EXPECT_TRUE(MTracker->getNumLocs() == 7);
   for (const char *RegName : RegNames) {
     Register R = getRegByName(RegName);
@@ -587,14 +589,14 @@ TEST_F(InstrRefLDVTest, MTransferDefs) {
   TransferMap.resize(1);
   produceMLocTransferFunction(*MF, TransferMap, 1);
 
-  const char *RegsSetInCall[] = {"AL",  "AH",  "AX", "EAX", "HAX", "RAX",
+  std::array<const char *, 24>RegsSetInCall = { {"AL",  "AH",  "AX", "EAX", "HAX", "RAX",
                                  "DIL", "DIH", "DI", "EDI", "HDI", "RDI",
                                  "SIL", "SIH", "SI", "ESI", "HSI", "RSI",
-                                 "CL",  "CH",  "CX", "ECX", "HCX", "RCX"};
+                                 "CL",  "CH",  "CX", "ECX", "HCX", "RCX"} };
   for (const char *RegSetInCall : RegsSetInCall)
     TestRegSetSite(RegSetInCall, 6);
 
-  const char *RegsLeftAlone[] = {"BL", "BH", "BX", "EBX", "HBX", "RBX"};
+  std::array<const char *, 6>RegsLeftAlone = { {"BL", "BH", "BX", "EBX", "HBX", "RBX"} };
   for (const char *RegLeftAlone : RegsLeftAlone)
     TestRegSetSite(RegLeftAlone, 2);
 
@@ -626,7 +628,7 @@ TEST_F(InstrRefLDVTest, MTransferDefs) {
 
   // All the DI registers should have block live-in values, i.e. the argument
   // to the function.
-  const char *DIRegs[] = {"DIL", "DIH", "DI", "EDI", "HDI", "RDI"};
+  std::array<const char *, 6>DIRegs = { {"DIL", "DIH", "DI", "EDI", "HDI", "RDI"} };
   for (const char *DIReg : DIRegs)
     TestRegSetSite(DIReg, 0);
 }
@@ -774,8 +776,8 @@ TEST_F(InstrRefLDVTest, MTransferSubregSpills) {
 
   // Check that all the subregs of rax and rbx contain the same values. One
   // should completely transfer to the other.
-  const char *ARegs[] = {"AL", "AH", "AX", "EAX", "HAX", "RAX"};
-  const char *BRegs[] = {"BL", "BH", "BX", "EBX", "HBX", "RBX"};
+  std::array<const char *, 6>ARegs = { {"AL", "AH", "AX", "EAX", "HAX", "RAX"} };
+  std::array<const char *, 6>BRegs = { {"BL", "BH", "BX", "EBX", "HBX", "RBX"} };
   for (unsigned int I = 0; I < 6; ++I) {
     LocIdx A = MTracker->getRegMLoc(getRegByName(ARegs[I]));
     LocIdx B = MTracker->getRegMLoc(getRegByName(BRegs[I]));
@@ -784,8 +786,8 @@ TEST_F(InstrRefLDVTest, MTransferSubregSpills) {
 
   // Explicitly check what's in the different subreg slots, on the stack.
   // Pair up subreg idx fields with the corresponding subregister in $rax.
-  MLocTracker::StackSlotPos SubRegIdxes[] = {{8, 0}, {8, 8}, {16, 0}, {32, 0}, {64, 0}};
-  const char *SubRegNames[] = {"AL", "AH", "AX", "EAX", "RAX"};
+  std::array<MLocTracker::StackSlotPos, 5> SubRegIdxes = { {{8, 0}, {8, 8}, {16, 0}, {32, 0}, {64, 0}} };
+  std::array<const char *, 5>SubRegNames = { {"AL", "AH", "AX", "EAX", "RAX"} };
   for (unsigned int I = 0; I < 5; ++I) {
     // Value number where it's defined,
     LocIdx RegLoc = MTracker->getRegMLoc(getRegByName(SubRegNames[I]));

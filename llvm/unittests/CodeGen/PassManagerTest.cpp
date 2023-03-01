@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
@@ -233,10 +235,10 @@ TEST_F(PassManagerTest, Basic) {
   }
 
   int Count = 0;
-  std::vector<int> BeforeInitialization[2];
-  std::vector<int> BeforeFinalization[2];
-  std::vector<int> TestMachineFunctionCount[2];
-  std::vector<int> TestMachineModuleCount[2];
+  std::array<std::vector<int>, 2> BeforeInitialization;
+  std::array<std::vector<int>, 2> BeforeFinalization;
+  std::array<std::vector<int>, 2> TestMachineFunctionCount;
+  std::array<std::vector<int>, 2> TestMachineModuleCount;
 
   MachineFunctionPassManager MFPM;
   {

@@ -40,6 +40,7 @@
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -168,7 +169,7 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
   // A list of known driver suffixes. Suffixes are compared against the
   // program name in order. If there is a match, the frontend type is updated as
   // necessary by applying the ModeFlag.
-  static const DriverSuffix DriverSuffixes[] = {
+  static const std::array<DriverSuffix, 14> DriverSuffixes = { {
       {"clang", nullptr},
       {"clang++", "--driver-mode=g++"},
       {"clang-c++", "--driver-mode=g++"},
@@ -183,7 +184,7 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
       {"++", "--driver-mode=g++"},
       {"flang", "--driver-mode=flang"},
       {"clang-dxc", "--driver-mode=dxc"},
-  };
+  } };
 
   for (const auto &DS : DriverSuffixes) {
     StringRef Suffix(DS.Suffix);

@@ -83,6 +83,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cinttypes>
 #include <climits>
@@ -1050,14 +1051,14 @@ bool DwarfLinkerForBinary::AddressManager::applyValidRelocs(
   for (const ValidReloc &CurReloc : Relocs) {
     assert(CurReloc.Offset - BaseOffset < Data.size());
     assert(CurReloc.Offset - BaseOffset + CurReloc.Size <= Data.size());
-    char Buf[8];
+    std::array<char, 8> Buf;
     uint64_t Value = relocate(CurReloc);
     for (unsigned I = 0; I != CurReloc.Size; ++I) {
       unsigned Index = IsLittleEndian ? I : (CurReloc.Size - I - 1);
       Buf[I] = uint8_t(Value >> (Index * 8));
     }
     assert(CurReloc.Size <= sizeof(Buf));
-    memcpy(&Data[CurReloc.Offset - BaseOffset], Buf, CurReloc.Size);
+    memcpy(&Data[CurReloc.Offset - BaseOffset], Buf.begin(), CurReloc.Size);
   }
 
   return Relocs.size() > 0;

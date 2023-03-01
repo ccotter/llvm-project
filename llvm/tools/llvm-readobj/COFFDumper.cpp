@@ -52,6 +52,7 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/Win64EH.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <ctime>
 
 using namespace llvm;
@@ -662,15 +663,15 @@ void COFFDumper::printDataDirectory(uint32_t Index,
 
 void COFFDumper::printFileHeaders() {
   time_t TDS = Obj->getTimeDateStamp();
-  char FormattedTime[20] = { };
-  strftime(FormattedTime, 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
+  std::array<char, 20> FormattedTime = { { } };
+  strftime(FormattedTime.begin(), 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
 
   {
     DictScope D(W, "ImageFileHeader");
     W.printEnum  ("Machine", Obj->getMachine(),
                     makeArrayRef(ImageFileMachineType));
     W.printNumber("SectionCount", Obj->getNumberOfSections());
-    W.printHex   ("TimeDateStamp", FormattedTime, Obj->getTimeDateStamp());
+    W.printHex   ("TimeDateStamp", FormattedTime.begin(), Obj->getTimeDateStamp());
     W.printHex   ("PointerToSymbolTable", Obj->getPointerToSymbolTable());
     W.printNumber("SymbolCount", Obj->getNumberOfSymbols());
     W.printNumber("StringTableSize", Obj->getStringTableSize());
@@ -766,12 +767,12 @@ void COFFDumper::printPEHeader(const PEHeader *Hdr) {
 void COFFDumper::printCOFFDebugDirectory() {
   ListScope LS(W, "DebugDirectory");
   for (const debug_directory &D : Obj->debug_directories()) {
-    char FormattedTime[20] = {};
+    std::array<char, 20> FormattedTime = { {} };
     time_t TDS = D.TimeDateStamp;
-    strftime(FormattedTime, 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
+    strftime(FormattedTime.begin(), 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
     DictScope S(W, "DebugEntry");
     W.printHex("Characteristics", D.Characteristics);
-    W.printHex("TimeDateStamp", FormattedTime, D.TimeDateStamp);
+    W.printHex("TimeDateStamp", FormattedTime.begin(), D.TimeDateStamp);
     W.printHex("MajorVersion", D.MajorVersion);
     W.printHex("MinorVersion", D.MinorVersion);
     W.printEnum("Type", D.Type, makeArrayRef(ImageDebugType));
@@ -890,16 +891,16 @@ void COFFDumper::printCOFFLoadConfig(const T *Conf, LoadConfigTables &Tables) {
     return;
 
   ListScope LS(W, "LoadConfig");
-  char FormattedTime[20] = {};
+  std::array<char, 20> FormattedTime = { {} };
   time_t TDS = Conf->TimeDateStamp;
-  strftime(FormattedTime, 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
+  strftime(FormattedTime.begin(), 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
   W.printHex("Size", Conf->Size);
 
   // Print everything before SecurityCookie. The vast majority of images today
   // have all these fields.
   if (Conf->Size < offsetof(T, SEHandlerTable))
     return;
-  W.printHex("TimeDateStamp", FormattedTime, TDS);
+  W.printHex("TimeDateStamp", FormattedTime.begin(), TDS);
   W.printHex("MajorVersion", Conf->MajorVersion);
   W.printHex("MinorVersion", Conf->MinorVersion);
   W.printHex("GlobalFlagsClear", Conf->GlobalFlagsClear);
@@ -1959,10 +1960,10 @@ void COFFDumper::printResourceDirectoryTable(
       printResourceDirectoryTable(RSF, NextTable, NextLevel);
     } else {
       W.printHex("Entry Offset", Entry.Offset.value());
-      char FormattedTime[20] = {};
+      std::array<char, 20> FormattedTime = { {} };
       time_t TDS = time_t(Table.TimeDateStamp);
-      strftime(FormattedTime, 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
-      W.printHex("Time/Date Stamp", FormattedTime, Table.TimeDateStamp);
+      strftime(FormattedTime.begin(), 20, "%Y-%m-%d %H:%M:%S", gmtime(&TDS));
+      W.printHex("Time/Date Stamp", FormattedTime.begin(), Table.TimeDateStamp);
       W.printNumber("Major Version", Table.MajorVersion);
       W.printNumber("Minor Version", Table.MinorVersion);
       W.printNumber("Characteristics", Table.Characteristics);

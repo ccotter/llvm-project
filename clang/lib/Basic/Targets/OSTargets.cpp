@@ -10,6 +10,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "OSTargets.h"
+
+#include <array>
 #include "clang/Basic/MacroBuilder.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -68,7 +70,7 @@ void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
   }
 
   assert(OsVersion < VersionTuple(100) && "Invalid version!");
-  char Str[7];
+  std::array<char, 7> Str;
   if (Triple.isMacOSX() && OsVersion < VersionTuple(10, 10)) {
     Str[0] = '0' + (OsVersion.getMajor() / 10);
     Str[1] = '0' + (OsVersion.getMajor() % 10);
@@ -95,17 +97,17 @@ void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
 
   // Set the appropriate OS version define.
   if (Triple.isTvOS()) {
-    Builder.defineMacro("__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__", Str);
+    Builder.defineMacro("__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__", Str.begin());
   } else if (Triple.isiOS()) {
-    Builder.defineMacro("__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__", Str);
+    Builder.defineMacro("__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__", Str.begin());
   } else if (Triple.isWatchOS()) {
-    Builder.defineMacro("__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__", Str);
+    Builder.defineMacro("__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__", Str.begin());
   } else if (Triple.isDriverKit()) {
     assert(OsVersion.getMinor().value_or(0) < 100 &&
            OsVersion.getSubminor().value_or(0) < 100 && "Invalid version!");
-    Builder.defineMacro("__ENVIRONMENT_DRIVERKIT_VERSION_MIN_REQUIRED__", Str);
+    Builder.defineMacro("__ENVIRONMENT_DRIVERKIT_VERSION_MIN_REQUIRED__", Str.begin());
   } else if (Triple.isMacOSX()) {
-    Builder.defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__", Str);
+    Builder.defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__", Str.begin());
   }
 
   // Tell users about the kernel if there is one.

@@ -63,6 +63,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -307,8 +308,8 @@ namespace {
     /// Replaces all uses of the results of one DAG node with new values.
     SDValue CombineTo(SDNode *N, SDValue Res0, SDValue Res1,
                       bool AddTo = true) {
-      SDValue To[] = { Res0, Res1 };
-      return CombineTo(N, To, 2, AddTo);
+      std::array To = { Res0, Res1 };
+      return CombineTo(N, To.begin(), 2, AddTo);
     }
 
     void CommitTargetLoweringOpt(const TargetLowering::TargetLoweringOpt &TLO);
@@ -6427,9 +6428,9 @@ SDValue DAGCombiner::visitAND(SDNode *N) {
         // Replace uses of the EXTLOAD with the new ZEXTLOAD.
         if (Load->getNumValues() == 3) {
           // PRE/POST_INC loads have 3 values.
-          SDValue To[] = { NewLoad.getValue(0), NewLoad.getValue(1),
+          std::array To = { NewLoad.getValue(0), NewLoad.getValue(1),
                            NewLoad.getValue(2) };
-          CombineTo(Load, To, 3, true);
+          CombineTo(Load, To.begin(), 3, true);
         } else {
           CombineTo(Load, NewLoad.getValue(0), NewLoad.getValue(1));
         }
@@ -17153,8 +17154,8 @@ SDValue DAGCombiner::ForwardStoreValueToDirectLoad(LoadSDNode *LD) {
       if (!canSplitIdx(LD))
         return SDValue();
       SDValue Idx = SplitIndexingFromLoad(LD);
-      SDValue Ops[] = {Val, Idx, Chain};
-      return CombineTo(LD, Ops, 3);
+      std::array Ops = {Val, Idx, Chain};
+      return CombineTo(LD, Ops.begin(), 3);
     }
     return CombineTo(LD, Val, Chain);
   };
@@ -23619,7 +23620,7 @@ SDValue DAGCombiner::visitSCALAR_TO_VECTOR(SDNode *N) {
         // Make sure the shuffle is legal if we are crossing lanes.
         if (TLI.isShuffleMaskLegal(ShufMask, VT)) {
           SDLoc DL(N);
-          SDValue V[] = {EE.getOperand(0),
+          std::array V = {EE.getOperand(0),
                          DAG.getConstant(C->getAPIntValue(), DL, VT)};
           SDValue VecBO = DAG.getNode(Opcode, DL, VT, V[i], V[1 - i]);
           return DAG.getVectorShuffle(VT, DL, VecBO, DAG.getUNDEF(VT),

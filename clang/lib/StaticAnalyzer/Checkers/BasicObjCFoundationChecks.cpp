@@ -33,6 +33,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <optional>
 
 using namespace clang;
@@ -239,7 +240,7 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
 
     if (StringSelectors.empty()) {
       ASTContext &Ctx = C.getASTContext();
-      Selector Sels[] = {
+      std::array Sels = {
           getKeywordSelector(Ctx, "caseInsensitiveCompare"),
           getKeywordSelector(Ctx, "compare"),
           getKeywordSelector(Ctx, "compare", "options"),

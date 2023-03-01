@@ -12,6 +12,7 @@
 
 #include "llvm/Support/Errno.h"
 #include "llvm/Config/config.h"
+#include <array>
 #include <cstring>
 
 #if HAVE_ERRNO_H
@@ -38,7 +39,7 @@ std::string StrError(int errnum) {
     return str;
 #if defined(HAVE_STRERROR_R) || HAVE_DECL_STRERROR_S
   const int MaxErrStrLen = 2000;
-  char buffer[MaxErrStrLen];
+  std::array<char, MaxErrStrLen> buffer;
   buffer[0] = '\0';
 #endif
 
@@ -47,7 +48,7 @@ std::string StrError(int errnum) {
 #if defined(__GLIBC__) && defined(_GNU_SOURCE)
   // glibc defines its own incompatible version of strerror_r
   // which may not use the buffer supplied.
-  str = strerror_r(errnum, buffer, MaxErrStrLen - 1);
+  str = strerror_r(errnum, buffer.begin(), MaxErrStrLen - 1);
 #else
   strerror_r(errnum, buffer, MaxErrStrLen - 1);
   str = buffer;

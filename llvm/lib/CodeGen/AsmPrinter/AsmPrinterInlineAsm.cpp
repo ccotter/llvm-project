@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
@@ -245,7 +247,7 @@ static void EmitInlineAsmStr(const char *AsmStr, const MachineInstr *MI,
         report_fatal_error("Invalid $ operand number in inline asm string: '" +
                            Twine(AsmStr) + "'");
 
-      char Modifier[2] = { 0, 0 };
+      std::array<char, 2> Modifier = { { 0, 0 } };
 
       if (HasCurlyBraces) {
         // If we have curly braces, check for a modifier character.  This
@@ -303,10 +305,10 @@ static void EmitInlineAsmStr(const char *AsmStr, const MachineInstr *MI,
             Sym->print(OS, AP->MAI);
           } else if (InlineAsm::isMemKind(OpFlags)) {
             Error = AP->PrintAsmMemoryOperand(
-                MI, OpNo, Modifier[0] ? Modifier : nullptr, OS);
+                MI, OpNo, Modifier[0] ? Modifier.begin() : nullptr, OS);
           } else {
             Error = AP->PrintAsmOperand(MI, OpNo,
-                                        Modifier[0] ? Modifier : nullptr, OS);
+                                        Modifier[0] ? Modifier.begin() : nullptr, OS);
           }
         }
         if (Error) {

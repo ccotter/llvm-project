@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/STLExtras.h"
@@ -19,7 +21,7 @@
 using namespace llvm;
 
 TEST(SmallPtrSetTest, Assignment) {
-  int buf[8];
+  std::array<int, 8> buf;
   for (int i = 0; i < 8; ++i)
     buf[i] = 0;
 
@@ -50,7 +52,7 @@ TEST(SmallPtrSetTest, Assignment) {
 
 TEST(SmallPtrSetTest, GrowthTest) {
   int i;
-  int buf[8];
+  std::array<int, 8> buf;
   for(i=0; i<8; ++i) buf[i]=0;
 
 
@@ -103,7 +105,7 @@ TEST(SmallPtrSetTest, GrowthTest) {
 }
 
 TEST(SmallPtrSetTest, CopyAndMoveTest) {
-  int buf[8];
+  std::array<int, 8> buf;
   for (int i = 0; i < 8; ++i)
     buf[i] = 0;
 
@@ -166,7 +168,7 @@ TEST(SmallPtrSetTest, CopyAndMoveTest) {
 }
 
 TEST(SmallPtrSetTest, SwapTest) {
-  int buf[10];
+  std::array<int, 10> buf;
 
   SmallPtrSet<int *, 2> a;
   SmallPtrSet<int *, 2> b;
@@ -244,7 +246,7 @@ TEST(SmallPtrSetTest, SwapTest) {
 }
 
 void checkEraseAndIterators(SmallPtrSetImpl<int*> &S) {
-  int buf[3];
+  std::array<int, 3> buf;
 
   S.insert(&buf[0]);
   S.insert(&buf[1]);
@@ -284,7 +286,7 @@ TEST(SmallPtrSetTest, EraseTest) {
 
 // Verify that dereferencing and iteration work.
 TEST(SmallPtrSetTest, dereferenceAndIterate) {
-  int Ints[] = {0, 1, 2, 3, 4, 5, 6, 7};
+  std::array Ints = {0, 1, 2, 3, 4, 5, 6, 7};
   SmallPtrSet<const int *, 4> S;
   for (int &I : Ints) {
     EXPECT_EQ(&I, *S.insert(&I).first);
@@ -295,7 +297,7 @@ TEST(SmallPtrSetTest, dereferenceAndIterate) {
   int Found[sizeof(Ints)/sizeof(int)] = {0};
   for (int &I : Ints)
     for (auto F = S.find(&I), E = S.end(); F != E; ++F)
-      ++Found[*F - Ints];
+      ++Found[*F - Ints.begin()];
 
   // Sort.  We should hit the first element just once and the final element N
   // times.
@@ -324,7 +326,7 @@ using TestPair = PointerIntPair<int *, 1>;
 
 TEST(SmallPtrSetTest, ConstNonPtrTest) {
   SmallPtrSet<TestPair, 8> IntSet;
-  int A[1];
+  std::array<int, 1> A;
   TestPair Pair(&A[0], 1);
   IntSet.insert(Pair);
   EXPECT_EQ(IntSet.count(Pair), 1u);
@@ -333,7 +335,7 @@ TEST(SmallPtrSetTest, ConstNonPtrTest) {
 
 // Test equality comparison.
 TEST(SmallPtrSetTest, EqualityComparison) {
-  int buf[3];
+  std::array<int, 3> buf;
   for (int i = 0; i < 3; ++i)
     buf[i] = 0;
 
@@ -371,7 +373,7 @@ TEST(SmallPtrSetTest, EqualityComparison) {
 
 TEST(SmallPtrSetTest, Contains) {
   SmallPtrSet<int *, 2> Set;
-  int buf[4] = {0, 11, 22, 11};
+  std::array<int, 4> buf = { {0, 11, 22, 11} };
   EXPECT_FALSE(Set.contains(&buf[0]));
   EXPECT_FALSE(Set.contains(&buf[1]));
 
@@ -399,8 +401,8 @@ TEST(SmallPtrSetTest, Contains) {
 
 TEST(SmallPtrSetTest, InsertIterator) {
   SmallPtrSet<int *, 5> Set;
-  int Vals[5] = {11, 22, 33, 44, 55};
-  int *Buf[5] = {&Vals[0], &Vals[1], &Vals[2], &Vals[3], &Vals[4]};
+  std::array<int, 5> Vals = { {11, 22, 33, 44, 55} };
+  std::array<int *, 5>Buf = { {&Vals[0], &Vals[1], &Vals[2], &Vals[3], &Vals[4]} };
 
   for (int *Ptr : Buf)
     Set.insert(Set.begin(), Ptr);

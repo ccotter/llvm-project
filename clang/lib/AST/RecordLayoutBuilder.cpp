@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/Attr.h"
@@ -1475,10 +1477,10 @@ void ItaniumRecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
   //   If sizeof(T)*8 < n, let T' be the largest integral POD type with
   //   sizeof(T')*8 <= n.
 
-  QualType IntegralPODTypes[] = {
+  std::array<QualType, 5> IntegralPODTypes = { {
     Context.UnsignedCharTy, Context.UnsignedShortTy, Context.UnsignedIntTy,
     Context.UnsignedLongTy, Context.UnsignedLongLongTy
-  };
+  } };
 
   QualType Type;
   for (const QualType &QT : IntegralPODTypes) {

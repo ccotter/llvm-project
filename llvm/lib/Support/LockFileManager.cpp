@@ -16,6 +16,7 @@
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cerrno>
 #include <chrono>
 #include <ctime>
@@ -95,11 +96,11 @@ static std::error_code getHostID(SmallVectorImpl<char> &HostID) {
   HostID.append(UUIDRef.begin(), UUIDRef.end());
 
 #elif LLVM_ON_UNIX
-  char HostName[256];
+  std::array<char, 256> HostName;
   HostName[255] = 0;
   HostName[0] = 0;
-  gethostname(HostName, 255);
-  StringRef HostNameRef(HostName);
+  gethostname(HostName.begin(), 255);
+  StringRef HostNameRef(HostName.begin());
   HostID.append(HostNameRef.begin(), HostNameRef.end());
 
 #else

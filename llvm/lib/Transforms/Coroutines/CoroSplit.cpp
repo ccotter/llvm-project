@@ -66,6 +66,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -1359,10 +1360,10 @@ static bool shouldBeMustTail(const CallInst &CI, const Function &F) {
     return false;
 
   // CI should not has any ABI-impacting function attributes.
-  static const Attribute::AttrKind ABIAttrs[] = {
+  static const std::array<Attribute::AttrKind, 8> ABIAttrs = { {
       Attribute::StructRet,    Attribute::ByVal,     Attribute::InAlloca,
       Attribute::Preallocated, Attribute::InReg,     Attribute::Returned,
-      Attribute::SwiftSelf,    Attribute::SwiftError};
+      Attribute::SwiftSelf,    Attribute::SwiftError} };
   AttributeList Attrs = CI.getAttributes();
   for (auto AK : ABIAttrs)
     if (Attrs.hasParamAttr(0, AK))

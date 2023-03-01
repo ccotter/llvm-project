@@ -25,6 +25,7 @@
 #include "llvm/Testing/Support/SupportHelpers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <fstream>
 #include <stdlib.h>
 #include <string>
@@ -213,66 +214,66 @@ void testCommandLineTokenizer(ParserFunction *parse, StringRef Input,
 }
 
 TEST(CommandLineTest, TokenizeGNUCommandLine) {
-  const char Input[] =
-      "foo\\ bar \"foo bar\" \'foo bar\' 'foo\\\\bar' -DFOO=bar\\(\\) "
-      "foo\"bar\"baz C:\\\\src\\\\foo.cpp \"C:\\src\\foo.cpp\"";
+  const std::array<char, 100> Input =
+      { "foo\\ bar \"foo bar\" \'foo bar\' 'foo\\\\bar' -DFOO=bar\\(\\) "
+      "foo\"bar\"baz C:\\\\src\\\\foo.cpp \"C:\\src\\foo.cpp\"" };
   const char *const Output[] = {
       "foo bar",     "foo bar",   "foo bar",          "foo\\bar",
       "-DFOO=bar()", "foobarbaz", "C:\\src\\foo.cpp", "C:srcfoo.cpp"};
-  testCommandLineTokenizer(cl::TokenizeGNUCommandLine, Input, Output);
+  testCommandLineTokenizer(cl::TokenizeGNUCommandLine, Input.begin(), Output);
 }
 
 TEST(CommandLineTest, TokenizeWindowsCommandLine1) {
-  const char Input[] =
-      R"(a\b c\\d e\\"f g" h\"i j\\\"k "lmn" o pqr "st \"u" \v)";
+  const std::array<char, 54> Input =
+      { R"(a\b c\\d e\\"f g" h\"i j\\\"k "lmn" o pqr "st \"u" \v)" };
   const char *const Output[] = { "a\\b", "c\\\\d", "e\\f g", "h\"i", "j\\\"k",
                                  "lmn", "o", "pqr", "st \"u", "\\v" };
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input, Output);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input.begin(), Output);
 }
 
 TEST(CommandLineTest, TokenizeWindowsCommandLine2) {
-  const char Input[] = "clang -c -DFOO=\"\"\"ABC\"\"\" x.cpp";
+  const std::array<char, 31> Input = { "clang -c -DFOO=\"\"\"ABC\"\"\" x.cpp" };
   const char *const Output[] = { "clang", "-c", "-DFOO=\"ABC\"", "x.cpp"};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input, Output);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input.begin(), Output);
 }
 
 TEST(CommandLineTest, TokenizeWindowsCommandLineQuotedLastArgument) {
   // Whitespace at the end of the command line doesn't cause an empty last word
-  const char Input0[] = R"(a b c d )";
+  const std::array<char, 9> Input0 = { R"(a b c d )" };
   const char *const Output0[] = {"a", "b", "c", "d"};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input0, Output0);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input0.begin(), Output0);
 
   // But an explicit "" does
-  const char Input1[] = R"(a b c d "")";
+  const std::array<char, 11> Input1 = { R"(a b c d "")" };
   const char *const Output1[] = {"a", "b", "c", "d", ""};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input1, Output1);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input1.begin(), Output1);
 
   // An unterminated quoted string is also emitted as an argument word, empty
   // or not
-  const char Input2[] = R"(a b c d ")";
+  const std::array<char, 10> Input2 = { R"(a b c d ")" };
   const char *const Output2[] = {"a", "b", "c", "d", ""};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input2, Output2);
-  const char Input3[] = R"(a b c d "text)";
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input2.begin(), Output2);
+  const std::array<char, 14> Input3 = { R"(a b c d "text)" };
   const char *const Output3[] = {"a", "b", "c", "d", "text"};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input3, Output3);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input3.begin(), Output3);
 }
 
 TEST(CommandLineTest, TokenizeWindowsCommandLineExeName) {
-  const char Input1[] =
-      R"("C:\Program Files\Whatever\"clang.exe z.c -DY=\"x\")";
+  const std::array<char, 52> Input1 =
+      { R"("C:\Program Files\Whatever\"clang.exe z.c -DY=\"x\")" };
   const char *const Output1[] = {"C:\\Program Files\\Whatever\\clang.exe",
                                  "z.c", "-DY=\"x\""};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input1, Output1);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input1.begin(), Output1);
 
-  const char Input2[] = "\"a\\\"b c\\\"d\n\"e\\\"f g\\\"h\n";
+  const std::array<char, 23> Input2 = { "\"a\\\"b c\\\"d\n\"e\\\"f g\\\"h\n" };
   const char *const Output2[] = {"a\\b", "c\"d", nullptr,
                                  "e\\f", "g\"h", nullptr};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input2, Output2,
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input2.begin(), Output2,
                            /*MarkEOLs=*/true);
 
-  const char Input3[] = R"(\\server\share\subdir\clang.exe)";
+  const std::array<char, 32> Input3 = { R"(\\server\share\subdir\clang.exe)" };
   const char *const Output3[] = {"\\\\server\\share\\subdir\\clang.exe"};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input3, Output3);
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLineFull, Input3.begin(), Output3);
 }
 
 TEST(CommandLineTest, TokenizeAndMarkEOLs) {
@@ -286,13 +287,13 @@ TEST(CommandLineTest, TokenizeAndMarkEOLs) {
   // clang-cl needs to treat "/debug /opt:ref" as linker flags, and everything
   // else as compiler flags. The tokenizer inserts nullptr sentinels into the
   // output so that clang-cl can find the end of the current line.
-  const char Input[] = "clang -Xclang foo\n\nfoo\"bar\"baz\n x.cpp\n";
+  const std::array<char, 39> Input = { "clang -Xclang foo\n\nfoo\"bar\"baz\n x.cpp\n" };
   const char *const Output[] = {"clang", "-Xclang", "foo",
                                 nullptr, nullptr,   "foobarbaz",
                                 nullptr, "x.cpp",   nullptr};
-  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input, Output,
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input.begin(), Output,
                            /*MarkEOLs=*/true);
-  testCommandLineTokenizer(cl::TokenizeGNUCommandLine, Input, Output,
+  testCommandLineTokenizer(cl::TokenizeGNUCommandLine, Input.begin(), Output,
                            /*MarkEOLs=*/true);
 }
 

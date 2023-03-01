@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/DWARF/DWARFListTable.h"
 #include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
@@ -15,8 +17,8 @@ using namespace llvm;
 namespace {
 
 TEST(DWARFListTableHeader, TruncatedLength) {
-  static const char SecData[] = "\x33\x22\x11"; // Truncated DWARF32 length
-  DWARFDataExtractor Extractor(StringRef(SecData, sizeof(SecData) - 1),
+  static const std::array<char, 4> SecData = { "\x33\x22\x11" }; // Truncated DWARF32 length
+  DWARFDataExtractor Extractor(StringRef(SecData.begin(), sizeof(SecData) - 1),
                                /*isLittleEndian=*/true,
                                /*AddrSize=*/4);
   DWARFListTableHeader Header(/*SectionName=*/".debug_rnglists",
@@ -34,10 +36,10 @@ TEST(DWARFListTableHeader, TruncatedLength) {
 }
 
 TEST(DWARFListTableHeader, TruncatedLengthDWARF64) {
-  static const char SecData[] =
-      "\xff\xff\xff\xff"      // DWARF64 mark
-      "\x55\x44\x33\x22\x11"; // Truncated DWARF64 length
-  DWARFDataExtractor Extractor(StringRef(SecData, sizeof(SecData) - 1),
+  static const std::array<char, 10> SecData =
+      { "\xff\xff\xff\xff"      // DWARF64 mark
+      "\x55\x44\x33\x22\x11" }; // Truncated DWARF64 length
+  DWARFDataExtractor Extractor(StringRef(SecData.begin(), sizeof(SecData) - 1),
                                /*isLittleEndian=*/true,
                                /*AddrSize=*/4);
   DWARFListTableHeader Header(/*SectionName=*/".debug_rnglists",
@@ -55,9 +57,9 @@ TEST(DWARFListTableHeader, TruncatedLengthDWARF64) {
 }
 
 TEST(DWARFListTableHeader, TruncatedHeader) {
-  static const char SecData[] = "\x02\x00\x00\x00" // Length
-                                "\x05\x00";        // Version
-  DWARFDataExtractor Extractor(StringRef(SecData, sizeof(SecData) - 1),
+  static const std::array<char, 7> SecData = { "\x02\x00\x00\x00" // Length
+                                "\x05\x00" };        // Version
+  DWARFDataExtractor Extractor(StringRef(SecData.begin(), sizeof(SecData) - 1),
                                /*isLittleEndian=*/true,
                                /*AddrSize=*/4);
   DWARFListTableHeader Header(/*SectionName=*/".debug_rnglists",
@@ -74,7 +76,7 @@ TEST(DWARFListTableHeader, TruncatedHeader) {
 }
 
 TEST(DWARFListTableHeader, OffsetEntryCount) {
-  static const char SecData[] = "\x10\x00\x00\x00" // Length
+  static const std::array<char, 21> SecData = { "\x10\x00\x00\x00" // Length
                                 "\x05\x00"         // Version
                                 "\x08"             // Address size
                                 "\x00"             // Segment selector size
@@ -83,8 +85,8 @@ TEST(DWARFListTableHeader, OffsetEntryCount) {
                                 "\x04"             // DW_RLE_offset_pair
                                 "\x01"             // ULEB128 starting offset
                                 "\x02"             // ULEB128 ending offset
-                                "\x00";            // DW_RLE_end_of_list
-  DWARFDataExtractor Extractor(StringRef(SecData, sizeof(SecData) - 1),
+                                "\x00" };            // DW_RLE_end_of_list
+  DWARFDataExtractor Extractor(StringRef(SecData.begin(), sizeof(SecData) - 1),
                                /*isLittleEndian=*/true,
                                /*AddrSize=*/4);
   DWARFListTableHeader Header(/*SectionName=*/".debug_rnglists",

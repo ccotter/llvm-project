@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/XCOFFObjectFile.h"
 #include "llvm/Testing/Support/Error.h"
@@ -18,14 +20,14 @@ using namespace llvm::XCOFF;
 TEST(XCOFFObjectFileTest, XCOFFObjectType) {
   // Create an arbitrary object of a non-XCOFF type and test that
   // dyn_cast<XCOFFObjectFile> returns null for it.
-  char Buf[sizeof(typename ELF64LE::Ehdr)] = {};
-  memcpy(Buf, "\177ELF", 4);
+  std::array<char, sizeof(typename ELF64LE::Ehdr)> Buf = { {} };
+  memcpy(Buf.begin(), "\177ELF", 4);
 
-  auto *EHdr = reinterpret_cast<typename ELF64LE::Ehdr *>(Buf);
+  auto *EHdr = reinterpret_cast<typename ELF64LE::Ehdr *>(Buf.begin());
   EHdr->e_ident[llvm::ELF::EI_CLASS] = llvm::ELF::ELFCLASS64;
   EHdr->e_ident[llvm::ELF::EI_DATA] = llvm::ELF::ELFDATA2LSB;
 
-  MemoryBufferRef Source(StringRef(Buf, sizeof(Buf)), "non-XCOFF");
+  MemoryBufferRef Source(StringRef(Buf.begin(), sizeof(Buf)), "non-XCOFF");
   Expected<std::unique_ptr<ObjectFile>> ObjOrErr =
       ObjectFile::createObjectFile(Source);
   ASSERT_THAT_EXPECTED(ObjOrErr, Succeeded());

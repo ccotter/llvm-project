@@ -55,6 +55,7 @@
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
 #include "llvm/Transforms/Utils/SplitModule.h"
 
+#include <array>
 #include <optional>
 #include <set>
 
@@ -104,14 +105,14 @@ void llvm::computeLTOCacheKey(
     Hasher.update(ArrayRef<uint8_t>{0});
   };
   auto AddUnsigned = [&](unsigned I) {
-    uint8_t Data[4];
-    support::endian::write32le(Data, I);
-    Hasher.update(ArrayRef<uint8_t>{Data, 4});
+    std::array<uint8_t, 4> Data;
+    support::endian::write32le(Data.begin(), I);
+    Hasher.update(ArrayRef<uint8_t>{Data.begin(), 4});
   };
   auto AddUint64 = [&](uint64_t I) {
-    uint8_t Data[8];
-    support::endian::write64le(Data, I);
-    Hasher.update(ArrayRef<uint8_t>{Data, 8});
+    std::array<uint8_t, 8> Data;
+    support::endian::write64le(Data.begin(), I);
+    Hasher.update(ArrayRef<uint8_t>{Data.begin(), 8});
   };
   AddString(Conf.CPU);
   // FIXME: Hash more of Options. For now all clients initialize Options from

@@ -18,6 +18,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <array>
 
 namespace clang {
 namespace tooling {
@@ -595,10 +596,10 @@ TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
 
 TEST(ParseFixedCompilationDatabase, ReturnsNullWithoutDoubleDash) {
   int Argc = 2;
-  const char *Argv[] = { "1", "2" };
+  std::array<const char *, 2>Argv = { { "1", "2" } };
   std::string ErrorMsg;
   std::unique_ptr<FixedCompilationDatabase> Database(
-      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv, ErrorMsg));
+      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv.begin(), ErrorMsg));
   EXPECT_FALSE(Database);
   EXPECT_TRUE(ErrorMsg.empty());
   EXPECT_EQ(2, Argc);
@@ -606,12 +607,12 @@ TEST(ParseFixedCompilationDatabase, ReturnsNullWithoutDoubleDash) {
 
 TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
   int Argc = 5;
-  const char *Argv[] = {
+  std::array<const char *, 5>Argv = { {
     "1", "2", "--\0no-constant-folding", "-DDEF3", "-DDEF4"
-  };
+  } };
   std::string ErrorMsg;
   std::unique_ptr<FixedCompilationDatabase> Database(
-      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv, ErrorMsg));
+      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv.begin(), ErrorMsg));
   ASSERT_TRUE((bool)Database);
   ASSERT_TRUE(ErrorMsg.empty());
   std::vector<CompileCommand> Result =
@@ -625,10 +626,10 @@ TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
 
 TEST(ParseFixedCompilationDatabase, ReturnsEmptyCommandLine) {
   int Argc = 3;
-  const char *Argv[] = { "1", "2", "--\0no-constant-folding" };
+  std::array<const char *, 3>Argv = { { "1", "2", "--\0no-constant-folding" } };
   std::string ErrorMsg;
   std::unique_ptr<FixedCompilationDatabase> Database =
-      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv, ErrorMsg);
+      FixedCompilationDatabase::loadFromCommandLine(Argc, Argv.begin(), ErrorMsg);
   ASSERT_TRUE((bool)Database);
   ASSERT_TRUE(ErrorMsg.empty());
   std::vector<CompileCommand> Result =

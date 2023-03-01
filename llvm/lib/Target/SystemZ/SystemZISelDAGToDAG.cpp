@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "SystemZTargetMachine.h"
 #include "SystemZISelLowering.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -705,7 +707,7 @@ bool SystemZDAGToDAGISel::selectBDVAddr12Only(SDValue Addr, SDValue Elem,
                                               SDValue &Base,
                                               SDValue &Disp,
                                               SDValue &Index) const {
-  SDValue Regs[2];
+  std::array<SDValue, 2> Regs;
   if (selectBDXAddr12Only(Addr, Regs[0], Disp, Regs[1]) &&
       Regs[0].getNode() && Regs[1].getNode()) {
     for (unsigned int I = 0; I < 2; ++I) {
@@ -1065,11 +1067,11 @@ bool SystemZDAGToDAGISel::tryRxSBG(SDNode *N, unsigned Opcode) {
     return false;
   // Try treating each operand of N as the second operand of the RxSBG
   // and see which goes deepest.
-  RxSBGOperands RxSBG[] = {
+  std::array RxSBG = {
     RxSBGOperands(Opcode, N->getOperand(0)),
     RxSBGOperands(Opcode, N->getOperand(1))
   };
-  unsigned Count[] = { 0, 0 };
+  std::array<unsigned, 2> Count = { { 0, 0 } };
   for (unsigned I = 0; I < 2; ++I)
     while (expandRxSBG(RxSBG[I]))
       // The widening or narrowing is expected to be free.

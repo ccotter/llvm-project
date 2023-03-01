@@ -15,6 +15,7 @@
 #include "llvm/ExecutionEngine/Orc/LookupAndRecordAddrs.h"
 #include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/Debug.h"
+#include <array>
 #include <optional>
 
 #define DEBUG_TYPE "orc"
@@ -914,7 +915,7 @@ Error MachOPlatform::MachOPlatformPlugin::registerObjectPlatformSections(
   }
 
   // Collect data sections to register.
-  StringRef DataSections[] = {DataDataSectionName, DataCommonSectionName};
+  std::array DataSections = {DataDataSectionName, DataCommonSectionName};
   for (auto &SecName : DataSections) {
     if (auto *Sec = G.findSectionByName(SecName)) {
       jitlink::SectionRange R(*Sec);
@@ -926,7 +927,7 @@ Error MachOPlatform::MachOPlatformPlugin::registerObjectPlatformSections(
   // If any platform sections were found then add an allocation action to call
   // the registration function.
   bool RegistrationRequired = false;
-  StringRef PlatformSections[] = {
+  std::array PlatformSections = {
       ModInitFuncSectionName,   ObjCClassListSectionName,
       ObjCImageInfoSectionName, ObjCSelRefsSectionName,
       Swift5ProtoSectionName,   Swift5ProtosSectionName,

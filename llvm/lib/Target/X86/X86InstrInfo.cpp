@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "X86InstrInfo.h"
+
+#include <array>
 #include "X86.h"
 #include "X86InstrBuilder.h"
 #include "X86InstrFoldTables.h"
@@ -1859,7 +1861,7 @@ unsigned X86InstrInfo::getFMA3OpcodeToCommuteOperands(
     { Form213Index, Form132Index, Form231Index }
   };
 
-  unsigned FMAForms[3];
+  std::array<unsigned, 3> FMAForms;
   FMAForms[0] = FMA3Group.get132Opcode();
   FMAForms[1] = FMA3Group.get213Opcode();
   FMAForms[2] = FMA3Group.get231Opcode();

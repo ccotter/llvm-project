@@ -17,6 +17,8 @@
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
+
+#include <array>
 #else
 #include <io.h>
 #endif
@@ -87,21 +89,21 @@ Error FDSimpleRemoteEPCTransport::sendMessage(SimpleRemoteEPCOpcode OpC,
                                               uint64_t SeqNo,
                                               ExecutorAddr TagAddr,
                                               ArrayRef<char> ArgBytes) {
-  char HeaderBuffer[FDMsgHeader::Size];
+  std::array<char, FDMsgHeader::Size> HeaderBuffer;
 
-  *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::MsgSizeOffset)) =
+  *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::MsgSizeOffset)) =
       FDMsgHeader::Size + ArgBytes.size();
-  *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::OpCOffset)) =
+  *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::OpCOffset)) =
       static_cast<uint64_t>(OpC);
-  *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::SeqNoOffset)) = SeqNo;
-  *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::TagAddrOffset)) =
+  *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::SeqNoOffset)) = SeqNo;
+  *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::TagAddrOffset)) =
       TagAddr.getValue();
 
   std::lock_guard<std::mutex> Lock(M);
   if (Disconnected)
     return make_error<StringError>("FD-transport disconnected",
                                    inconvertibleErrorCode());
-  if (int ErrNo = writeBytes(HeaderBuffer, FDMsgHeader::Size))
+  if (int ErrNo = writeBytes(HeaderBuffer.begin(), FDMsgHeader::Size))
     return errorCodeToError(std::error_code(ErrNo, std::generic_category()));
   if (int ErrNo = writeBytes(ArgBytes.data(), ArgBytes.size()))
     return errorCodeToError(std::error_code(ErrNo, std::generic_category()));
@@ -187,11 +189,11 @@ void FDSimpleRemoteEPCTransport::listenLoop() {
   Error Err = Error::success();
   do {
 
-    char HeaderBuffer[FDMsgHeader::Size];
+    std::array<char, FDMsgHeader::Size> HeaderBuffer;
     // Read the header buffer.
     {
       bool IsEOF = false;
-      if (auto Err2 = readBytes(HeaderBuffer, FDMsgHeader::Size, &IsEOF)) {
+      if (auto Err2 = readBytes(HeaderBuffer.begin(), FDMsgHeader::Size, &IsEOF)) {
         Err = joinErrors(std::move(Err), std::move(Err2));
         break;
       }
@@ -206,13 +208,13 @@ void FDSimpleRemoteEPCTransport::listenLoop() {
     ExecutorAddr TagAddr;
 
     MsgSize =
-        *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::MsgSizeOffset));
+        *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::MsgSizeOffset));
     OpC = static_cast<SimpleRemoteEPCOpcode>(static_cast<uint64_t>(
-        *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::OpCOffset))));
+        *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::OpCOffset))));
     SeqNo =
-        *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::SeqNoOffset));
+        *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::SeqNoOffset));
     TagAddr.setValue(
-        *((support::ulittle64_t *)(HeaderBuffer + FDMsgHeader::TagAddrOffset)));
+        *((support::ulittle64_t *)(HeaderBuffer.begin() + FDMsgHeader::TagAddrOffset)));
 
     if (MsgSize < FDMsgHeader::Size) {
       Err = joinErrors(std::move(Err),

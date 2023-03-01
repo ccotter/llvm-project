@@ -16,6 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/AST/ASTContext.h"
@@ -41,12 +43,12 @@ public:
     getReturnValueSel = sels.getUnarySelector(&ids.get("getReturnValue"));
     setReturnValueSel = sels.getUnarySelector(&ids.get("setReturnValue"));
 
-    IdentifierInfo *selIds[2];
+    std::array<IdentifierInfo *, 2>selIds;
     selIds[0] = &ids.get("getArgument");
     selIds[1] = &ids.get("atIndex");
-    getArgumentSel = sels.getSelector(2, selIds);
+    getArgumentSel = sels.getSelector(2, selIds.begin());
     selIds[0] = &ids.get("setArgument");
-    setArgumentSel = sels.getSelector(2, selIds);
+    setArgumentSel = sels.getSelector(2, selIds.begin());
 
     zoneSel = sels.getNullarySelector(&ids.get("zone"));
   }

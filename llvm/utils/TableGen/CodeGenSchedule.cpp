@@ -24,6 +24,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Error.h"
 #include <algorithm>
+#include <array>
 #include <iterator>
 #include <utility>
 
@@ -93,8 +94,8 @@ struct InstRegexOp : public SetTheory::Operator {
       StringRef Original = SI->getValue();
 
       // Extract a prefix that we can binary search on.
-      static const char RegexMetachars[] = "()^$|*+?.[]\\{}";
-      auto FirstMeta = Original.find_first_of(RegexMetachars);
+      static const std::array<char, 15> RegexMetachars = { "()^$|*+?.[]\\{}" };
+      auto FirstMeta = Original.find_first_of(RegexMetachars.begin());
 
       // Look for top-level | or ?. We cannot optimize them to binary search.
       if (removeParens(Original).find_first_of("|?") != std::string::npos)

@@ -39,6 +39,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Casting.h"
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <optional>
 
@@ -120,8 +121,8 @@ CompareDerivedToBaseConversions(Sema &S, SourceLocation Loc,
 /// GetConversionRank - Retrieve the implicit conversion rank
 /// corresponding to the given implicit conversion kind.
 ImplicitConversionRank clang::GetConversionRank(ImplicitConversionKind Kind) {
-  static const ImplicitConversionRank
-    Rank[(int)ICK_Num_Conversion_Kinds] = {
+  static const std::array<ImplicitConversionRank, (int)ICK_Num_Conversion_Kinds>
+    Rank = { {
     ICR_Exact_Match,
     ICR_Exact_Match,
     ICR_Exact_Match,
@@ -152,14 +153,14 @@ ImplicitConversionRank clang::GetConversionRank(ImplicitConversionKind Kind) {
                      // ICK_Zero_Event_Conversion
     ICR_C_Conversion,
     ICR_C_Conversion_Extension
-  };
+  } };
   return Rank[(int)Kind];
 }
 
 /// GetImplicitConversionName - Return the name of this kind of
 /// implicit conversion.
 static const char* GetImplicitConversionName(ImplicitConversionKind Kind) {
-  static const char* const Name[(int)ICK_Num_Conversion_Kinds] = {
+  static const std::array<const char*, (int)ICK_Num_Conversion_Kinds> Name = { {
     "No conversion",
     "Lvalue-to-rvalue",
     "Array-to-pointer",
@@ -188,7 +189,7 @@ static const char* GetImplicitConversionName(ImplicitConversionKind Kind) {
     "OpenCL Zero Event Conversion",
     "C specific type conversion",
     "Incompatible pointer conversion"
-  };
+  } };
   return Name[Kind];
 }
 
@@ -2260,11 +2261,11 @@ bool Sema::IsIntegralPromotion(Expr *From, QualType FromType, QualType ToType) {
 
     // The types we'll try to promote to, in the appropriate
     // order. Try each of these types.
-    QualType PromoteTypes[6] = {
+    std::array<QualType, 6> PromoteTypes = { {
       Context.IntTy, Context.UnsignedIntTy,
       Context.LongTy, Context.UnsignedLongTy ,
       Context.LongLongTy, Context.UnsignedLongLongTy
-    };
+    } };
     for (int Idx = 0; Idx < 6; ++Idx) {
       uint64_t ToSize = Context.getTypeSize(PromoteTypes[Idx]);
       if (FromSize < ToSize ||
@@ -3839,7 +3840,7 @@ compareConversionFunctions(Sema &S, FunctionDecl *Function1,
     CallingConv DefaultMember = S.Context.getDefaultCallingConvention(
         CallOpProto->isVariadic(), /*IsCXXMethod=*/true);
 
-    CallingConv PrefOrder[] = {DefaultFree, DefaultMember, CallOpCC};
+    std::array PrefOrder = {DefaultFree, DefaultMember, CallOpCC};
     for (CallingConv CC : PrefOrder) {
       if (Conv1CC == CC)
         return ImplicitConversionSequence::Better;
@@ -8267,13 +8268,13 @@ static void AddBuiltinAssignmentOperatorCandidates(Sema &S,
                                                    QualType T,
                                                    ArrayRef<Expr *> Args,
                                     OverloadCandidateSet &CandidateSet) {
-  QualType ParamTypes[2];
+  std::array<QualType, 2> ParamTypes;
 
   // T& operator=(T&, T)
   ParamTypes[0] = S.Context.getLValueReferenceType(
       AdjustAddressSpaceForBuiltinOperandType(S, T, Args[0]));
   ParamTypes[1] = T;
-  S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+  S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                         /*IsAssignmentOperator=*/true);
 
   if (!S.Context.getCanonicalType(T).isVolatileQualified()) {
@@ -8282,7 +8283,7 @@ static void AddBuiltinAssignmentOperatorCandidates(Sema &S,
         AdjustAddressSpaceForBuiltinOperandType(S, S.Context.getVolatileType(T),
                                                 Args[0]));
     ParamTypes[1] = T;
-    S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+    S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                           /*IsAssignmentOperator=*/true);
   }
 }
@@ -8467,13 +8468,13 @@ class BuiltinOperatorOverloadBuilder {
   void addPlusPlusMinusMinusStyleOverloads(QualType CandidateTy,
                                            bool HasVolatile,
                                            bool HasRestrict) {
-    QualType ParamTypes[2] = {
+    std::array<QualType, 2> ParamTypes = { {
       S.Context.getLValueReferenceType(CandidateTy),
       S.Context.IntTy
-    };
+    } };
 
     // Non-volatile version.
-    S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+    S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
 
     // Use a heuristic to reduce number of builtin candidates in the set:
     // add volatile version only if there are conversions to a volatile type.
@@ -8481,7 +8482,7 @@ class BuiltinOperatorOverloadBuilder {
       ParamTypes[0] =
         S.Context.getLValueReferenceType(
           S.Context.getVolatileType(CandidateTy));
-      S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+      S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
     }
 
     // Add restrict version only if there are conversions to a restrict type
@@ -8491,7 +8492,7 @@ class BuiltinOperatorOverloadBuilder {
       ParamTypes[0]
         = S.Context.getLValueReferenceType(
             S.Context.getCVRQualifiedType(CandidateTy, Qualifiers::Restrict));
-      S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+      S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
 
       if (HasVolatile) {
         ParamTypes[0]
@@ -8499,7 +8500,7 @@ class BuiltinOperatorOverloadBuilder {
               S.Context.getCVRQualifiedType(CandidateTy,
                                             (Qualifiers::Volatile |
                                              Qualifiers::Restrict)));
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
     }
 
@@ -8508,8 +8509,8 @@ class BuiltinOperatorOverloadBuilder {
   /// Helper to add an overload candidate for a binary builtin with types \p L
   /// and \p R.
   void AddCandidate(QualType L, QualType R) {
-    QualType LandR[2] = {L, R};
-    S.AddBuiltinCandidate(LandR, Args, CandidateSet);
+    std::array<QualType, 2> LandR = { {L, R} };
+    S.AddBuiltinCandidate(LandR.begin(), Args, CandidateSet);
   }
 
 public:
@@ -8683,15 +8684,15 @@ public:
         if (!AddedTypes.insert(S.Context.getCanonicalType(MemPtrTy)).second)
           continue;
 
-        QualType ParamTypes[2] = {MemPtrTy, MemPtrTy};
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        std::array<QualType, 2> ParamTypes = { {MemPtrTy, MemPtrTy} };
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
 
       if (CandidateTypes[ArgIdx].hasNullPtrType()) {
         CanQualType NullPtrTy = S.Context.getCanonicalType(S.Context.NullPtrTy);
         if (AddedTypes.insert(NullPtrTy).second) {
-          QualType ParamTypes[2] = { NullPtrTy, NullPtrTy };
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+          std::array<QualType, 2> ParamTypes = { { NullPtrTy, NullPtrTy } };
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
         }
       }
     }
@@ -8771,8 +8772,8 @@ public:
         if (IsSpaceship && PtrTy->isFunctionPointerType())
           continue;
 
-        QualType ParamTypes[2] = {PtrTy, PtrTy};
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        std::array<QualType, 2> ParamTypes = { {PtrTy, PtrTy} };
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
       for (QualType EnumTy : CandidateTypes[ArgIdx].enumeration_types()) {
         CanQualType CanonType = S.Context.getCanonicalType(EnumTy);
@@ -8783,8 +8784,8 @@ public:
             UserDefinedBinaryOperators.count(std::make_pair(CanonType,
                                                             CanonType)))
           continue;
-        QualType ParamTypes[2] = {EnumTy, EnumTy};
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        std::array<QualType, 2> ParamTypes = { {EnumTy, EnumTy} };
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
     }
   }
@@ -8811,10 +8812,10 @@ public:
     llvm::SmallPtrSet<QualType, 8> AddedTypes;
 
     for (int Arg = 0; Arg < 2; ++Arg) {
-      QualType AsymmetricParamTypes[2] = {
+      std::array<QualType, 2> AsymmetricParamTypes = { {
         S.Context.getPointerDiffType(),
         S.Context.getPointerDiffType(),
-      };
+      } };
       for (QualType PtrTy : CandidateTypes[Arg].pointer_types()) {
         QualType PointeeTy = PtrTy->getPointeeType();
         if (!PointeeTy->isObjectType())
@@ -8824,15 +8825,15 @@ public:
         if (Arg == 0 || Op == OO_Plus) {
           // operator+(T*, ptrdiff_t) or operator-(T*, ptrdiff_t)
           // T* operator+(ptrdiff_t, T*);
-          S.AddBuiltinCandidate(AsymmetricParamTypes, Args, CandidateSet);
+          S.AddBuiltinCandidate(AsymmetricParamTypes.begin(), Args, CandidateSet);
         }
         if (Op == OO_Minus) {
           // ptrdiff_t operator-(T, T);
           if (!AddedTypes.insert(S.Context.getCanonicalType(PtrTy)).second)
             continue;
 
-          QualType ParamTypes[2] = {PtrTy, PtrTy};
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+          std::array<QualType, 2> ParamTypes = { {PtrTy, PtrTy} };
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
         }
       }
     }
@@ -8875,9 +8876,9 @@ public:
          Left < LastPromotedArithmeticType; ++Left) {
       for (unsigned Right = FirstPromotedArithmeticType;
            Right < LastPromotedArithmeticType; ++Right) {
-        QualType LandR[2] = { ArithmeticTypes[Left],
-                              ArithmeticTypes[Right] };
-        S.AddBuiltinCandidate(LandR, Args, CandidateSet);
+        std::array<QualType, 2> LandR = { { ArithmeticTypes[Left],
+                              ArithmeticTypes[Right] } };
+        S.AddBuiltinCandidate(LandR.begin(), Args, CandidateSet);
       }
     }
 
@@ -8885,8 +8886,8 @@ public:
     // conditional operator for vector types.
     for (QualType Vec1Ty : CandidateTypes[0].vector_types())
       for (QualType Vec2Ty : CandidateTypes[1].vector_types()) {
-        QualType LandR[2] = {Vec1Ty, Vec2Ty};
-        S.AddBuiltinCandidate(LandR, Args, CandidateSet);
+        std::array<QualType, 2> LandR = { {Vec1Ty, Vec2Ty} };
+        S.AddBuiltinCandidate(LandR.begin(), Args, CandidateSet);
       }
   }
 
@@ -8968,9 +8969,9 @@ public:
          Left < LastPromotedIntegralType; ++Left) {
       for (unsigned Right = FirstPromotedIntegralType;
            Right < LastPromotedIntegralType; ++Right) {
-        QualType LandR[2] = { ArithmeticTypes[Left],
-                              ArithmeticTypes[Right] };
-        S.AddBuiltinCandidate(LandR, Args, CandidateSet);
+        std::array<QualType, 2> LandR = { { ArithmeticTypes[Left],
+                              ArithmeticTypes[Right] } };
+        S.AddBuiltinCandidate(LandR.begin(), Args, CandidateSet);
       }
     }
   }
@@ -9031,11 +9032,11 @@ public:
         continue;
 
       // non-volatile version
-      QualType ParamTypes[2] = {
+      std::array<QualType, 2> ParamTypes = { {
           S.Context.getLValueReferenceType(PtrTy),
           isEqualOp ? PtrTy : S.Context.getPointerDiffType(),
-      };
-      S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+      } };
+      S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                             /*IsAssignmentOperator=*/ isEqualOp);
 
       bool NeedVolatile = !PtrTy.isVolatileQualified() &&
@@ -9044,7 +9045,7 @@ public:
         // volatile version
         ParamTypes[0] =
             S.Context.getLValueReferenceType(S.Context.getVolatileType(PtrTy));
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                               /*IsAssignmentOperator=*/isEqualOp);
       }
 
@@ -9053,7 +9054,7 @@ public:
         // restrict version
         ParamTypes[0] =
             S.Context.getLValueReferenceType(S.Context.getRestrictType(PtrTy));
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                               /*IsAssignmentOperator=*/isEqualOp);
 
         if (NeedVolatile) {
@@ -9061,7 +9062,7 @@ public:
           ParamTypes[0] =
               S.Context.getLValueReferenceType(S.Context.getCVRQualifiedType(
                   PtrTy, (Qualifiers::Volatile | Qualifiers::Restrict)));
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                                 /*IsAssignmentOperator=*/isEqualOp);
         }
       }
@@ -9073,13 +9074,13 @@ public:
         if (!AddedTypes.insert(S.Context.getCanonicalType(PtrTy)).second)
           continue;
 
-        QualType ParamTypes[2] = {
+        std::array<QualType, 2> ParamTypes = { {
             S.Context.getLValueReferenceType(PtrTy),
             PtrTy,
-        };
+        } };
 
         // non-volatile version
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                               /*IsAssignmentOperator=*/true);
 
         bool NeedVolatile = !PtrTy.isVolatileQualified() &&
@@ -9088,7 +9089,7 @@ public:
           // volatile version
           ParamTypes[0] = S.Context.getLValueReferenceType(
               S.Context.getVolatileType(PtrTy));
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                                 /*IsAssignmentOperator=*/true);
         }
 
@@ -9097,7 +9098,7 @@ public:
           // restrict version
           ParamTypes[0] = S.Context.getLValueReferenceType(
               S.Context.getRestrictType(PtrTy));
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                                 /*IsAssignmentOperator=*/true);
 
           if (NeedVolatile) {
@@ -9105,7 +9106,7 @@ public:
             ParamTypes[0] =
                 S.Context.getLValueReferenceType(S.Context.getCVRQualifiedType(
                     PtrTy, (Qualifiers::Volatile | Qualifiers::Restrict)));
-            S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+            S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                                   /*IsAssignmentOperator=*/true);
           }
         }
@@ -9150,18 +9151,18 @@ public:
     // Extension: Add the binary operators =, +=, -=, *=, /= for vector types.
     for (QualType Vec1Ty : CandidateTypes[0].vector_types())
       for (QualType Vec2Ty : CandidateTypes[0].vector_types()) {
-        QualType ParamTypes[2];
+        std::array<QualType, 2> ParamTypes;
         ParamTypes[1] = Vec2Ty;
         // Add this built-in operator as a candidate (VQ is empty).
         ParamTypes[0] = S.Context.getLValueReferenceType(Vec1Ty);
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                               /*IsAssignmentOperator=*/isEqualOp);
 
         // Add this built-in operator as a candidate (VQ is 'volatile').
         if (VisibleTypeConversionsQuals.hasVolatile()) {
           ParamTypes[0] = S.Context.getVolatileType(Vec1Ty);
           ParamTypes[0] = S.Context.getLValueReferenceType(ParamTypes[0]);
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                                 /*IsAssignmentOperator=*/isEqualOp);
         }
       }
@@ -9215,8 +9216,8 @@ public:
                           /*NumContextualBoolArguments=*/1);
   }
   void addAmpAmpOrPipePipeOverload() {
-    QualType ParamTypes[2] = { S.Context.BoolTy, S.Context.BoolTy };
-    S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet,
+    std::array<QualType, 2> ParamTypes = { { S.Context.BoolTy, S.Context.BoolTy } };
+    S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet,
                           /*IsAssignmentOperator=*/false,
                           /*NumContextualBoolArguments=*/2);
   }
@@ -9233,23 +9234,23 @@ public:
   //        T&         operator[](ptrdiff_t, T*);
   void addSubscriptOverloads() {
     for (QualType PtrTy : CandidateTypes[0].pointer_types()) {
-      QualType ParamTypes[2] = {PtrTy, S.Context.getPointerDiffType()};
+      std::array<QualType, 2> ParamTypes = { {PtrTy, S.Context.getPointerDiffType()} };
       QualType PointeeType = PtrTy->getPointeeType();
       if (!PointeeType->isObjectType())
         continue;
 
       // T& operator[](T*, ptrdiff_t)
-      S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+      S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
     }
 
     for (QualType PtrTy : CandidateTypes[1].pointer_types()) {
-      QualType ParamTypes[2] = {S.Context.getPointerDiffType(), PtrTy};
+      std::array<QualType, 2> ParamTypes = { {S.Context.getPointerDiffType(), PtrTy} };
       QualType PointeeType = PtrTy->getPointeeType();
       if (!PointeeType->isObjectType())
         continue;
 
       // T& operator[](ptrdiff_t, T*)
-      S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+      S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
     }
   }
 
@@ -9283,7 +9284,7 @@ public:
         C2 = C2.getUnqualifiedType();
         if (C1 != C2 && !S.IsDerivedFrom(CandidateSet.getLocation(), C1, C2))
           break;
-        QualType ParamTypes[2] = {PtrTy, MemPtrTy};
+        std::array<QualType, 2> ParamTypes = { {PtrTy, MemPtrTy} };
         // build CV12 T&
         QualType T = mptr->getPointeeType();
         if (!VisibleTypeConversionsQuals.hasVolatile() &&
@@ -9293,7 +9294,7 @@ public:
             T.isRestrictQualified())
           continue;
         T = Q1.apply(S.Context, T);
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
     }
   }
@@ -9317,16 +9318,16 @@ public:
         if (!AddedTypes.insert(S.Context.getCanonicalType(PtrTy)).second)
           continue;
 
-        QualType ParamTypes[2] = {PtrTy, PtrTy};
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        std::array<QualType, 2> ParamTypes = { {PtrTy, PtrTy} };
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
 
       for (QualType MemPtrTy : CandidateTypes[ArgIdx].member_pointer_types()) {
         if (!AddedTypes.insert(S.Context.getCanonicalType(MemPtrTy)).second)
           continue;
 
-        QualType ParamTypes[2] = {MemPtrTy, MemPtrTy};
-        S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+        std::array<QualType, 2> ParamTypes = { {MemPtrTy, MemPtrTy} };
+        S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
       }
 
       if (S.getLangOpts().CPlusPlus11) {
@@ -9337,8 +9338,8 @@ public:
           if (!AddedTypes.insert(S.Context.getCanonicalType(EnumTy)).second)
             continue;
 
-          QualType ParamTypes[2] = {EnumTy, EnumTy};
-          S.AddBuiltinCandidate(ParamTypes, Args, CandidateSet);
+          std::array<QualType, 2> ParamTypes = { {EnumTy, EnumTy} };
+          S.AddBuiltinCandidate(ParamTypes.begin(), Args, CandidateSet);
         }
       }
     }
@@ -13548,7 +13549,7 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
   if (checkPlaceholderForOverload(*this, Input))
     return ExprError();
 
-  Expr *Args[2] = { Input, nullptr };
+  std::array<Expr *, 2>Args = { { Input, nullptr } };
   unsigned NumArgs = 1;
 
   // For post-increment and post-decrement, add the implicit '0' as
@@ -13561,7 +13562,7 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
     NumArgs = 2;
   }
 
-  ArrayRef<Expr *> ArgsArray(Args, NumArgs);
+  ArrayRef<Expr *> ArgsArray(Args.begin(), NumArgs);
 
   if (Input->isTypeDependent()) {
     if (Fns.empty())
@@ -15262,7 +15263,7 @@ ExprResult Sema::BuildLiteralOperatorCall(LookupResult &R,
 
   // Check the argument types. This should almost always be a no-op, except
   // that array-to-pointer decay is applied to string literals.
-  Expr *ConvArgs[2];
+  std::array<Expr *, 2>ConvArgs;
   for (unsigned ArgIdx = 0, N = Args.size(); ArgIdx != N; ++ArgIdx) {
     ExprResult InputInit = PerformCopyInitialization(
       InitializedEntity::InitializeParameter(Context, FD->getParamDecl(ArgIdx)),
@@ -15277,7 +15278,7 @@ ExprResult Sema::BuildLiteralOperatorCall(LookupResult &R,
   ResultTy = ResultTy.getNonLValueExprType(Context);
 
   UserDefinedLiteral *UDL = UserDefinedLiteral::Create(
-      Context, Fn.get(), llvm::makeArrayRef(ConvArgs, Args.size()), ResultTy,
+      Context, Fn.get(), llvm::makeArrayRef(ConvArgs.begin(), Args.size()), ResultTy,
       VK, LitEndLoc, UDSuffixLoc, CurFPFeatureOverrides());
 
   if (CheckCallReturnType(FD->getReturnType(), UDSuffixLoc, UDL, FD))

@@ -55,6 +55,7 @@
 #include "llvm/Support/TargetParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -3912,12 +3913,12 @@ void ARMOperand::print(raw_ostream &OS) const {
     OS << "<ccout " << RegName(getReg()) << ">";
     break;
   case k_ITCondMask: {
-    static const char *const MaskStr[] = {
+    static const std::array<const char *, 16>MaskStr = { {
       "(invalid)", "(tttt)", "(ttt)", "(ttte)",
       "(tt)",      "(ttet)", "(tte)", "(ttee)",
       "(t)",       "(tett)", "(tet)", "(tete)",
       "(te)",      "(teet)", "(tee)", "(teee)",
-    };
+    } };
     assert((ITMask.Mask & 0xf) == ITMask.Mask);
     OS << "<it-mask " << MaskStr[ITMask.Mask] << ">";
     break;

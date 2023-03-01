@@ -27,6 +27,7 @@
 #include "llvm/TableGen/StringToOffsetTable.h"
 #include "llvm/TableGen/TableGenBackend.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <functional>
 #include <map>
@@ -1014,7 +1015,7 @@ Piece *DiagnosticTextBuilder::DiagText::parseDiagText(StringRef &Text,
                                                       StopAt Stop) {
   std::vector<Piece *> Parsed;
 
-  constexpr llvm::StringLiteral StopSets[] = {"%", "%|}", "%|}$"};
+  constexpr std::array<llvm::StringLiteral, 3> StopSets = { {"%", "%|}", "%|}$"} };
   llvm::StringRef StopSet = StopSets[static_cast<int>(Stop)];
 
   while (!Text.empty()) {

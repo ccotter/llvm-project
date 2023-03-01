@@ -13,6 +13,7 @@
 #include "llvm/Support/SHA256.h"
 #include "gtest/gtest.h"
 
+#include <array>
 #include <list>
 #include <string>
 #include <type_traits>
@@ -216,7 +217,7 @@ TYPED_TEST(HashBuilderTest, HashArrayRefHashableDataTypes) {
 
 TYPED_TEST(HashBuilderTest, HashArrayRef) {
   using HE = TypeParam;
-  int Values[] = {1, 2, 3};
+  std::array Values = {1, 2, 3};
   llvm::ArrayRef<int> Array123(&Values[0], 3);
   llvm::ArrayRef<int> Array12(&Values[0], 2);
   llvm::ArrayRef<int> Array1(&Values[0], 1);

@@ -24,6 +24,7 @@
 #include "llvm/IR/IntrinsicsS390.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/KnownBits.h"
+#include <array>
 #include <cctype>
 #include <optional>
 
@@ -1330,9 +1331,9 @@ LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
 
 const MCPhysReg *SystemZTargetLowering::getScratchRegisters(
   CallingConv::ID) const {
-  static const MCPhysReg ScratchRegs[] = { SystemZ::R0D, SystemZ::R1D,
-                                           SystemZ::R14D, 0 };
-  return ScratchRegs;
+  static const std::array<MCPhysReg, 4> ScratchRegs = { { SystemZ::R0D, SystemZ::R1D,
+                                           SystemZ::R14D, 0 } };
+  return ScratchRegs.begin();
 }
 
 bool SystemZTargetLowering::allowTruncateForTailCall(Type *FromType,
@@ -1614,7 +1615,7 @@ SDValue SystemZTargetLowering::LowerFormalArguments(
     // Store the FPR varargs in the reserved frame slots.  (We store the
     // GPRs as part of the prologue.)
     if (NumFixedFPRs < SystemZ::ELFNumArgFPRs && !useSoftFloat()) {
-      SDValue MemOps[SystemZ::ELFNumArgFPRs];
+      std::array<SDValue, SystemZ::ELFNumArgFPRs> MemOps;
       for (unsigned I = NumFixedFPRs; I < SystemZ::ELFNumArgFPRs; ++I) {
         unsigned Offset = TFL->getRegSpillOffset(MF, SystemZ::ELFArgFPRs[I]);
         int FI =
@@ -3591,12 +3592,12 @@ SDValue SystemZTargetLowering::lowerVASTART_ELF(SDValue Op,
 
   // The initial values of each field.
   const unsigned NumFields = 4;
-  SDValue Fields[NumFields] = {
+  std::array<SDValue, NumFields> Fields = { {
     DAG.getConstant(FuncInfo->getVarArgsFirstGPR(), DL, PtrVT),
     DAG.getConstant(FuncInfo->getVarArgsFirstFPR(), DL, PtrVT),
     DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(), PtrVT),
     DAG.getFrameIndex(FuncInfo->getRegSaveFrameIndex(), PtrVT)
-  };
+  } };
 
   // Store each field into its respective slot.
   SDValue MemOps[NumFields];
@@ -3892,13 +3893,13 @@ SDValue SystemZTargetLowering::lowerOR(SDValue Op, SelectionDAG &DAG) const {
   assert(Op.getValueType() == MVT::i64 && "Should be 64-bit operation");
 
   // Get the known-zero masks for each operand.
-  SDValue Ops[] = {Op.getOperand(0), Op.getOperand(1)};
-  KnownBits Known[2] = {DAG.computeKnownBits(Ops[0]),
-                        DAG.computeKnownBits(Ops[1])};
+  std::array Ops = {Op.getOperand(0), Op.getOperand(1)};
+  std::array<KnownBits, 2> Known = { {DAG.computeKnownBits(Ops[0]),
+                        DAG.computeKnownBits(Ops[1])} };
 
   // See if the upper 32 bits of one operand and the lower 32 bits of the
   // other are known zero.  They are the low and high operands respectively.
-  uint64_t Masks[] = { Known[0].Zero.getZExtValue(),
+  std::array Masks = { Known[0].Zero.getZExtValue(),
                        Known[1].Zero.getZExtValue() };
   unsigned High, Low;
   if ((Masks[0] >> 32) == 0xffffffff && uint32_t(Masks[1]) == 0xffffffff)
@@ -4605,7 +4606,7 @@ static bool chooseShuffleOpNos(int *OpNos, unsigned &OpNo0, unsigned &OpNo1) {
 // match P, then OpNo0 and OpNo1 will be the same.
 static bool matchPermute(const SmallVectorImpl<int> &Bytes, const Permute &P,
                          unsigned &OpNo0, unsigned &OpNo1) {
-  int OpNos[] = { -1, -1 };
+  std::array OpNos = { -1, -1 };
   for (unsigned I = 0; I < SystemZ::VectorBytes; ++I) {
     int Elt = Bytes[I];
     if (Elt >= 0) {
@@ -4623,7 +4624,7 @@ static bool matchPermute(const SmallVectorImpl<int> &Bytes, const Permute &P,
       OpNos[ModelOpNo] = RealOpNo;
     }
   }
-  return chooseShuffleOpNos(OpNos, OpNo0, OpNo1);
+  return chooseShuffleOpNos(OpNos.begin(), OpNo0, OpNo1);
 }
 
 // As above, but search for a matching permute.
@@ -4730,7 +4731,7 @@ static bool getShuffleInput(const SmallVectorImpl<int> &Bytes, unsigned Start,
 static bool isShlDoublePermute(const SmallVectorImpl<int> &Bytes,
                                unsigned &StartIndex, unsigned &OpNo0,
                                unsigned &OpNo1) {
-  int OpNos[] = { -1, -1 };
+  std::array OpNos = { -1, -1 };
   int Shift = -1;
   for (unsigned I = 0; I < 16; ++I) {
     int Index = Bytes[I];
@@ -4750,7 +4751,7 @@ static bool isShlDoublePermute(const SmallVectorImpl<int> &Bytes,
     }
   }
   StartIndex = Shift;
-  return chooseShuffleOpNos(OpNos, OpNo0, OpNo1);
+  return chooseShuffleOpNos(OpNos.begin(), OpNo0, OpNo1);
 }
 
 // Create a node that performs P on operands Op0 and Op1, casting the
@@ -4997,7 +4998,7 @@ SDValue GeneralShuffle::getNode(SelectionDAG &DAG, const SDLoc &DL) {
   unsigned Stride = 1;
   for (; Stride * 2 < Ops.size(); Stride *= 2) {
     for (unsigned I = 0; I < Ops.size() - Stride; I += Stride * 2) {
-      SDValue SubOps[] = { Ops[I], Ops[I + Stride] };
+      std::array<SDValue, 2> SubOps = { { Ops[I], Ops[I + Stride] } };
 
       // Create a mask for just these two operands.
       SmallVector<int, SystemZ::VectorBytes> NewBytes(SystemZ::VectorBytes);
@@ -5026,7 +5027,7 @@ SDValue GeneralShuffle::getNode(SelectionDAG &DAG, const SDLoc &DL) {
         }
       } else {
         // Just use NewBytes on the operands.
-        Ops[I] = getGeneralPermuteNode(DAG, DL, SubOps, NewBytes);
+        Ops[I] = getGeneralPermuteNode(DAG, DL, SubOps.begin(), NewBytes);
         for (unsigned J = 0; J < SystemZ::VectorBytes; ++J)
           if (NewBytes[J] >= 0)
             Bytes[J] = I * SystemZ::VectorBytes + J;
@@ -8598,10 +8599,10 @@ MachineBasicBlock *SystemZTargetLowering::emitTransactionBegin(
   // We cannot handle a TBEGIN that clobbers the stack or frame pointer.
   // Make sure to add the corresponding GRSM bits if they are missing.
   uint64_t Control = MI.getOperand(2).getImm();
-  static const unsigned GPRControlBit[16] = {
+  static const std::array<unsigned, 16> GPRControlBit = { {
     0x8000, 0x8000, 0x4000, 0x4000, 0x2000, 0x2000, 0x1000, 0x1000,
     0x0800, 0x0800, 0x0400, 0x0400, 0x0200, 0x0200, 0x0100, 0x0100
-  };
+  } };
   Control |= GPRControlBit[15];
   if (TFI->hasFP(MF))
     Control |= GPRControlBit[11];

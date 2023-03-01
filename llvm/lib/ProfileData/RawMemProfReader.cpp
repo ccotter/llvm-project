@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
@@ -155,9 +156,9 @@ bool isRuntimePath(const StringRef Path) {
 
 std::string getBuildIdString(const SegmentEntry &Entry) {
   constexpr size_t Size = sizeof(Entry.BuildId) / sizeof(uint8_t);
-  constexpr uint8_t Zeros[Size] = {0};
+  constexpr std::array<uint8_t, Size> Zeros = { {0} };
   // If the build id is unset print a helpful string instead of all zeros.
-  if (memcmp(Entry.BuildId, Zeros, Size) == 0)
+  if (memcmp(Entry.BuildId, Zeros.begin(), Size) == 0)
     return "<None>";
 
   std::string Str;

@@ -12,6 +12,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -151,7 +152,7 @@ static_assert(IsAdaptedIterCategorySame<pointer_iterator_defaulted,
                                         BidiIter>::value, "");
 
 TEST(PointeeIteratorTest, Basic) {
-  int arr[4] = {1, 2, 3, 4};
+  std::array<int, 4> arr = { {1, 2, 3, 4} };
   SmallVector<int *, 4> V;
   V.push_back(&arr[0]);
   V.push_back(&arr[1]);
@@ -235,7 +236,7 @@ TEST(PointeeIteratorTest, SmartPointer) {
 }
 
 TEST(PointeeIteratorTest, Range) {
-  int A[] = {1, 2, 3, 4};
+  std::array A = {1, 2, 3, 4};
   SmallVector<int *, 4> V{&A[0], &A[1], &A[2], &A[3]};
 
   int I = 0;
@@ -248,7 +249,7 @@ TEST(PointeeIteratorTest, PointeeType) {
     int X;
     bool operator==(const S &RHS) const { return X == RHS.X; };
   };
-  S A[] = {S{0}, S{1}};
+  std::array A = {S{0}, S{1}};
   SmallVector<S *, 2> V{&A[0], &A[1]};
 
   pointee_iterator<SmallVectorImpl<S *>::const_iterator, const S> I = V.begin();

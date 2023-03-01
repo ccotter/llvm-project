@@ -27,6 +27,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 
+#include <array>
 #include <deque>
 #include <map>
 
@@ -736,9 +737,9 @@ void XCOFFObjectWriter::writeSymbolName(const StringRef &SymbolName) {
     W.write<int32_t>(0);
     W.write<uint32_t>(Strings.getOffset(SymbolName));
   } else {
-    char Name[XCOFF::NameSize + 1];
-    std::strncpy(Name, SymbolName.data(), XCOFF::NameSize);
-    ArrayRef<char> NameRef(Name, XCOFF::NameSize);
+    std::array<char, XCOFF::NameSize + 1> Name;
+    std::strncpy(Name.begin(), SymbolName.data(), XCOFF::NameSize);
+    ArrayRef<char> NameRef(Name.begin(), XCOFF::NameSize);
     W.write(NameRef);
   }
 }

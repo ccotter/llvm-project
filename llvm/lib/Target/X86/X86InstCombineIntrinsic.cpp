@@ -18,6 +18,7 @@
 #include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
+#include <array>
 #include <optional>
 
 using namespace llvm;
@@ -812,7 +813,7 @@ static Value *simplifyX86pshufb(const IntrinsicInst &II,
          "Unexpected number of elements in shuffle mask!");
 
   // Construct a shuffle mask from constant integers or UNDEFs.
-  int Indexes[64];
+  std::array<int, 64> Indexes;
 
   // Each byte in the shuffle control mask forms an index to permute the
   // corresponding byte in the destination operand.
@@ -841,7 +842,7 @@ static Value *simplifyX86pshufb(const IntrinsicInst &II,
 
   auto V1 = II.getArgOperand(0);
   auto V2 = Constant::getNullValue(VecTy);
-  return Builder.CreateShuffleVector(V1, V2, makeArrayRef(Indexes, NumElts));
+  return Builder.CreateShuffleVector(V1, V2, makeArrayRef(Indexes.begin(), NumElts));
 }
 
 /// Attempt to convert vpermilvar* to shufflevector if the mask is constant.
@@ -858,7 +859,7 @@ static Value *simplifyX86vpermilvar(const IntrinsicInst &II,
   assert(NumElts == 16 || NumElts == 8 || NumElts == 4 || NumElts == 2);
 
   // Construct a shuffle mask from constant integers or UNDEFs.
-  int Indexes[16];
+  std::array<int, 16> Indexes;
 
   // The intrinsics only read one or two bits, clear the rest.
   for (unsigned I = 0; I < NumElts; ++I) {
@@ -888,7 +889,7 @@ static Value *simplifyX86vpermilvar(const IntrinsicInst &II,
   }
 
   auto V1 = II.getArgOperand(0);
-  return Builder.CreateShuffleVector(V1, makeArrayRef(Indexes, NumElts));
+  return Builder.CreateShuffleVector(V1, makeArrayRef(Indexes.begin(), NumElts));
 }
 
 /// Attempt to convert vpermd/vpermps to shufflevector if the mask is constant.
@@ -904,7 +905,7 @@ static Value *simplifyX86vpermv(const IntrinsicInst &II,
          "Unexpected shuffle mask size");
 
   // Construct a shuffle mask from constant integers or UNDEFs.
-  int Indexes[64];
+  std::array<int, 64> Indexes;
 
   for (unsigned I = 0; I < Size; ++I) {
     Constant *COp = V->getAggregateElement(I);
@@ -922,7 +923,7 @@ static Value *simplifyX86vpermv(const IntrinsicInst &II,
   }
 
   auto V1 = II.getArgOperand(0);
-  return Builder.CreateShuffleVector(V1, makeArrayRef(Indexes, Size));
+  return Builder.CreateShuffleVector(V1, makeArrayRef(Indexes.begin(), Size));
 }
 
 std::optional<Instruction *>

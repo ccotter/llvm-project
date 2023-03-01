@@ -8,6 +8,8 @@
 
 #include "ExplainOutputStyle.h"
 
+#include <array>
+
 #include "StreamUtil.h"
 #include "llvm-pdbutil.h"
 
@@ -188,13 +190,13 @@ void ExplainOutputStyle::explainPdbSuperBlockOffset() {
 }
 
 static std::string toBinaryString(uint8_t Byte) {
-  char Result[9] = {0};
+  std::array<char, 9> Result = { {0} };
   for (int I = 0; I < 8; ++I) {
     char C = (Byte & 1) ? '1' : '0';
     Result[I] = C;
     Byte >>= 1;
   }
-  return std::string(Result);
+  return std::string(Result.begin());
 }
 
 void ExplainOutputStyle::explainPdbFpmBlockOffset() {

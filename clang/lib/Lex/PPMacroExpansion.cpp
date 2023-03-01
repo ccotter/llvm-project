@@ -49,6 +49,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -1097,9 +1098,9 @@ static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
     TM = std::localtime(&TT);
   }
 
-  static const char * const Months[] = {
+  static const std::array<const char *, 12> Months = { {
     "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
-  };
+  } };
 
   {
     SmallString<32> TmpBuffer;

@@ -56,6 +56,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/thread.h"
+#include <array>
 #include <mutex>
 
 #if LLVM_ENABLE_THREADS != 0 && defined(__APPLE__)
@@ -527,7 +528,7 @@ bool CursorVisitor::VisitChildren(CXCursor Cursor) {
     CXTranslationUnit TU = getCursorTU(Cursor);
     ASTUnit *CXXUnit = cxtu::getASTUnit(TU);
 
-    int VisitOrder[2] = {VisitPreprocessorLast, !VisitPreprocessorLast};
+    std::array<int, 2> VisitOrder = { {VisitPreprocessorLast, !VisitPreprocessorLast} };
     for (unsigned I = 0; I != 2; ++I) {
       if (VisitOrder[I]) {
         if (!CXXUnit->isMainFileAST() && CXXUnit->getOnlyLocalDecls() &&

@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "R600MachineScheduler.h"
+
+#include <array>
 #include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600Subtarget.h"
 
@@ -378,7 +380,7 @@ void R600SchedStrategy::AssignSlot(MachineInstr* MI, unsigned Slot) {
 }
 
 SUnit *R600SchedStrategy::AttemptFillSlot(unsigned Slot, bool AnyAlu) {
-  static const AluKind IndexToID[] = {AluT_X, AluT_Y, AluT_Z, AluT_W};
+  static const std::array<AluKind, 4> IndexToID = { {AluT_X, AluT_Y, AluT_Z, AluT_W} };
   SUnit *SlotedSU = PopInst(AvailableAlus[IndexToID[Slot]], AnyAlu);
   if (SlotedSU)
     return SlotedSU;

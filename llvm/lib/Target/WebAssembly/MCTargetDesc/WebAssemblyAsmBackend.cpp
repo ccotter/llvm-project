@@ -11,6 +11,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "MCTargetDesc/WebAssemblyFixupKinds.h"
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -65,7 +67,7 @@ public:
 
 const MCFixupKindInfo &
 WebAssemblyAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
-  const static MCFixupKindInfo Infos[WebAssembly::NumTargetFixupKinds] = {
+  const static std::array<MCFixupKindInfo, WebAssembly::NumTargetFixupKinds> Infos = { {
       // This table *must* be in the order that the fixup_* kinds are defined in
       // WebAssemblyFixupKinds.h.
       //
@@ -74,7 +76,7 @@ WebAssemblyAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
       {"fixup_sleb128_i64", 0, 10 * 8, 0},
       {"fixup_uleb128_i32", 0, 5 * 8, 0},
       {"fixup_uleb128_i64", 0, 10 * 8, 0},
-  };
+  } };
 
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);

@@ -8,6 +8,8 @@
 
 #include "IdentifierNamingCheck.h"
 
+#include <array>
+
 #include "../GlobList.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/Lex/PPCallbacks.h"
@@ -308,8 +310,8 @@ std::string IdentifierNamingCheck::HungarianNotation::getDeclTypeName(
   if (!EOL)
     EOL = Begin + strlen(Begin);
 
-  const char *PosList[] = {strchr(Begin, '='), strchr(Begin, ';'),
-                           strchr(Begin, ','), strchr(Begin, ')'), EOL};
+  std::array<const char *, 5>PosList = { {strchr(Begin, '='), strchr(Begin, ';'),
+                           strchr(Begin, ','), strchr(Begin, ')'), EOL} };
   for (const auto &Pos : PosList) {
     if (Pos > Begin)
       EOL = std::min(EOL, Pos);
@@ -320,7 +322,7 @@ std::string IdentifierNamingCheck::HungarianNotation::getDeclTypeName(
   if (StrLen > 0) {
     std::string Type(Begin, StrLen);
 
-    static constexpr StringRef Keywords[] = {
+    static constexpr std::array<StringRef, 12> Keywords = { {
         // Constexpr specifiers
         "constexpr", "constinit", "consteval",
         // Qualifier
@@ -328,7 +330,7 @@ std::string IdentifierNamingCheck::HungarianNotation::getDeclTypeName(
         // Storage class specifiers
         "register", "static", "extern", "thread_local",
         // Other keywords
-        "virtual"};
+        "virtual"} };
 
     // Remove keywords
     for (StringRef Kw : Keywords) {
@@ -358,8 +360,8 @@ std::string IdentifierNamingCheck::HungarianNotation::getDeclTypeName(
     }
 
     // Remove redundant tailing.
-    static constexpr StringRef TailsOfMultiWordType[] = {
-        " int", " char", " double", " long", " short"};
+    static constexpr std::array<StringRef, 5> TailsOfMultiWordType = { {
+        " int", " char", " double", " long", " short"} };
     bool RedundantRemoved = false;
     for (auto Kw : TailsOfMultiWordType) {
       size_t Pos = Type.rfind(Kw.data());
@@ -431,9 +433,9 @@ void IdentifierNamingCheck::HungarianNotation::loadFileConfig(
     const ClangTidyCheck::OptionsView &Options,
     IdentifierNamingCheck::HungarianNotationOption &HNOption) const {
 
-  static constexpr StringRef HNOpts[] = {"TreatStructAsClass"};
-  static constexpr StringRef HNDerivedTypes[] = {"Array", "Pointer",
-                                                 "FunctionPointer"};
+  static constexpr std::array<StringRef, 1> HNOpts = { {"TreatStructAsClass"} };
+  static constexpr std::array<StringRef, 3> HNDerivedTypes = { {"Array", "Pointer",
+                                                 "FunctionPointer"} };
 
   StringRef Section = "HungarianNotation.";
 
@@ -457,11 +459,11 @@ void IdentifierNamingCheck::HungarianNotation::loadFileConfig(
       HNOption.DerivedType[Type] = Val.str();
   }
 
-  static constexpr std::pair<StringRef, StringRef> HNCStrings[] = {
+  static constexpr std::array<std::pair<StringRef, StringRef>, 4> HNCStrings = { {
       {"CharPrinter", "char*"},
       {"CharArray", "char[]"},
       {"WideCharPrinter", "wchar_t*"},
-      {"WideCharArray", "wchar_t[]"}};
+      {"WideCharArray", "wchar_t[]"}} };
 
   Buffer = {Section, "CString."};
   DefSize = Buffer.size();
@@ -693,28 +695,28 @@ void IdentifierNamingCheck::HungarianNotation::loadDefaultConfig(
     IdentifierNamingCheck::HungarianNotationOption &HNOption) const {
 
   // Options
-  static constexpr std::pair<StringRef, StringRef> General[] = {
-      {"TreatStructAsClass", "false"}};
+  static constexpr std::array<std::pair<StringRef, StringRef>, 1> General = { {
+      {"TreatStructAsClass", "false"}} };
   for (const auto &G : General)
     HNOption.General.try_emplace(G.first, G.second);
 
   // Derived types
-  static constexpr std::pair<StringRef, StringRef> DerivedTypes[] = {
-      {"Array", "a"}, {"Pointer", "p"}, {"FunctionPointer", "fn"}};
+  static constexpr std::array<std::pair<StringRef, StringRef>, 3> DerivedTypes = { {
+      {"Array", "a"}, {"Pointer", "p"}, {"FunctionPointer", "fn"}} };
   for (const auto &DT : DerivedTypes)
     HNOption.DerivedType.try_emplace(DT.first, DT.second);
 
   // C strings
-  static constexpr std::pair<StringRef, StringRef> CStrings[] = {
+  static constexpr std::array<std::pair<StringRef, StringRef>, 4> CStrings = { {
       {"char*", "sz"},
       {"char[]", "sz"},
       {"wchar_t*", "wsz"},
-      {"wchar_t[]", "wsz"}};
+      {"wchar_t[]", "wsz"}} };
   for (const auto &CStr : CStrings)
     HNOption.CString.try_emplace(CStr.first, CStr.second);
 
   // clang-format off
-  static constexpr std::pair<StringRef, StringRef> PrimitiveTypes[] = {
+  static constexpr std::array<std::pair<StringRef, StringRef>, 43> PrimitiveTypes = { {
         {"int8_t",                  "i8"  },
         {"int16_t",                 "i16" },
         {"int32_t",                 "i32" },
@@ -757,13 +759,13 @@ void IdentifierNamingCheck::HungarianNotation::loadDefaultConfig(
         {"long long",               "ll"  },
         {"long int",                "li"  },
         {"long",                    "l"   },
-        {"ptrdiff_t",               "p"   }};
+        {"ptrdiff_t",               "p"   }} };
   // clang-format on
   for (const auto &PT : PrimitiveTypes)
     HNOption.PrimitiveType.try_emplace(PT.first, PT.second);
 
   // clang-format off
-  static constexpr std::pair<StringRef, StringRef> UserDefinedTypes[] = {
+  static constexpr std::array<std::pair<StringRef, StringRef>, 28> UserDefinedTypes = { {
       // Windows data types
       {"BOOL",                    "b"   },
       {"BOOLEAN",                 "b"   },
@@ -792,7 +794,7 @@ void IdentifierNamingCheck::HungarianNotation::loadDefaultConfig(
       {"UINT16",                  "u16" },
       {"UINT32",                  "u32" },
       {"UINT64",                  "u64" },
-      {"PVOID",                   "p"   } };
+      {"PVOID",                   "p"   } } };
   // clang-format on
   for (const auto &UDT : UserDefinedTypes)
     HNOption.UserDefinedType.try_emplace(UDT.first, UDT.second);
@@ -836,7 +838,7 @@ bool IdentifierNamingCheck::matchesStyle(
     const IdentifierNamingCheck::NamingStyle &Style,
     const IdentifierNamingCheck::HungarianNotationOption &HNOption,
     const NamedDecl *Decl) const {
-  static llvm::Regex Matchers[] = {
+  static std::array<llvm::Regex, 7> Matchers = { {
       llvm::Regex("^.*$"),
       llvm::Regex("^[a-z][a-z0-9_]*$"),
       llvm::Regex("^[a-z][a-zA-Z0-9]*$"),
@@ -844,7 +846,7 @@ bool IdentifierNamingCheck::matchesStyle(
       llvm::Regex("^[A-Z][a-zA-Z0-9]*$"),
       llvm::Regex("^[A-Z]([a-z0-9]*(_[A-Z])?)*"),
       llvm::Regex("^[a-z]([a-z0-9]*(_[A-Z])?)*"),
-  };
+  } };
 
   if (!Name.consume_front(Style.Prefix))
     return false;

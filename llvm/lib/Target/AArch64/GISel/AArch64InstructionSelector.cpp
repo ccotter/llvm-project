@@ -46,6 +46,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <optional>
 
 #define DEBUG_TYPE "aarch64-isel"
@@ -658,20 +659,20 @@ static Register createTuple(ArrayRef<Register> Regs,
 
 /// Create a tuple of D-registers using the registers in \p Regs.
 static Register createDTuple(ArrayRef<Register> Regs, MachineIRBuilder &MIB) {
-  static const unsigned RegClassIDs[] = {
-      AArch64::DDRegClassID, AArch64::DDDRegClassID, AArch64::DDDDRegClassID};
-  static const unsigned SubRegs[] = {AArch64::dsub0, AArch64::dsub1,
-                                     AArch64::dsub2, AArch64::dsub3};
-  return createTuple(Regs, RegClassIDs, SubRegs, MIB);
+  static const std::array<unsigned, 3> RegClassIDs = { {
+      AArch64::DDRegClassID, AArch64::DDDRegClassID, AArch64::DDDDRegClassID} };
+  static const std::array<unsigned, 4> SubRegs = { {AArch64::dsub0, AArch64::dsub1,
+                                     AArch64::dsub2, AArch64::dsub3} };
+  return createTuple(Regs, RegClassIDs.begin(), SubRegs.begin(), MIB);
 }
 
 /// Create a tuple of Q-registers using the registers in \p Regs.
 static Register createQTuple(ArrayRef<Register> Regs, MachineIRBuilder &MIB) {
-  static const unsigned RegClassIDs[] = {
-      AArch64::QQRegClassID, AArch64::QQQRegClassID, AArch64::QQQQRegClassID};
-  static const unsigned SubRegs[] = {AArch64::qsub0, AArch64::qsub1,
-                                     AArch64::qsub2, AArch64::qsub3};
-  return createTuple(Regs, RegClassIDs, SubRegs, MIB);
+  static const std::array<unsigned, 3> RegClassIDs = { {
+      AArch64::QQRegClassID, AArch64::QQQRegClassID, AArch64::QQQQRegClassID} };
+  static const std::array<unsigned, 4> SubRegs = { {AArch64::qsub0, AArch64::qsub1,
+                                     AArch64::qsub2, AArch64::qsub3} };
+  return createTuple(Regs, RegClassIDs.begin(), SubRegs.begin(), MIB);
 }
 
 static std::optional<uint64_t> getImmedFromMO(const MachineOperand &Root) {
@@ -2844,8 +2845,8 @@ bool AArch64InstructionSelector::select(MachineInstr &I) {
                 : LDAROpcodes;
         I.setDesc(TII.get(Opcodes[Log2_32(MemSizeInBytes)]));
       } else {
-        static constexpr unsigned Opcodes[] = {AArch64::STLRB, AArch64::STLRH,
-                                               AArch64::STLRW, AArch64::STLRX};
+        static constexpr std::array<unsigned, 4> Opcodes = { {AArch64::STLRB, AArch64::STLRH,
+                                               AArch64::STLRW, AArch64::STLRX} };
         Register ValReg = LdSt.getReg(0);
         if (MRI.getType(ValReg).getSizeInBits() == 64 && MemSizeInBits != 64) {
           // Emit a subreg copy of 32 bits.
@@ -4755,7 +4756,7 @@ AArch64InstructionSelector::emitCSINC(Register Dst, Register Src1,
     Size = MRI.getType(Dst).getSizeInBits();
   // Some opcodes use s1.
   assert(Size <= 64 && "Expected 64 bits or less only!");
-  static const unsigned OpcTable[2] = {AArch64::CSINCWr, AArch64::CSINCXr};
+  static const std::array<unsigned, 2> OpcTable = { {AArch64::CSINCWr, AArch64::CSINCXr} };
   unsigned Opc = OpcTable[Size == 64];
   auto CSINC = MIRBuilder.buildInstr(Opc, {Dst}, {Src1, Src2}).addImm(Pred);
   constrainSelectedInstRegOperands(*CSINC, TII, TRI, RBI);

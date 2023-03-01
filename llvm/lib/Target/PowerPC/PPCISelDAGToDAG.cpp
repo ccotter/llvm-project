@@ -57,6 +57,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -5072,7 +5073,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     unsigned MDIndex;
     if (IntrinsicID == Intrinsic::ppc_tdw ||
         IntrinsicID == Intrinsic::ppc_tw) {
-      SDValue Ops[] = {N->getOperand(4), N->getOperand(2), N->getOperand(3)};
+      std::array Ops = {N->getOperand(4), N->getOperand(2), N->getOperand(3)};
       int16_t SImmOperand2;
       int16_t SImmOperand3;
       int16_t SImmOperand4;
@@ -5756,7 +5757,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
 
       SDValue Op1 = N->getOperand(SVN->getMaskElt(0) < 2 ? 0 : 1),
               Op2 = N->getOperand(SVN->getMaskElt(1) < 2 ? 0 : 1);
-      unsigned DM[2];
+      std::array<unsigned, 2> DM;
 
       for (int i = 0; i < 2; ++i)
         if (SVN->getMaskElt(i) <= 0 || SVN->getMaskElt(i) == 2)
@@ -6173,7 +6174,7 @@ SDValue PPCDAGToDAGISel::combineToCMPB(SDNode *N) {
   EVT VT = N->getValueType(0);
 
   SDValue RHS, LHS;
-  bool BytesFound[8] = {false, false, false, false, false, false, false, false};
+  std::array<bool, 8> BytesFound = { {false, false, false, false, false, false, false, false} };
   uint64_t Mask = 0, Alt = 0;
 
   auto IsByteSelectCC = [this](SDValue O, unsigned &b,

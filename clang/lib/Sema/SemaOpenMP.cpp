@@ -39,6 +39,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Frontend/OpenMP/OMPAssume.h"
 #include "llvm/Frontend/OpenMP/OMPConstants.h"
+#include <array>
 #include <set>
 
 using namespace clang;
@@ -6115,12 +6116,12 @@ StmtResult Sema::ActOnOpenMPExecutableDirective(
         DSAChecker.getImplicitPrivate().end());
     const unsigned DefaultmapKindNum = OMPC_DEFAULTMAP_pointer + 1;
     SmallVector<Expr *, 4> ImplicitMaps[DefaultmapKindNum][OMPC_MAP_delete];
-    SmallVector<OpenMPMapModifierKind, NumberOfOMPMapClauseModifiers>
-        ImplicitMapModifiers[DefaultmapKindNum];
-    SmallVector<SourceLocation, NumberOfOMPMapClauseModifiers>
-        ImplicitMapModifiersLoc[DefaultmapKindNum];
+    std::array<SmallVector<OpenMPMapModifierKind, NumberOfOMPMapClauseModifiers>, DefaultmapKindNum>
+        ImplicitMapModifiers;
+    std::array<SmallVector<SourceLocation, NumberOfOMPMapClauseModifiers>, DefaultmapKindNum>
+        ImplicitMapModifiersLoc;
     // Get the original location of present modifier from Defaultmap clause.
-    SourceLocation PresentModifierLocs[DefaultmapKindNum];
+    std::array<SourceLocation, DefaultmapKindNum> PresentModifierLocs;
     for (OMPClause *C : Clauses) {
       if (auto *DMC = dyn_cast<OMPDefaultmapClause>(C))
         if (DMC->getDefaultmapModifier() == OMPC_DEFAULTMAP_MODIFIER_present)

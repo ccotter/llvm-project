@@ -63,6 +63,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <cctype>
 #include <numeric>
@@ -3049,8 +3050,8 @@ bool X86TargetLowering::CanLowerReturn(
 }
 
 const MCPhysReg *X86TargetLowering::getScratchRegisters(CallingConv::ID) const {
-  static const MCPhysReg ScratchRegs[] = { X86::R11, 0 };
-  return ScratchRegs;
+  static const std::array<MCPhysReg, 2> ScratchRegs = { { X86::R11, 0 } };
+  return ScratchRegs.begin();
 }
 
 /// Lowers masks values (v*i1) to the local register values
@@ -8105,13 +8106,13 @@ static bool getTargetShuffleAndZeroables(SDValue N, SmallVectorImpl<int> &Mask,
   unsigned EltSizeInBits = VT.getSizeInBits() / Size;
 
   // Extract known constant input data.
-  APInt UndefSrcElts[2];
-  SmallVector<APInt, 32> SrcEltBits[2];
-  bool IsSrcConstant[2] = {
+  std::array<APInt, 2> UndefSrcElts;
+  std::array<SmallVector<APInt, 32>, 2> SrcEltBits;
+  std::array<bool, 2> IsSrcConstant = { {
       getTargetConstantBitsFromNode(V1, EltSizeInBits, UndefSrcElts[0],
                                     SrcEltBits[0], true, false),
       getTargetConstantBitsFromNode(V2, EltSizeInBits, UndefSrcElts[1],
-                                    SrcEltBits[1], true, false)};
+                                    SrcEltBits[1], true, false)} };
 
   for (int i = 0; i < Size; ++i) {
     int M = Mask[i];
@@ -10290,7 +10291,7 @@ static bool isAddSubOrSubAdd(const BuildVectorSDNode *BV,
   // adding/subtracting two integer/float elements.
   // Even-numbered elements in the input build vector are obtained from
   // subtracting/adding two integer/float elements.
-  unsigned Opc[2] = {0, 0};
+  std::array<unsigned, 2> Opc = { {0, 0} };
   for (unsigned i = 0, e = NumElts; i != e; ++i) {
     SDValue Op = BV->getOperand(i);
 
@@ -15882,8 +15883,8 @@ static SDValue lowerV8I16GeneralSingleInputShuffle(
         // We have two non-adjacent or clobbered inputs we need to extract from
         // the source half. To do this, we need to map them into some adjacent
         // dword slot in the source mask.
-        int InputsFixed[2] = {IncomingInputs[0] - SourceOffset,
-                              IncomingInputs[1] - SourceOffset};
+        std::array<int, 2> InputsFixed = { {IncomingInputs[0] - SourceOffset,
+                              IncomingInputs[1] - SourceOffset} };
 
         // If there is a free slot in the source half mask adjacent to one of
         // the inputs, place the other input in it. We use (Index XOR 1) to
@@ -16851,7 +16852,7 @@ static SDValue lowerShuffleAsSplitOrBlend(const SDLoc &DL, MVT VT, SDValue V1,
   // unusually few instructions.
   int LaneCount = VT.getSizeInBits() / 128;
   int LaneSize = Size / LaneCount;
-  SmallBitVector LaneInputs[2];
+  std::array<SmallBitVector, 2> LaneInputs;
   LaneInputs[0].resize(LaneCount, false);
   LaneInputs[1].resize(LaneCount, false);
   for (int i = 0; i < Size; ++i)
@@ -17033,13 +17034,13 @@ static SDValue lowerShuffleAsLanePermuteAndShuffle(
   // that crosses to another lane.
   bool AllLanes;
   if (!Subtarget.hasAVX2()) {
-    bool LaneCrossing[2] = {false, false};
+    std::array<bool, 2> LaneCrossing = { {false, false} };
     for (int i = 0; i < Size; ++i)
       if (Mask[i] >= 0 && ((Mask[i] % Size) / LaneSize) != (i / LaneSize))
         LaneCrossing[(Mask[i] % Size) / LaneSize] = true;
     AllLanes = LaneCrossing[0] && LaneCrossing[1];
   } else {
-    bool LaneUsed[2] = {false, false};
+    std::array<bool, 2> LaneUsed = { {false, false} };
     for (int i = 0; i < Size; ++i)
       if (Mask[i] >= 0)
         LaneUsed[(Mask[i] % Size) / LaneSize] = true;
@@ -17213,7 +17214,7 @@ static SDValue lowerShuffleAsLanePermuteAndRepeatedMask(
   // First pass will try to fill in the RepeatMask from lanes that need two
   // sources.
   for (int Lane = 0; Lane != NumLanes; ++Lane) {
-    int Srcs[2] = {-1, -1};
+    std::array<int, 2> Srcs = { {-1, -1} };
     SmallVector<int, 16> InLaneMask(NumLaneElts, -1);
     for (int i = 0; i != NumLaneElts; ++i) {
       int M = Mask[(Lane * NumLaneElts) + i];
@@ -17786,7 +17787,7 @@ static bool matchShuffleWithSHUFPD(MVT VT, SDValue &V1, SDValue &V2,
   assert(isUndefOrZeroOrInRange(Mask, 0, 2 * NumElts) &&
          "Illegal shuffle mask");
 
-  bool ZeroLane[2] = { true, true };
+  std::array<bool, 2> ZeroLane = { { true, true } };
   for (int i = 0; i < NumElts; ++i)
     ZeroLane[i & 1] &= Zeroable[i];
 
@@ -18822,7 +18823,7 @@ static SDValue lowerV4X128Shuffle(const SDLoc &DL, MVT VT, ArrayRef<int> Mask,
   }
 
   // Try to lower to vshuf64x2/vshuf32x4.
-  SDValue Ops[2] = {DAG.getUNDEF(VT), DAG.getUNDEF(VT)};
+  std::array<SDValue, 2> Ops = { {DAG.getUNDEF(VT), DAG.getUNDEF(VT)} };
   unsigned PermMask = 0;
   // Insure elements came from the same Op.
   for (int i = 0; i < 4; ++i) {
@@ -28007,9 +28008,9 @@ static SDValue expandIntrinsicWChainHelper(SDNode *N, const SDLoc &DL,
   }
 
   SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Glue);
-  SDValue N1Ops[] = {Chain, Glue};
+  std::array N1Ops = {Chain, Glue};
   SDNode *N1 = DAG.getMachineNode(
-      TargetOpcode, DL, Tys, ArrayRef<SDValue>(N1Ops, Glue.getNode() ? 2 : 1));
+      TargetOpcode, DL, Tys, ArrayRef<SDValue>(N1Ops.begin(), Glue.getNode() ? 2 : 1));
   Chain = SDValue(N1, 0);
 
   // Reads the content of XCR and returns it in registers EDX:EAX.
@@ -29174,10 +29175,10 @@ static SDValue LowerVectorCTLZInRegLUT(SDValue Op, const SDLoc &DL,
   MVT CurrVT = MVT::getVectorVT(MVT::i8, NumBytes);
 
   // Per-nibble leading zero PSHUFB lookup table.
-  const int LUT[16] = {/* 0 */ 4, /* 1 */ 3, /* 2 */ 2, /* 3 */ 2,
+  const std::array<int, 16> LUT = { {/* 0 */ 4, /* 1 */ 3, /* 2 */ 2, /* 3 */ 2,
                        /* 4 */ 1, /* 5 */ 1, /* 6 */ 1, /* 7 */ 1,
                        /* 8 */ 0, /* 9 */ 0, /* a */ 0, /* b */ 0,
-                       /* c */ 0, /* d */ 0, /* e */ 0, /* f */ 0};
+                       /* c */ 0, /* d */ 0, /* e */ 0, /* f */ 0} };
 
   SmallVector<SDValue, 64> LUTVec;
   for (int i = 0; i < NumBytes; ++i)
@@ -29740,7 +29741,7 @@ static SDValue LowerMULH(SDValue Op, const X86Subtarget &Subtarget,
     //
     // Place the odd value at an even position (basically, shift all values 1
     // step to the left):
-    const int Mask[] = {1, -1,  3, -1,  5, -1,  7, -1,
+    const std::array Mask = {1, -1,  3, -1,  5, -1,  7, -1,
                         9, -1, 11, -1, 13, -1, 15, -1};
     // <a|b|c|d> => <b|undef|d|undef>
     SDValue Odd0 = DAG.getVectorShuffle(VT, dl, A, A,
@@ -31998,10 +31999,10 @@ static SDValue LowerVectorCTPOPInRegLUT(SDValue Op, const SDLoc &DL,
   // masked out higher ones) for each byte. PSHUFB is used separately with both
   // to index the in-register table. Next, both are added and the result is a
   // i8 vector where each element contains the pop count for input byte.
-  const int LUT[16] = {/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+  const std::array<int, 16> LUT = { {/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
                        /* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
                        /* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
-                       /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4};
+                       /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4} };
 
   SmallVector<SDValue, 64> LUTVec;
   for (int i = 0; i < NumElts; ++i)
@@ -32163,16 +32164,16 @@ static SDValue LowerBITREVERSE(SDValue Op, const X86Subtarget &Subtarget,
   SDValue Lo = DAG.getNode(ISD::AND, DL, VT, In, NibbleMask);
   SDValue Hi = DAG.getNode(ISD::SRL, DL, VT, In, DAG.getConstant(4, DL, VT));
 
-  const int LoLUT[16] = {
+  const std::array<int, 16> LoLUT = { {
       /* 0 */ 0x00, /* 1 */ 0x80, /* 2 */ 0x40, /* 3 */ 0xC0,
       /* 4 */ 0x20, /* 5 */ 0xA0, /* 6 */ 0x60, /* 7 */ 0xE0,
       /* 8 */ 0x10, /* 9 */ 0x90, /* a */ 0x50, /* b */ 0xD0,
-      /* c */ 0x30, /* d */ 0xB0, /* e */ 0x70, /* f */ 0xF0};
-  const int HiLUT[16] = {
+      /* c */ 0x30, /* d */ 0xB0, /* e */ 0x70, /* f */ 0xF0} };
+  const std::array<int, 16> HiLUT = { {
       /* 0 */ 0x00, /* 1 */ 0x08, /* 2 */ 0x04, /* 3 */ 0x0C,
       /* 4 */ 0x02, /* 5 */ 0x0A, /* 6 */ 0x06, /* 7 */ 0x0E,
       /* 8 */ 0x01, /* 9 */ 0x09, /* a */ 0x05, /* b */ 0x0D,
-      /* c */ 0x03, /* d */ 0x0B, /* e */ 0x07, /* f */ 0x0F};
+      /* c */ 0x03, /* d */ 0x0B, /* e */ 0x07, /* f */ 0x0F} };
 
   SmallVector<SDValue, 16> LoMaskElts, HiMaskElts;
   for (unsigned i = 0; i < NumElts; ++i) {
@@ -38691,7 +38692,7 @@ static SDValue combineX86ShuffleChain(ArrayRef<SDValue> Inputs, SDValue Root,
                             SelectionDAG &DAG) {
       unsigned PermMask = 0;
       // Insure elements came from the same Op.
-      SDValue Ops[2] = {DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT)};
+      std::array<SDValue, 2> Ops = { {DAG.getUNDEF(ShuffleVT), DAG.getUNDEF(ShuffleVT)} };
       for (int i = 0; i < 4; ++i) {
         assert(ScaledMask[i] >= -1 && "Illegal shuffle sentinel value");
         if (ScaledMask[i] < 0)
@@ -41225,7 +41226,7 @@ static SDValue combineTargetShuffle(SDValue N, SelectionDAG &DAG,
         SmallVector<int, 4> DMask = getPSHUFShuffleMask(D);
         int NOffset = N.getOpcode() == X86ISD::PSHUFLW ? 0 : 4;
         int VOffset = V.getOpcode() == X86ISD::PSHUFLW ? 0 : 4;
-        int WordMask[8];
+        std::array<int, 8> WordMask;
         for (int i = 0; i < 4; ++i) {
           WordMask[i + NOffset] = Mask[i] + NOffset;
           WordMask[i + VOffset] = VMask[i] + VOffset;
@@ -41262,7 +41263,7 @@ static SDValue combineTargetShuffle(SDValue N, SelectionDAG &DAG,
 /// For example <0, 5, 2, 7> or <8, 1, 10, 3, 12, 5, 14, 7> are both correct.
 static bool isAddSubOrSubAddMask(ArrayRef<int> Mask, bool &Op0Even) {
 
-  int ParitySrc[2] = {-1, -1};
+  std::array<int, 2> ParitySrc = { {-1, -1} };
   unsigned Size = Mask.size();
   for (unsigned i = 0; i != Size; ++i) {
     int M = Mask[i];
@@ -46844,8 +46845,8 @@ static bool canReduceVMulWidth(SDNode *N, SelectionDAG &DAG, ShrinkMode &Mode) {
     return false;
 
   assert(N->getNumOperands() == 2 && "NumOperands of Mul are 2");
-  unsigned SignBits[2] = {1, 1};
-  bool IsPositive[2] = {false, false};
+  std::array<unsigned, 2> SignBits = { {1, 1} };
+  std::array<bool, 2> IsPositive = { {false, false} };
   for (unsigned i = 0; i < 2; i++) {
     SDValue Opd = N->getOperand(i);
 
@@ -47695,7 +47696,7 @@ static SDValue combineHorizOpWithShuffle(SDNode *N, SelectionDAG &DAG,
         ShuffleVectorSDNode::commuteMask(ScaledMask1);
       }
       if ((Op00 == Op10) && (Op01 == Op11)) {
-        const int Map[4] = {0, 2, 1, 3};
+        const std::array<int, 4> Map = { {0, 2, 1, 3} };
         SmallVector<int, 4> ShuffleMask(
             {Map[ScaledMask0[0]], Map[ScaledMask1[0]], Map[ScaledMask0[1]],
              Map[ScaledMask1[1]]});
@@ -49765,7 +49766,7 @@ static SDValue detectAVGPattern(SDValue In, EVT VT, SelectionDAG &DAG,
     return SDValue();
 
   // Detect a pattern of a + b + 1 where the order doesn't matter.
-  SDValue Operands[3];
+  std::array<SDValue, 3> Operands;
   Operands[0] = LHS.getOperand(0);
   Operands[1] = LHS.getOperand(1);
 

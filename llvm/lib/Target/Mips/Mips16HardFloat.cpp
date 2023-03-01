@@ -18,6 +18,7 @@
 #include "llvm/Support/ModRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <string>
 
 using namespace llvm;
@@ -395,10 +396,10 @@ static bool fixupFPReturnAndCall(Function &F, Module *M,
         Type *T = RVal->getType();
         FPReturnVariant RV = whichFPReturnVariant(T);
         if (RV == NoFPRet) continue;
-        static const char *const Helper[NoFPRet] = {
+        static const std::array<const char *, NoFPRet>Helper = { {
           "__mips16_ret_sf", "__mips16_ret_df", "__mips16_ret_sc",
           "__mips16_ret_dc"
-        };
+        } };
         const char *Name = Helper[RV];
         AttributeList A;
         Value *Params[] = {RVal};

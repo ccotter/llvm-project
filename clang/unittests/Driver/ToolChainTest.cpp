@@ -24,6 +24,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <memory>
 
 #include "SimpleDiagnosticConsumer.h"
@@ -41,7 +42,7 @@ TEST(ToolChainTest, VFSGCCInstallation) {
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFileSystem(
       new llvm::vfs::InMemoryFileSystem);
 
-  const char *EmptyFiles[] = {
+  std::array<const char *, 30>EmptyFiles = { {
       "foo.cpp",
       "/bin/clang",
       "/usr/lib/gcc/arm-linux-gnueabi/4.6.1/crtbegin.o",
@@ -73,7 +74,7 @@ TEST(ToolChainTest, VFSGCCInstallation) {
       "/sysroot/usr/include/arm-linux-gnueabihf/.keep",
       "/sysroot/lib/arm-linux-gnueabi/.keep",
       "/sysroot/lib/arm-linux-gnueabihf/.keep",
-  };
+  } };
 
   for (const char *Path : EmptyFiles)
     InMemoryFileSystem->addFile(Path, 0,
@@ -140,9 +141,9 @@ TEST(ToolChainTest, VFSGCCInstallationRelativeDir) {
   Driver TheDriver("/home/test/bin/clang", "arm-linux-gnueabi", Diags,
                    "clang LLVM compiler", InMemoryFileSystem);
 
-  const char *EmptyFiles[] = {
+  std::array<const char *, 3>EmptyFiles = { {
       "foo.cpp", "/home/test/lib/gcc/arm-linux-gnueabi/4.6.1/crtbegin.o",
-      "/home/test/include/arm-linux-gnueabi/.keep"};
+      "/home/test/include/arm-linux-gnueabi/.keep"} };
 
   for (const char *Path : EmptyFiles)
     InMemoryFileSystem->addFile(Path, 0,

@@ -35,6 +35,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils/SizeOpts.h"
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <queue>
 #include <stack>
@@ -593,10 +594,10 @@ void SelectOptimize::findProfitableSIGroupsInnerLoops(
   //     (assuming infinite resources and thus fully leveraging available ILP).
 
   DenseMap<const Instruction *, CostInfo> InstCostMap;
-  CostInfo LoopCost[2] = {{Scaled64::getZero(), Scaled64::getZero()},
-                          {Scaled64::getZero(), Scaled64::getZero()}};
-  if (!computeLoopCosts(L, SIGroups, InstCostMap, LoopCost) ||
-      !checkLoopHeuristics(L, LoopCost)) {
+  std::array<CostInfo, 2> LoopCost = { {{Scaled64::getZero(), Scaled64::getZero()},
+                          {Scaled64::getZero(), Scaled64::getZero()}} };
+  if (!computeLoopCosts(L, SIGroups, InstCostMap, LoopCost.begin()) ||
+      !checkLoopHeuristics(L, LoopCost.begin())) {
     return;
   }
 
@@ -830,8 +831,8 @@ bool SelectOptimize::checkLoopHeuristics(const Loop *L,
     return false;
   }
 
-  Scaled64 Gain[2] = {LoopCost[0].PredCost - LoopCost[0].NonPredCost,
-                      LoopCost[1].PredCost - LoopCost[1].NonPredCost};
+  std::array<Scaled64, 2> Gain = { {LoopCost[0].PredCost - LoopCost[0].NonPredCost,
+                      LoopCost[1].PredCost - LoopCost[1].NonPredCost} };
 
   // Profitably converting to branches need to reduce the loop's critical path
   // by at least some threshold (absolute gain of GainCycleThreshold cycles and

@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "gmock/gmock.h"
@@ -48,12 +50,12 @@ TEST(AccessorRange, SliceTest) {
 }
 
 TEST(AccessorRange, EqualTest) {
-  int32_t rawData1[] = {0, 1, 2, 3, 4};
-  uint64_t rawData2[] = {0, 1, 2, 3, 4};
+  std::array<int32_t, 5> rawData1 = { {0, 1, 2, 3, 4} };
+  std::array<uint64_t, 5> rawData2 = { {0, 1, 2, 3, 4} };
 
-  ArrayIndexedAccessorRange<int32_t> range1(rawData1, /*start=*/0,
+  ArrayIndexedAccessorRange<int32_t> range1(rawData1.begin(), /*start=*/0,
                                             /*numElements=*/5);
-  ArrayIndexedAccessorRange<uint64_t> range2(rawData2, /*start=*/0,
+  ArrayIndexedAccessorRange<uint64_t> range2(rawData2.begin(), /*start=*/0,
                                              /*numElements=*/5);
   EXPECT_TRUE(range1 == range2);
   EXPECT_FALSE(range1 != range2);

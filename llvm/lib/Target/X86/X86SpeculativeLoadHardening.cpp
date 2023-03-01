@@ -54,6 +54,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <iterator>
 #include <optional>
@@ -1880,13 +1881,13 @@ bool X86SpeculativeLoadHardeningPass::canHardenRegister(Register Reg) {
   // end up both with a NOREX and REX-only register as operands to the hardening
   // instructions. It would be better to fix that code to handle this situation
   // rather than hack around it in this way.
-  const TargetRegisterClass *NOREXRegClasses[] = {
+  std::array NOREXRegClasses = {
       &X86::GR8_NOREXRegClass, &X86::GR16_NOREXRegClass,
       &X86::GR32_NOREXRegClass, &X86::GR64_NOREXRegClass};
   if (RC == NOREXRegClasses[RegIdx])
     return false;
 
-  const TargetRegisterClass *GPRRegClasses[] = {
+  std::array GPRRegClasses = {
       &X86::GR8RegClass, &X86::GR16RegClass, &X86::GR32RegClass,
       &X86::GR64RegClass};
   return RC->hasSuperClassEq(GPRRegClasses[RegIdx]);
@@ -1920,7 +1921,7 @@ unsigned X86SpeculativeLoadHardeningPass::hardenValueInRegister(
 
   // FIXME: Need to teach this about 32-bit mode.
   if (Bytes != 8) {
-    unsigned SubRegImms[] = {X86::sub_8bit, X86::sub_16bit, X86::sub_32bit};
+    std::array<unsigned, 3> SubRegImms = { {X86::sub_8bit, X86::sub_16bit, X86::sub_32bit} };
     unsigned SubRegImm = SubRegImms[Log2_32(Bytes)];
     Register NarrowStateReg = MRI->createVirtualRegister(RC);
     BuildMI(MBB, InsertPt, Loc, TII->get(TargetOpcode::COPY), NarrowStateReg)
@@ -1933,7 +1934,7 @@ unsigned X86SpeculativeLoadHardeningPass::hardenValueInRegister(
     FlagsReg = saveEFLAGS(MBB, InsertPt, Loc);
 
   Register NewReg = MRI->createVirtualRegister(RC);
-  unsigned OrOpCodes[] = {X86::OR8rr, X86::OR16rr, X86::OR32rr, X86::OR64rr};
+  std::array<unsigned, 4> OrOpCodes = { {X86::OR8rr, X86::OR16rr, X86::OR32rr, X86::OR64rr} };
   unsigned OrOpCode = OrOpCodes[Log2_32(Bytes)];
   auto OrI = BuildMI(MBB, InsertPt, Loc, TII->get(OrOpCode), NewReg)
                  .addReg(StateReg)

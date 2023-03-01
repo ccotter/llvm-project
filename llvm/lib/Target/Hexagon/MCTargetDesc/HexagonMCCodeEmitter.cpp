@@ -28,6 +28,7 @@
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -637,10 +638,10 @@ unsigned HexagonMCCodeEmitter::getExprOpValue(const MCInst &MI,
       } else {
         // Look for GP-relative fixups.
         unsigned Shift = HexagonMCInstrInfo::getExtentAlignment(MCII, MI);
-        static const Hexagon::Fixups GPRelFixups[] = {
+        static const std::array<Hexagon::Fixups, 4> GPRelFixups = { {
           Hexagon::fixup_Hexagon_GPREL16_0, Hexagon::fixup_Hexagon_GPREL16_1,
           Hexagon::fixup_Hexagon_GPREL16_2, Hexagon::fixup_Hexagon_GPREL16_3
-        };
+        } };
         assert(Shift < std::size(GPRelFixups));
         auto UsesGP = [] (const MCInstrDesc &D) {
           for (const MCPhysReg *U = D.getImplicitUses(); U && *U; ++U)

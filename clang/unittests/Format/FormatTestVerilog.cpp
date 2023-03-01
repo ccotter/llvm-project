@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "FormatTestUtils.h"
 #include "clang/Format/Format.h"
 #include "llvm/Support/Debug.h"
@@ -470,7 +472,7 @@ TEST_F(FormatTestVerilog, Preprocessor) {
   // Macro invocations.
   verifyFormat("`x = (`x1 + `x2 + x);");
   // Lines starting with a preprocessor directive should not be indented.
-  std::string Directives[] = {
+  std::array<std::string, 20> Directives = { {
       "begin_keywords",
       "celldefine",
       "default_nettype",
@@ -491,7 +493,7 @@ TEST_F(FormatTestVerilog, Preprocessor) {
       "unconnected_drive",
       "undef",
       "undefineall",
-  };
+  } };
   for (auto &Name : Directives) {
     EXPECT_EQ("if (x)\n"
               "`" +
@@ -521,11 +523,11 @@ TEST_F(FormatTestVerilog, Preprocessor) {
                    "`timescale 1ns / 1ps\n"
                    "`x = `x;",
                    Style));
-  std::string NonDirectives[] = {
+  std::array<std::string, 5> NonDirectives = { {
       // For `__FILE__` and `__LINE__`, although the standard classifies them as
       // preprocessor directives, they are used like regular macros.
       "__FILE__", "__LINE__", "elif", "foo", "x",
-  };
+  } };
   for (auto &Name : NonDirectives) {
     EXPECT_EQ("if (x)\n"
               "  `" +

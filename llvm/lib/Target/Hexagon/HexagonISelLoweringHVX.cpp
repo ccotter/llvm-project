@@ -22,6 +22,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 #include <utility>
 
@@ -120,8 +121,8 @@ HexagonTargetLowering::initializeHVXLowering() {
   if (Subtarget.useHVX128BOps() && Subtarget.useHVXV68Ops() &&
       Subtarget.useHVXFloatingPoint()) {
 
-    static const MVT FloatV[] = { MVT::v64f16, MVT::v32f32 };
-    static const MVT FloatW[] = { MVT::v128f16, MVT::v64f32 };
+    static const std::array<MVT, 2> FloatV = { { MVT::v64f16, MVT::v32f32 } };
+    static const std::array<MVT, 2> FloatW = { { MVT::v128f16, MVT::v64f32 } };
 
     for (MVT T : FloatV) {
       setOperationAction(ISD::FADD,              T, Legal);
@@ -924,7 +925,7 @@ HexagonTargetLowering::buildHvxVectorReg(ArrayRef<SDValue> Values,
   // many times. Creates a histogram of the vector's elements to find the
   // most common element n.
   assert(4*Words.size() == Subtarget.getVectorLength());
-  int VecHist[32];
+  std::array<int, 32> VecHist;
   int n = 0;
   for (unsigned i = 0; i != NumWords; ++i) {
     VecHist[i] = 0;
@@ -1034,7 +1035,7 @@ HexagonTargetLowering::createHvxPrefixPred(SDValue PredV, const SDLoc &dl,
   assert(PredTy == MVT::v2i1 || PredTy == MVT::v4i1 || PredTy == MVT::v8i1);
 
   unsigned Bytes = 8 / PredTy.getVectorNumElements();
-  SmallVector<SDValue,4> Words[2];
+  std::array<SmallVector<SDValue,4>, 2> Words;
   unsigned IdxW = 0;
 
   SDValue W0 = isUndef(PredV)

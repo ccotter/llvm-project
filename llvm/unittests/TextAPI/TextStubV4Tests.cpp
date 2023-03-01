@@ -11,6 +11,7 @@
 #include "llvm/TextAPI/TextAPIReader.h"
 #include "llvm/TextAPI/TextAPIWriter.h"
 #include "gtest/gtest.h"
+#include <array>
 #include <string>
 #include <vector>
 
@@ -21,8 +22,8 @@ using namespace llvm::MachO;
 namespace TBDv4 {
 
 TEST(TBDv4, ReadFile) {
-  static const char TBDv4File[] =
-      "--- !tapi-tbd\n"
+  static const std::array<char, 1390> TBDv4File =
+      { "--- !tapi-tbd\n"
       "tbd-version: 4\n"
       "targets:  [ i386-macos, x86_64-macos, x86_64-ios ]\n"
       "uuids:\n"
@@ -74,10 +75,10 @@ TEST(TBDv4, ReadFile) {
       "    objc-ivars: []\n"
       "    weak-symbols: []\n"
       "    thread-local-symbols: []\n"
-      "...\n";
+      "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "Test.tbd"));
   EXPECT_TRUE(!!Result);
   TBDFile File = std::move(Result.get());
   EXPECT_EQ(FileType::TBD_V4, File->getFileType());
@@ -155,8 +156,8 @@ TEST(TBDv4, ReadFile) {
 }
 
 TEST(TBDv4, ReadMultipleDocuments) {
-  static const char TBDv4Inlines[] =
-      "--- !tapi-tbd\n"
+  static const std::array<char, 1632> TBDv4Inlines =
+      { "--- !tapi-tbd\n"
       "tbd-version: 4\n"
       "targets: [ i386-macos, i386-maccatalyst, x86_64-macos, "
       "x86_64-maccatalyst ]\n"
@@ -215,7 +216,7 @@ TEST(TBDv4, ReadMultipleDocuments) {
       "    objc-ivars: []\n"
       "    weak-symbols: []\n"
       "    thread-local-symbols: []\n"
-      "...\n";
+      "...\n" };
 
   PlatformSet Platforms;
   Platforms.insert(PLATFORM_MACOS);
@@ -233,7 +234,7 @@ TEST(TBDv4, ReadMultipleDocuments) {
   };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4Inlines, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4Inlines.begin(), "Test.tbd"));
   EXPECT_TRUE(!!Result);
   TBDFile File = std::move(Result.get());
   EXPECT_EQ(FileType::TBD_V4, File->getFileType());
@@ -769,15 +770,15 @@ TEST(TBDv4, Target_i386_driverkit) {
 }
 
 TEST(TBDv4, Swift_1) {
-  static const char TBDv4SwiftVersion1[] = "--- !tapi-tbd\n"
+  static const std::array<char, 107> TBDv4SwiftVersion1 = { "--- !tapi-tbd\n"
                                            "tbd-version: 4\n"
                                            "targets: [  x86_64-macos ]\n"
                                            "install-name: Test.dylib\n"
                                            "swift-abi-version: 1\n"
-                                           "...\n";
+                                           "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4SwiftVersion1, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4SwiftVersion1.begin(), "Test.tbd"));
   EXPECT_TRUE(!!Result);
   TBDFile File = std::move(Result.get());
   EXPECT_EQ(FileType::TBD_V4, File->getFileType());
@@ -787,15 +788,15 @@ TEST(TBDv4, Swift_1) {
 }
 
 TEST(TBDv4, Swift_2) {
-  static const char TBDv4Swift2[] = "--- !tapi-tbd\n"
+  static const std::array<char, 107> TBDv4Swift2 = { "--- !tapi-tbd\n"
                                     "tbd-version: 4\n"
                                     "targets: [  x86_64-macos ]\n"
                                     "install-name: Test.dylib\n"
                                     "swift-abi-version: 2\n"
-                                    "...\n";
+                                    "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4Swift2, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4Swift2.begin(), "Test.tbd"));
   EXPECT_TRUE(!!Result);
   TBDFile File = std::move(Result.get());
   EXPECT_EQ(FileType::TBD_V4, File->getFileType());
@@ -851,14 +852,14 @@ TEST(TBDv4, Swift_99) {
 }
 
 TEST(TBDv4, InvalidArchitecture) {
-  static const char TBDv4UnknownArch[] = "--- !tapi-tbd\n"
+  static const std::array<char, 82> TBDv4UnknownArch = { "--- !tapi-tbd\n"
                                          "tbd-version: 4\n"
                                          "targets: [ foo-macos ]\n"
                                          "install-name: Test.dylib\n"
-                                         "...\n";
+                                         "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4UnknownArch, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4UnknownArch.begin(), "Test.tbd"));
   EXPECT_FALSE(!!Result);
   std::string ErrorMessage = toString(Result.takeError());
   EXPECT_EQ("malformed file\nTest.tbd:3:12: error: unknown "
@@ -868,14 +869,14 @@ TEST(TBDv4, InvalidArchitecture) {
 }
 
 TEST(TBDv4, InvalidPlatform) {
-  static const char TBDv4FInvalidPlatform[] = "--- !tapi-tbd\n"
+  static const std::array<char, 84> TBDv4FInvalidPlatform = { "--- !tapi-tbd\n"
                                               "tbd-version: 4\n"
                                               "targets: [ x86_64-maos ]\n"
                                               "install-name: Test.dylib\n"
-                                              "...\n";
+                                              "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4FInvalidPlatform, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4FInvalidPlatform.begin(), "Test.tbd"));
   EXPECT_FALSE(!!Result);
   std::string ErrorMessage = toString(Result.takeError());
   EXPECT_EQ("malformed file\nTest.tbd:3:12: error: unknown platform\ntargets: "
@@ -885,12 +886,12 @@ TEST(TBDv4, InvalidPlatform) {
 }
 
 TEST(TBDv4, MalformedFile1) {
-  static const char TBDv4MalformedFile1[] = "--- !tapi-tbd\n"
+  static const std::array<char, 34> TBDv4MalformedFile1 = { "--- !tapi-tbd\n"
                                             "tbd-version: 4\n"
-                                            "...\n";
+                                            "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedFile1, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedFile1.begin(), "Test.tbd"));
   EXPECT_FALSE(!!Result);
   std::string ErrorMessage = toString(Result.takeError());
   ASSERT_EQ("malformed file\nTest.tbd:2:1: error: missing required key "
@@ -899,14 +900,14 @@ TEST(TBDv4, MalformedFile1) {
 }
 
 TEST(TBDv4, MalformedFile2) {
-  static const char TBDv4MalformedFile2[] = "--- !tapi-tbd\n"
+  static const std::array<char, 107> TBDv4MalformedFile2 = { "--- !tapi-tbd\n"
                                             "tbd-version: 4\n"
                                             "targets: [ x86_64-macos ]\n"
                                             "install-name: Test.dylib\n"
-                                            "foobar: \"unsupported key\"\n";
+                                            "foobar: \"unsupported key\"\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedFile2, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedFile2.begin(), "Test.tbd"));
   EXPECT_FALSE(!!Result);
   std::string ErrorMessage = toString(Result.takeError());
   ASSERT_EQ(
@@ -916,15 +917,15 @@ TEST(TBDv4, MalformedFile2) {
 }
 
 TEST(TBDv4, MalformedFile3) {
-  static const char TBDv4MalformedSwift[] = "--- !tapi-tbd\n"
+  static const std::array<char, 109> TBDv4MalformedSwift = { "--- !tapi-tbd\n"
                                             "tbd-version: 4\n"
                                             "targets: [  x86_64-macos ]\n"
                                             "install-name: Test.dylib\n"
                                             "swift-abi-version: 1.1\n"
-                                            "...\n";
+                                            "...\n" };
 
   Expected<TBDFile> Result =
-      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedSwift, "Test.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4MalformedSwift.begin(), "Test.tbd"));
   EXPECT_FALSE(!!Result);
   std::string ErrorMessage = toString(Result.takeError());
   EXPECT_EQ("malformed file\nTest.tbd:5:20: error: invalid Swift ABI "
@@ -933,8 +934,8 @@ TEST(TBDv4, MalformedFile3) {
 }
 
 TEST(TBDv4, InterfaceEquality) {
-  static const char TBDv4File[] =
-      "--- !tapi-tbd\n"
+  static const std::array<char, 2011> TBDv4File =
+      { "--- !tapi-tbd\n"
       "tbd-version: 4\n"
       "targets:  [ i386-macos, x86_64-macos, x86_64-ios ]\n"
       "uuids:\n"
@@ -1002,22 +1003,22 @@ TEST(TBDv4, InterfaceEquality) {
       "    objc-classes:    [ Class1 ]\n"
       "  - targets:         [ x86_64-maccatalyst ]\n"
       "    symbols:         [ _symAB ]\n"
-      "...\n";
+      "...\n" };
 
   Expected<TBDFile> ResultA =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "TestA.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "TestA.tbd"));
   EXPECT_TRUE(!!ResultA);
   InterfaceFile FileA = std::move(*ResultA.get());
   Expected<TBDFile> ResultB =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "TestB.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "TestB.tbd"));
   EXPECT_TRUE(!!ResultB);
   InterfaceFile FileB = std::move(*ResultB.get());
   EXPECT_TRUE(FileA == FileB);
 }
 
 TEST(TBDv4, InterfaceDiffVersionsEquality) {
-  static const char TBDv4File[] =
-      "--- !tapi-tbd\n"
+  static const std::array<char, 1294> TBDv4File =
+      { "--- !tapi-tbd\n"
       "tbd-version: 4\n"
       "targets:  [ i386-macos, x86_64-macos ]\n"
       "uuids:\n"
@@ -1063,10 +1064,10 @@ TEST(TBDv4, InterfaceDiffVersionsEquality) {
       "    objc-ivars: []\n"
       "    weak-symbols: []\n"
       "    thread-local-symbols: []\n"
-      "...\n";
+      "...\n" };
 
-  static const char TBDv3File[] =
-      "--- !tapi-tbd-v3\n"
+  static const std::array<char, 930> TBDv3File =
+      { "--- !tapi-tbd-v3\n"
       "archs: [ i386, x86_64 ]\n"
       "uuids: [ 'i386: 00000000-0000-0000-0000-000000000000',\n"
       "         'x86_64: 22222222-2222-2222-2222-222222222222']\n"
@@ -1097,14 +1098,14 @@ TEST(TBDv4, InterfaceDiffVersionsEquality) {
       "undefineds:\n"
       "  - archs: [ i386 ]\n"
       "    symbols: [ _symC ]\n"
-      "...\n";
+      "...\n" };
 
   Expected<TBDFile> ResultA =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "TestA.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "TestA.tbd"));
   EXPECT_TRUE(!!ResultA);
   InterfaceFile FileA = std::move(*ResultA.get());
   Expected<TBDFile> ResultB =
-      TextAPIReader::get(MemoryBufferRef(TBDv3File, "TestB.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv3File.begin(), "TestB.tbd"));
   EXPECT_TRUE(!!ResultB);
   InterfaceFile FileB = std::move(*ResultB.get());
   EXPECT_NE(FileA.uuids(), FileB.uuids());
@@ -1112,18 +1113,18 @@ TEST(TBDv4, InterfaceDiffVersionsEquality) {
 }
 
 TEST(TBDv4, InterfaceInequality) {
-  static const char TBDv4File[] = "--- !tapi-tbd\n"
+  static const std::array<char, 115> TBDv4File = { "--- !tapi-tbd\n"
                                   "tbd-version: 4\n"
                                   "targets:  [ i386-macos, x86_64-macos ]\n"
                                   "install-name: Umbrella.framework/Umbrella\n"
-                                  "...\n";
+                                  "...\n" };
 
   Expected<TBDFile> ResultA =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "TestA.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "TestA.tbd"));
   EXPECT_TRUE(!!ResultA);
   InterfaceFile FileA = std::move(*ResultA.get());
   Expected<TBDFile> ResultB =
-      TextAPIReader::get(MemoryBufferRef(TBDv4File, "TestB.tbd"));
+      TextAPIReader::get(MemoryBufferRef(TBDv4File.begin(), "TestB.tbd"));
   EXPECT_TRUE(!!ResultB);
   InterfaceFile FileB = std::move(*ResultB.get());
 

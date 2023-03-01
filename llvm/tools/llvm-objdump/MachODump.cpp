@@ -50,6 +50,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <system_error>
 
@@ -742,26 +743,26 @@ static void PrintIndirectSymbols(MachOObjectFile *O, bool verbose) {
 }
 
 static void PrintRType(const uint64_t cputype, const unsigned r_type) {
-  static char const *generic_r_types[] = {
+  static std::array<char const *, 16>generic_r_types = { {
     "VANILLA ", "PAIR    ", "SECTDIF ", "PBLAPTR ", "LOCSDIF ", "TLV     ",
     "  6 (?) ", "  7 (?) ", "  8 (?) ", "  9 (?) ", " 10 (?) ", " 11 (?) ",
     " 12 (?) ", " 13 (?) ", " 14 (?) ", " 15 (?) "
-  };
-  static char const *x86_64_r_types[] = {
+  } };
+  static std::array<char const *, 16>x86_64_r_types = { {
     "UNSIGND ", "SIGNED  ", "BRANCH  ", "GOT_LD  ", "GOT     ", "SUB     ",
     "SIGNED1 ", "SIGNED2 ", "SIGNED4 ", "TLV     ", " 10 (?) ", " 11 (?) ",
     " 12 (?) ", " 13 (?) ", " 14 (?) ", " 15 (?) "
-  };
-  static char const *arm_r_types[] = {
+  } };
+  static std::array<char const *, 16>arm_r_types = { {
     "VANILLA ", "PAIR    ", "SECTDIFF", "LOCSDIF ", "PBLAPTR ",
     "BR24    ", "T_BR22  ", "T_BR32  ", "HALF    ", "HALFDIF ",
     " 10 (?) ", " 11 (?) ", " 12 (?) ", " 13 (?) ", " 14 (?) ", " 15 (?) "
-  };
-  static char const *arm64_r_types[] = {
+  } };
+  static std::array<char const *, 16>arm64_r_types = { {
     "UNSIGND ", "SUB     ", "BR26    ", "PAGE21  ", "PAGOF12 ",
     "GOTLDP  ", "GOTLDPOF", "PTRTGOT ", "TLVLDP  ", "TLVLDPOF",
     "ADDEND  ", " 11 (?) ", " 12 (?) ", " 13 (?) ", " 14 (?) ", " 15 (?) "
-  };
+  } };
 
   if (r_type > 0xf){
     outs() << format("%-7u", r_type) << " ";
@@ -1529,10 +1530,10 @@ static const char *GuessSymbolName(uint64_t value, SymbolAddressMap *AddrMap) {
 }
 
 static void DumpCstringChar(const char c) {
-  char p[2];
+  std::array<char, 2> p;
   p[0] = c;
   p[1] = '\0';
-  outs().write_escaped(p);
+  outs().write_escaped(p.begin());
 }
 
 static void DumpCstringSection(MachOObjectFile *O, const char *sect,

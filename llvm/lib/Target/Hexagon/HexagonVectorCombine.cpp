@@ -44,6 +44,7 @@
 #include "HexagonTargetMachine.h"
 
 #include <algorithm>
+#include <array>
 #include <deque>
 #include <map>
 #include <optional>
@@ -397,7 +398,7 @@ private:
 
 [[maybe_unused]] raw_ostream &operator<<(raw_ostream &OS,
                                          const HvxIdioms::FxpOp &Op) {
-  static const char *SgnNames[] = {"Positive", "Signed", "Unsigned"};
+  static std::array<const char *, 3>SgnNames = { {"Positive", "Signed", "Unsigned"} };
   OS << Instruction::getOpcodeName(Op.Opcode) << '.' << Op.Frac;
   if (Op.RoundAt.has_value()) {
     if (Op.Frac != 0 && *Op.RoundAt == Op.Frac - 1) {
@@ -1972,7 +1973,7 @@ auto HexagonVectorCombine::concat(IRBuilderBase &Builder,
                                   ArrayRef<Value *> Vecs) const -> Value * {
   assert(!Vecs.empty());
   SmallVector<int, 256> SMask;
-  std::vector<Value *> Work[2];
+  std::array<std::vector<Value *>, 2> Work;
   int ThisW = 0, OtherW = 1;
 
   Work[ThisW].assign(Vecs.begin(), Vecs.end());

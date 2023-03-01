@@ -9,6 +9,7 @@
 #include "llvm/DebugInfo/GSYM/FileWriter.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
+#include <array>
 #include <cassert>
 
 using namespace llvm;
@@ -17,17 +18,17 @@ using namespace gsym;
 FileWriter::~FileWriter() { OS.flush(); }
 
 void FileWriter::writeSLEB(int64_t S) {
-  uint8_t Bytes[32];
-  auto Length = encodeSLEB128(S, Bytes);
+  std::array<uint8_t, 32> Bytes;
+  auto Length = encodeSLEB128(S, Bytes.begin());
   assert(Length < sizeof(Bytes));
-  OS.write(reinterpret_cast<const char *>(Bytes), Length);
+  OS.write(reinterpret_cast<const char *>(Bytes.begin()), Length);
 }
 
 void FileWriter::writeULEB(uint64_t U) {
-  uint8_t Bytes[32];
-  auto Length = encodeULEB128(U, Bytes);
+  std::array<uint8_t, 32> Bytes;
+  auto Length = encodeULEB128(U, Bytes.begin());
   assert(Length < sizeof(Bytes));
-  OS.write(reinterpret_cast<const char *>(Bytes), Length);
+  OS.write(reinterpret_cast<const char *>(Bytes.begin()), Length);
 }
 
 void FileWriter::writeU8(uint8_t U) {

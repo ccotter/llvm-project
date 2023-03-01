@@ -194,6 +194,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -2060,7 +2061,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
 
   Value *makeAddReleaseOrderingTable(IRBuilder<> &IRB) {
     constexpr int NumOrderings = (int)AtomicOrderingCABI::seq_cst + 1;
-    uint32_t OrderingTable[NumOrderings] = {};
+    std::array<uint32_t, NumOrderings> OrderingTable = { {} };
 
     OrderingTable[(int)AtomicOrderingCABI::relaxed] =
         OrderingTable[(int)AtomicOrderingCABI::release] =
@@ -2073,7 +2074,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
         (int)AtomicOrderingCABI::seq_cst;
 
     return ConstantDataVector::get(IRB.getContext(),
-                                   makeArrayRef(OrderingTable, NumOrderings));
+                                   makeArrayRef(OrderingTable.begin(), NumOrderings));
   }
 
   AtomicOrdering addAcquireOrdering(AtomicOrdering a) {
@@ -2095,7 +2096,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
 
   Value *makeAddAcquireOrderingTable(IRBuilder<> &IRB) {
     constexpr int NumOrderings = (int)AtomicOrderingCABI::seq_cst + 1;
-    uint32_t OrderingTable[NumOrderings] = {};
+    std::array<uint32_t, NumOrderings> OrderingTable = { {} };
 
     OrderingTable[(int)AtomicOrderingCABI::relaxed] =
         OrderingTable[(int)AtomicOrderingCABI::acquire] =
@@ -2108,7 +2109,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
         (int)AtomicOrderingCABI::seq_cst;
 
     return ConstantDataVector::get(IRB.getContext(),
-                                   makeArrayRef(OrderingTable, NumOrderings));
+                                   makeArrayRef(OrderingTable.begin(), NumOrderings));
   }
 
   // ------------------- Visitors.

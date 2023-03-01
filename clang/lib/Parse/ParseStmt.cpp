@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "clang/AST/PrettyDeclStackTrace.h"
 #include "clang/Basic/Attributes.h"
 #include "clang/Basic/PrettyStackTrace.h"
@@ -2406,10 +2408,10 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
     if (!HandlePragmaLoopHint(Hint))
       continue;
 
-    ArgsUnion ArgHints[] = {Hint.PragmaNameLoc, Hint.OptionLoc, Hint.StateLoc,
-                            ArgsUnion(Hint.ValueExpr)};
+    std::array<ArgsUnion, 4> ArgHints = { {Hint.PragmaNameLoc, Hint.OptionLoc, Hint.StateLoc,
+                            ArgsUnion(Hint.ValueExpr)} };
     TempAttrs.addNew(Hint.PragmaNameLoc->Ident, Hint.Range, nullptr,
-                     Hint.PragmaNameLoc->Loc, ArgHints, 4,
+                     Hint.PragmaNameLoc->Loc, ArgHints.begin(), 4,
                      ParsedAttr::AS_Pragma);
   }
 

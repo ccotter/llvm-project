@@ -30,6 +30,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/MachineValueType.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -300,7 +301,7 @@ static void reorderSubVector(MVT VT, SmallVectorImpl<Value *> &TransposedMatrix,
   }
 
   SmallVector<int, 32> OptimizeShuf;
-  Value *Temp[8];
+  std::array<Value *, 8>Temp;
 
   for (unsigned i = 0; i < (VecElems / 16) * Stride; i += 2) {
     genShuffleBland(VT, VPShuf, OptimizeShuf, (i / Stride) * 16,
@@ -311,7 +312,7 @@ static void reorderSubVector(MVT VT, SmallVectorImpl<Value *> &TransposedMatrix,
   }
 
   if (VecElems == 32) {
-    std::copy(Temp, Temp + Stride, TransposedMatrix.begin());
+    std::copy(Temp.begin(), Temp.begin() + Stride, TransposedMatrix.begin());
     return;
   } else
     for (unsigned i = 0; i < Stride; i++)
@@ -374,7 +375,7 @@ void X86InterleavedAccessGroup::interleave8bitStride4(
   TransposedMatrix.resize(4);
   SmallVector<int, 32> MaskHigh;
   SmallVector<int, 32> MaskLow;
-  SmallVector<int, 32> LowHighMask[2];
+  std::array<SmallVector<int, 32>, 2> LowHighMask;
   SmallVector<int, 32> MaskHighTemp;
   SmallVector<int, 32> MaskLowTemp;
 
@@ -396,7 +397,7 @@ void X86InterleavedAccessGroup::interleave8bitStride4(
   // IntrVec1High = c8  m8  c9  m9 ... c15 m15 | c24 m24 c25 m25 ... c31 m31
   // IntrVec2Low  = y0  k0  y1  k1 ... y7  k7  | y16 k16 y17 k17 ... y23 k23
   // IntrVec2High = y8  k8  y9  k9 ... y15 k15 | y24 k24 y25 k25 ... y31 k31
-  Value *IntrVec[4];
+  std::array<Value *, 4>IntrVec;
 
   IntrVec[0] = Builder.CreateShuffleVector(Matrix[0], Matrix[1], MaskLow);
   IntrVec[1] = Builder.CreateShuffleVector(Matrix[0], Matrix[1], MaskHigh);
@@ -553,7 +554,7 @@ void X86InterleavedAccessGroup::deinterleave8bitStride3(
 
   TransposedMatrix.resize(3);
   SmallVector<int, 32> VPShuf;
-  SmallVector<int, 32> VPAlign[2];
+  std::array<SmallVector<int, 32>, 2> VPAlign;
   SmallVector<int, 32> VPAlign2;
   SmallVector<int, 32> VPAlign3;
   SmallVector<int, 3> GroupSize;
@@ -609,7 +610,7 @@ void X86InterleavedAccessGroup::deinterleave8bitStride3(
 // MaskResult = {0,11,6,1,12,7,2,13,8,3,14,9,4,15,10,5}.
 static void group2Shuffle(MVT VT, SmallVectorImpl<int> &Mask,
                           SmallVectorImpl<int> &Output) {
-  int IndexGroup[3] = {0, 0, 0};
+  std::array<int, 3> IndexGroup = { {0, 0, 0} };
   int Index = 0;
   int VectorWidth = VT.getSizeInBits();
   int VF = VT.getVectorNumElements();
@@ -637,7 +638,7 @@ void X86InterleavedAccessGroup::interleave8bitStride3(
   TransposedMatrix.resize(3);
   SmallVector<int, 3> GroupSize;
   SmallVector<int, 32> VPShuf;
-  SmallVector<int, 32> VPAlign[3];
+  std::array<SmallVector<int, 32>, 3> VPAlign;
   SmallVector<int, 32> VPAlign2;
   SmallVector<int, 32> VPAlign3;
 
@@ -692,26 +693,26 @@ void X86InterleavedAccessGroup::transpose_4x4(
   TransposedMatrix.resize(4);
 
   // dst = src1[0,1],src2[0,1]
-  static constexpr int IntMask1[] = {0, 1, 4, 5};
-  ArrayRef<int> Mask = makeArrayRef(IntMask1, 4);
+  static constexpr std::array IntMask1 = {0, 1, 4, 5};
+  ArrayRef<int> Mask = makeArrayRef(IntMask1.begin(), 4);
   Value *IntrVec1 = Builder.CreateShuffleVector(Matrix[0], Matrix[2], Mask);
   Value *IntrVec2 = Builder.CreateShuffleVector(Matrix[1], Matrix[3], Mask);
 
   // dst = src1[2,3],src2[2,3]
-  static constexpr int IntMask2[] = {2, 3, 6, 7};
-  Mask = makeArrayRef(IntMask2, 4);
+  static constexpr std::array IntMask2 = {2, 3, 6, 7};
+  Mask = makeArrayRef(IntMask2.begin(), 4);
   Value *IntrVec3 = Builder.CreateShuffleVector(Matrix[0], Matrix[2], Mask);
   Value *IntrVec4 = Builder.CreateShuffleVector(Matrix[1], Matrix[3], Mask);
 
   // dst = src1[0],src2[0],src1[2],src2[2]
-  static constexpr int IntMask3[] = {0, 4, 2, 6};
-  Mask = makeArrayRef(IntMask3, 4);
+  static constexpr std::array IntMask3 = {0, 4, 2, 6};
+  Mask = makeArrayRef(IntMask3.begin(), 4);
   TransposedMatrix[0] = Builder.CreateShuffleVector(IntrVec1, IntrVec2, Mask);
   TransposedMatrix[2] = Builder.CreateShuffleVector(IntrVec3, IntrVec4, Mask);
 
   // dst = src1[1],src2[1],src1[3],src2[3]
-  static constexpr int IntMask4[] = {1, 5, 3, 7};
-  Mask = makeArrayRef(IntMask4, 4);
+  static constexpr std::array IntMask4 = {1, 5, 3, 7};
+  Mask = makeArrayRef(IntMask4.begin(), 4);
   TransposedMatrix[1] = Builder.CreateShuffleVector(IntrVec1, IntrVec2, Mask);
   TransposedMatrix[3] = Builder.CreateShuffleVector(IntrVec3, IntrVec4, Mask);
 }

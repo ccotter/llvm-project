@@ -10,6 +10,8 @@
 //
 //===---------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/Support/ReverseIteration.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
@@ -34,7 +36,7 @@ TEST(ReverseIterationTest, DenseMapTest1) {
   // For a DenseMap with non-pointer-like keys, forward iteration equals
   // reverse iteration.
   DenseMap<int, int> Map;
-  int Keys[] = { 1, 2, 3, 4 };
+  std::array Keys = { 1, 2, 3, 4 };
 
   // Insert keys into the DenseMap.
   for (auto Key: Keys)

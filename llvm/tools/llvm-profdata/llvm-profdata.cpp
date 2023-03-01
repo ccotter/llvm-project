@@ -39,6 +39,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <optional>
 #include <queue>
@@ -583,7 +584,7 @@ adjustInstrProfile(std::unique_ptr<WriterContext> &WC,
 
   auto buildStaticFuncMap = [&StaticFuncMap,
                              SampleProfileHasFUnique](const StringRef Name) {
-    std::string Prefixes[] = {".cpp:", "cc:", ".c:", ".hpp:", ".h:"};
+    std::array<std::string, 5> Prefixes = { {".cpp:", "cc:", ".c:", ".hpp:", ".h:"} };
     size_t PrefixPos = StringRef::npos;
     for (auto &Prefix : Prefixes) {
       PrefixPos = Name.find_insensitive(Prefix);

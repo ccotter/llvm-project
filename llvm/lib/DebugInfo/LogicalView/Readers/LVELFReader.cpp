@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <array>
+
 #include "llvm/DebugInfo/LogicalView/Readers/LVELFReader.h"
 #include "llvm/DebugInfo/DIContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugLoc.h"
@@ -975,7 +977,7 @@ void LVELFReader::processLocationList(dwarf::Attribute Attr,
   auto ProcessLocationExpression = [&](const DWARFExpression &Expression) {
     // DW_OP_const_type is variable-length and has 3
     // operands. DWARFExpression thus far only supports 2.
-    uint64_t Operands[2] = {0};
+    std::array<uint64_t, 2> Operands = { {0} };
     for (const DWARFExpression::Operation &Op : Expression) {
       DWARFExpression::Operation::Description Description = Op.getDescription();
       for (unsigned Operand = 0; Operand < 2; ++Operand) {
