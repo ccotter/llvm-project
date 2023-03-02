@@ -147,6 +147,17 @@ void replacements() {
   // CHECK-MESSAGES: :[[@LINE-1]]:12: warning: do not declare C-style arrays, use std::array<> instead
   // CHECK-FIXES: static thread_local std::array<volatile int *, 10> ar18;
 
+  // Note, there is a tab '\t' before the semicolon in the declaration below.
+  int ar19[3]	;
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: do not declare C-style arrays, use std::array<> instead
+  // CHECK-FIXES: std::array<int, 3> ar19	;
+
+  int
+  ar20[3];
+  // CHECK-MESSAGES: :[[@LINE-2]]:3: warning: do not declare C-style arrays, use std::array<> instead
+  // CHECK-FIXES: std::array<int, 3>
+  // CHECK-FIXES-NEXT: ar20;
+
   int init[] = {1,2,3};
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: do not declare C-style arrays, use std::array<> instead
   // CHECK-FIXES: std::array<int, 3> init = { {1,2,3} };
@@ -198,6 +209,11 @@ void replacements() {
     " "
 #endif
     ;
+
+  // Note: there are two tab '\t' characters between the 'int', '*', and 'init15' tokens below.
+  int	*	init15[1] = {nullptr};
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: do not declare C-style arrays, use std::array<> instead
+  // CHECK-FIXES: std::array<int	*, 1>	init15 = { {nullptr} };
 
   int two_d[10][5];
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: do not declare C-style arrays, use std::array<> instead
