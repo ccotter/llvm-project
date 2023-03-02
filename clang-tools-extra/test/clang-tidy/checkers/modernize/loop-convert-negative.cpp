@@ -119,6 +119,10 @@ U Tu;
 struct BadBeginEnd : T {
   iterator notBegin();
   iterator notEnd();
+  iterator begin(int);
+  iterator end(int);
+  iterator begin();
+  iterator end();
 };
 
 void notBeginOrEnd() {
@@ -127,6 +131,9 @@ void notBeginOrEnd() {
     int K = *I;
 
   for (T::iterator I = Bad.begin(), E = Bad.notEnd();  I != E; ++I)
+    int K = *I;
+
+  for (T::iterator I = Bad.begin(0), E = Bad.end(0);  I != E; ++I)
     int K = *I;
 }
 
