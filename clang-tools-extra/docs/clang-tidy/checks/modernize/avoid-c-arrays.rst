@@ -69,3 +69,11 @@ such headers between C code, and C++ code.
 Similarly, the ``main()`` function is ignored. Its second and third parameters
 can be either ``char* argv[]`` or ``char** argv``, but cannot be
 ``std::array<>``.
+
+Options
+-------
+
+.. option:: IncludeStyle
+
+   A string specifying which include-style is used, `llvm` or `google`. Default
+   is `llvm`.

@@ -91,7 +91,7 @@ SourceLocation getPreviousTokenLoc(SourceLocation Location,
   if (Location.isInvalid())
     return Location;
 
-  auto StartOfFile = SM.getLocForStartOfFile(SM.getFileID(Location));
+  SourceLocation StartOfFile = SM.getLocForStartOfFile(SM.getFileID(Location));
   while (Location != StartOfFile) {
     Location = Lexer::GetBeginningOfToken(Location, SM, LangOpts);
     if (!Lexer::getRawToken(Location, Token, SM, LangOpts) &&
@@ -495,7 +495,7 @@ AvoidCArraysCheck::replaceArray(ArrayTypeLoc ATL, const DeclStmt *VarDeclStmt,
               const Expr *SpelledExpr = E->IgnoreUnlessSpelledInSource();
               if (dyn_cast<InitListExpr>(SpelledExpr))
                 return false;
-              const CXXConstructExpr *ConstructExpr =
+              const auto *ConstructExpr =
                   dyn_cast<CXXConstructExpr>(SpelledExpr);
               if (ConstructExpr &&
                   !dyn_cast<CXXTemporaryObjectExpr>(SpelledExpr) &&
