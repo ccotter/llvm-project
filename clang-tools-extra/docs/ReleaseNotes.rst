@@ -120,6 +120,11 @@ New checks
   Checks that all implicit and explicit inline functions in header files are
   tagged with the ``LIBC_INLINE`` macro.
 
+- New :doc:`cppcoreguidelines-forward-non-forwarding-parameter
+  <clang-tidy/checks/cppcoreguidelines/forward-non-forwarding-parameter>` check.
+
+  FIXME: add release notes.
+
 New check aliases
 ^^^^^^^^^^^^^^^^^
 
