@@ -11,6 +11,7 @@ add_clang_library(clangTidyCppCoreGuidelinesModule
   AvoidNonConstGlobalVariablesCheck.cpp
   AvoidReferenceCoroutineParametersCheck.cpp
   CppCoreGuidelinesTidyModule.cpp
+  ForwardNonForwardingParameterCheck.cpp
   InitVariablesCheck.cpp
   InterfacesGlobalInitCheck.cpp
   MacroUsageCheck.cpp

@@ -142,6 +142,11 @@ New checks
   use-after-free errors and suggests avoiding captures or ensuring the lambda
   closure object has a guaranteed lifetime.
 
+- New :doc:`cppcoreguidelines-forward-non-forwarding-parameter
+  <clang-tidy/checks/cppcoreguidelines/forward-non-forwarding-parameter>` check.
+
+  Warns when ``std::forward`` is used on a non-forwarding reference.
+
 - New :doc:`cppcoreguidelines-misleading-capture-default-by-value
   <clang-tidy/checks/cppcoreguidelines/misleading-capture-default-by-value>` check.
 
