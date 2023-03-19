@@ -22,13 +22,15 @@ namespace clang::tidy::cppcoreguidelines {
 class AvoidReferenceCoroutineParametersCheck : public ClangTidyCheck {
 public:
   AvoidReferenceCoroutineParametersCheck(StringRef Name,
-                                         ClangTidyContext *Context)
-      : ClangTidyCheck(Name, Context) {}
+                                         ClangTidyContext *Context);
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
   bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
     return LangOpts.CPlusPlus20;
   }
+  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
+private:
+  const bool IgnoreCoawaitExprs;
 };
 
 } // namespace clang::tidy::cppcoreguidelines
