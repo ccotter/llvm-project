@@ -32,16 +32,22 @@ extern const char kText3[];
 char getChar();
 const char* getCharPtr();
 
+struct CharLikeObj {
+  operator char() const;
+};
+
 void Test() {
   short sh;
   int i;
+  int& ref_i = i;
   char ch;
+  CharLikeObj char_like_obj;
 
   std::string swapped('x', 4);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
   // CHECK-FIXES: std::string swapped(4, 'x');
   std::wstring wswapped(L'x', 4);
-  // CHECK-MESSAGES: [[@LINE-1]]:16: warning: string constructor arguments are probably swapped
+  // CHECK-MESSAGES: [[@LINE-1]]:16: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
   // CHECK-FIXES: std::wstring wswapped(4, L'x');
   std::string swapped2('x', i);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
@@ -74,13 +80,23 @@ void Test() {
   std::string s2(0x1000000, 'x');
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: suspicious large length parameter
   std::string s3(kText[0], sh);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: confusing string fill constructor arguments;
+  // CHECK-FIXES: std::string s3(kText[0], sh);
   std::string s4(kText[1], 10);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: confusing string fill constructor arguments;
+  // CHECK-FIXES: std::string s4(kText[1], 10);
   std::string s5(kText[1], i);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
-  std::string s6(*getCharPtr(), 10);
-  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments might be incorrect;
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: confusing string fill constructor arguments;
+  // CHECK-FIXES: std::string s5(kText[1], i);
+  std::string s6(kText[1], ref_i);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: confusing string fill constructor arguments;
+  // CHECK-FIXES: std::string s6(kText[1], ref_i);
+  std::string s7(*getCharPtr(), 10);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: confusing string fill constructor arguments;
+  // CHECK-FIXES: std::string s7(*getCharPtr(), 10);
+  std::string s8(char_like_obj, 10);
+  // CHECK-MESSAGES: [[@LINE-1]]:15: warning: string constructor arguments are probably swapped; expecting string(count, character) [bugprone-string-constructor]
+  // CHECK-FIXES: std::string s8(10, char_like_obj);
 
   std::string q0("test", 0);
   // CHECK-MESSAGES: [[@LINE-1]]:15: warning: constructor creating an empty string

@@ -212,7 +212,7 @@ void StringConstructorCheck::check(const MatchFinder::MatchResult &Result) {
     }
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("implicit-cast-both-args")) {
-    diag(Loc, "string constructor arguments might be incorrect;"
+    diag(Loc, "confusing string fill constructor arguments;"
               " calling as string(count, character) due to implicit casting of "
               "both arguments;"
               " use explicit casts if string(count, character) is the intended "
