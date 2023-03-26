@@ -8,6 +8,7 @@
 
 #include "ForwardingReferenceParamNotForwardedCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 using namespace clang::ast_matchers;
@@ -15,6 +16,23 @@ using namespace clang::ast_matchers;
 namespace clang::tidy::cppcoreguidelines {
 
 namespace {
+
+AST_MATCHER(Expr, hasUnevaluatedContext) {
+  if (isa<CXXNoexceptExpr>(Node) || isa<RequiresExpr>(Node))
+    return true;
+  if (const auto *UnaryExpr = dyn_cast<UnaryExprOrTypeTraitExpr>(&Node)) {
+    switch (UnaryExpr->getKind()) {
+    case UETT_SizeOf:
+    case UETT_AlignOf:
+      return true;
+    default:
+      return false;
+    }
+  }
+  if (const auto *TypeIDExpr = dyn_cast<CXXTypeidExpr>(&Node))
+    return !TypeIDExpr->isPotentiallyEvaluated();
+  return false;
+}
 
 AST_MATCHER_P(QualType, possiblyPackExpansionOf,
               ast_matchers::internal::Matcher<QualType>, InnerMatcher) {
@@ -55,40 +73,33 @@ void ForwardingReferenceParamNotForwardedCheck::registerMatchers(
     MatchFinder *Finder) {
   auto ToParam = hasAnyParameter(parmVarDecl(equalsBoundNode("param")));
 
-  StatementMatcher ForwardCallMatcher =
-      callExpr(
-          callee(unresolvedLookupExpr(hasAnyDeclaration(
-              namedDecl(hasUnderlyingDecl(hasName("::std::forward")))))),
-          argumentCountIs(1),
-          hasArgument(0, declRefExpr(to(equalsBoundNode("param"))).bind("ref")))
-          .bind("forward-call");
+  StatementMatcher ForwardCallMatcher = callExpr(
+      argumentCountIs(1),
+      callee(unresolvedLookupExpr(hasAnyDeclaration(
+          namedDecl(hasUnderlyingDecl(hasName("::std::forward")))))),
+      hasArgument(0, declRefExpr(to(equalsBoundNode("param"))).bind("ref")),
+      unless(anyOf(hasAncestor(typeLoc()),
+                   hasAncestor(expr(hasUnevaluatedContext())))));
 
   Finder->addMatcher(
       parmVarDecl(
           parmVarDecl().bind("param"), isTemplateTypeOfFunction(),
-          anyOf(hasAncestor(cxxConstructorDecl(
-                    ToParam, isDefinition(),
-                    optionally(hasDescendant(ForwardCallMatcher)))),
-                hasAncestor(functionDecl(
-                    unless(cxxConstructorDecl()), ToParam,
-                    hasBody(optionally(hasDescendant(ForwardCallMatcher))))))),
+          hasAncestor(functionDecl(isDefinition(), ToParam,
+                                   unless(hasDescendant(ForwardCallMatcher))))),
       this);
 }
 
 void ForwardingReferenceParamNotForwardedCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *Param = Result.Nodes.getNodeAs<ParmVarDecl>("param");
-  const auto *ForwardCall = Result.Nodes.getNodeAs<CallExpr>("forward-call");
 
   if (!Param)
     return;
 
-  if (!ForwardCall) {
-    diag(Param->getLocation(),
-         "forwarding reference parameter %0 is never forwarded "
-         "inside the function body")
-        << Param;
-  }
+  diag(Param->getLocation(),
+       "forwarding reference parameter %0 is never forwarded "
+       "inside the function body")
+      << Param;
 }
 
 } // namespace clang::tidy::cppcoreguidelines

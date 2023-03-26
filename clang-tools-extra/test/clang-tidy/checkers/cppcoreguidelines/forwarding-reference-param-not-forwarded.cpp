@@ -56,17 +56,39 @@ void does_not_forward_pack(Ts&&... ts) {
 
 template <class T>
 class AClass {
+
+  template <class U>
+  AClass(U&& u) : data(u) {}
+  // CHECK-MESSAGES: :[[@LINE-1]]:14: warning: forwarding reference parameter 'u' is never forwarded inside the function body [cppcoreguidelines-forwarding-reference-param-not-forwarded]
+
+  template <class U>
+  AClass& operator=(U&& u) { }
+  // CHECK-MESSAGES: :[[@LINE-1]]:25: warning: forwarding reference parameter 'u' is never forwarded inside the function body [cppcoreguidelines-forwarding-reference-param-not-forwarded]
+
   template <class U>
   void mixed_params(T&& t, U&& u) {
     // CHECK-MESSAGES: :[[@LINE-1]]:32: warning: forwarding reference parameter 'u' is never forwarded inside the function body [cppcoreguidelines-forwarding-reference-param-not-forwarded]
     T other1 = std::move(t);
     U other2 = std::move(u);
   }
+
+  T data;
 };
+
+template <class T>
+void does_not_forward_in_evaluated_code(T&& t) {
+  // CHECK-MESSAGES: :[[@LINE-1]]:45: warning: forwarding reference parameter 't' is never forwarded inside the function body [cppcoreguidelines-forwarding-reference-param-not-forwarded]
+  using result_t = decltype(std::forward<T>(t));
+  unsigned len = sizeof(std::forward<T>(t));
+  T other = t;
+}
 
 } // namespace positive_cases
 
 namespace negative_cases {
+
+template <class T>
+void just_a_decl(T&&t);
 
 template <class T>
 void does_forward(T&& t) {
@@ -97,9 +119,20 @@ void templated_rvalue_ref(std::remove_reference_t<T>&& t) {
 
 template <class T>
 class AClass {
+
+  template <class U>
+  AClass(U&& u) : data(std::forward<U>(u)) {}
+
+  template <class U>
+  AClass& operator=(U&& u) {
+    data = std::forward<U>(u);
+  }
+
   void rvalue_ref(T&& t) {
     T other = std::move(t);
   }
+
+  T data;
 };
 
 } // namespace negative_cases
