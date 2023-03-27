@@ -122,9 +122,11 @@ New checks
   closure object has a guaranteed lifetime.
 
 - New :doc:`cppcoreguidelines-forwarding-reference-param-not-forwarded
-  <clang-tidy/checks/cppcoreguidelines/forwarding-reference-param-not-forwarded>` check.
+  <clang-tidy/checks/cppcoreguidelines/forwarding-reference-param-not-forwarded>`
+  check.
 
-  Warns when a forwarding reference parameter is not forwarded within the function body.
+  Warns when a forwarding reference parameter is not forwarded within the
+  function body.
 
 - New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
   <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
