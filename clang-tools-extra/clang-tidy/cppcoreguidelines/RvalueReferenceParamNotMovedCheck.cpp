@@ -8,6 +8,7 @@
 
 #include "RvalueReferenceParamNotMovedCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 using namespace clang::ast_matchers;
@@ -15,6 +16,23 @@ using namespace clang::ast_matchers;
 namespace clang::tidy::cppcoreguidelines {
 
 namespace {
+AST_MATCHER(Expr, hasUnevaluatedContext) {
+  if (isa<CXXNoexceptExpr>(Node) || isa<RequiresExpr>(Node))
+    return true;
+  if (const auto *UnaryExpr = dyn_cast<UnaryExprOrTypeTraitExpr>(&Node)) {
+    switch (UnaryExpr->getKind()) {
+    case UETT_SizeOf:
+    case UETT_AlignOf:
+      return true;
+    default:
+      return false;
+    }
+  }
+  if (const auto *TypeIDExpr = dyn_cast<CXXTypeidExpr>(&Node))
+    return !TypeIDExpr->isPotentiallyEvaluated();
+  return false;
+}
+
 AST_MATCHER_P(LambdaExpr, valueCapturesVar, DeclarationMatcher, VarMatcher) {
   return std::find_if(Node.capture_begin(), Node.capture_end(),
                       [&](const LambdaCapture &Capture) {
@@ -39,16 +57,18 @@ void RvalueReferenceParamNotMovedCheck::registerMatchers(MatchFinder *Finder) {
 
   StatementMatcher MoveCallMatcher =
       callExpr(
+          argumentCountIs(1),
           anyOf(callee(functionDecl(hasName("::std::move"))),
                 callee(unresolvedLookupExpr(hasAnyDeclaration(
                     namedDecl(hasUnderlyingDecl(hasName("::std::move"))))))),
-          argumentCountIs(1),
           hasArgument(
               0, argumentOf(
                      AllowPartialMove,
                      declRefExpr(to(equalsBoundNode("param"))).bind("ref"))),
           unless(hasAncestor(
-              lambdaExpr(valueCapturesVar(equalsBoundNode("param"))))))
+              lambdaExpr(valueCapturesVar(equalsBoundNode("param"))))),
+          unless(anyOf(hasAncestor(typeLoc()),
+                       hasAncestor(expr(hasUnevaluatedContext())))))
           .bind("move-call");
 
   Finder->addMatcher(
