@@ -34,3 +34,6 @@ Example:
   void wrapper_function2(F&& f) {
     f(1, 2); // Incorrect - may not invoke the desired qualified function operator
   }
+
+This check implements
+`CppCoreGuideline F.19 <http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rf-forward>`_.

@@ -1,4 +1,4 @@
-// RUN: %check_clang_tidy %s cppcoreguidelines-forwarding-reference-param-not-forwarded %t
+// RUN: %check_clang_tidy %s cppcoreguidelines-forwarding-reference-param-not-forwarded %t -- -- -fno-delayed-template-parsing
 
 // NOLINTBEGIN
 namespace std {
@@ -92,7 +92,7 @@ void just_a_decl(T&&t);
 
 template <class T>
 void does_forward(T&& t) {
-  T other = std::forward(t);
+  T other = std::forward<T>(t);
 }
 
 template <class... Ts>
