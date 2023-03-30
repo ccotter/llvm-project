@@ -61,13 +61,13 @@ matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
   if (const auto Specialization =
           TheType.getAs<TemplateSpecializationTypeLoc>()) {
     std::string Name = TheType.getType().getAsString();
-    if (Name.find("enable_if<") == std::string::npos) {
+    if (Name.find("enable_if<") == std::string::npos)
       return std::nullopt;
-    }
+
     int NumArgs = Specialization.getNumArgs();
-    if (NumArgs != 1 && NumArgs != 2) {
+    if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
-    }
+
     return std::make_optional(Specialization);
   }
   return std::nullopt;
@@ -75,19 +75,17 @@ matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
-  if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>()) {
+  if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>())
     TheType = Elaborated.getNamedTypeLoc();
-  }
 
   if (const auto Specialization =
           TheType.getAs<TemplateSpecializationTypeLoc>()) {
     std::string Name = TheType.getType().getAsString();
-    if (Name.find("enable_if_t<") == std::string::npos) {
+    if (Name.find("enable_if_t<") == std::string::npos)
       return std::nullopt;
-    }
-    if (!Specialization.getTypePtr()->isTypeAlias()) {
+    if (!Specialization.getTypePtr()->isTypeAlias())
       return std::nullopt;
-    }
+
     if (const auto *AliasedType = llvm::dyn_cast<DependentNameType>(
             Specialization.getTypePtr()->getAliasedType())) {
       if (AliasedType->getIdentifier()->getName() != "type" ||
@@ -98,9 +96,9 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
       return std::nullopt;
     }
     int NumArgs = Specialization.getNumArgs();
-    if (NumArgs != 1 && NumArgs != 2) {
+    if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
-    }
+
     return std::make_optional(Specialization);
   }
   return std::nullopt;
@@ -110,30 +108,26 @@ static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecializationImpl(TypeLoc TheType) {
   std::optional<TemplateSpecializationTypeLoc> EnableIf;
   EnableIf = matchEnableIfSpecializationImplTypename(TheType);
-  if (EnableIf) {
+  if (EnableIf)
     return EnableIf;
-  }
   return matchEnableIfSpecializationImplTrait(TheType);
 }
 
 static std::optional<EnableIfData>
 matchEnableIfSpecialization(TypeLoc TheType) {
-  if (const auto Pointer = TheType.getAs<PointerTypeLoc>()) {
+  if (const auto Pointer = TheType.getAs<PointerTypeLoc>())
     TheType = Pointer.getPointeeLoc();
-  } else if (const auto Reference = TheType.getAs<ReferenceTypeLoc>()) {
+  else if (const auto Reference = TheType.getAs<ReferenceTypeLoc>())
     TheType = Reference.getPointeeLoc();
-  }
-  if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>()) {
+  if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>())
     TheType = Qualified.getUnqualifiedLoc();
-  }
 
   std::optional<TemplateSpecializationTypeLoc> EnableIf =
       matchEnableIfSpecializationImpl(TheType);
-  if (EnableIf) {
+  if (EnableIf)
     return std::make_optional(EnableIfData{std::move(*EnableIf), TheType});
-  } else {
+  else
     return std::nullopt;
-  }
 }
 
 static std::tuple<std::optional<EnableIfData>, const Decl *>
@@ -148,18 +142,17 @@ matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
 
   const TemplateParameterList *TemplateParams =
       FunctionTemplate->getTemplateParameters();
-  if (TemplateParams->size() == 0) {
+  if (TemplateParams->size() == 0)
     return {};
-  }
+
   const NamedDecl *LastParam =
       TemplateParams->getParam(TemplateParams->size() - 1);
   if (const auto *LastTemplateParam =
           llvm::dyn_cast<NonTypeTemplateParmDecl>(LastParam)) {
 
     if (!LastTemplateParam->hasDefaultArgument() ||
-        !LastTemplateParam->getName().empty()) {
+        !LastTemplateParam->getName().empty())
       return {};
-    }
 
     return std::make_tuple(
         matchEnableIfSpecialization(
@@ -232,9 +225,9 @@ getTypeText(ASTContext &Context,
             LangOpts, &Invalid)
             .trim()
             .str();
-    if (Invalid) {
+    if (Invalid)
       return std::nullopt;
-    }
+
     return std::make_optional(std::move(Text));
   } else {
     return std::make_optional("void");
@@ -255,18 +248,18 @@ findInsertionForConstraint(const FunctionDecl *Function, ASTContext &Context) {
   }
   if (Function->isDeleted()) {
     SourceRange ParamsRange = Function->getParametersSourceRange();
-    if (!ParamsRange.isValid()) {
+    if (!ParamsRange.isValid())
       return std::nullopt;
-    }
+
     SourceLocation EndParens = utils::lexer::findNextAnyTokenKind(
         ParamsRange.getEnd(), SM, LangOpts, tok::r_paren, tok::r_paren);
     return utils::lexer::findNextAnyTokenKind(EndParens, SM, LangOpts,
                                               tok::equal, tok::equal);
   }
   const Stmt *Body = Function->getBody();
-  if (!Body) {
+  if (!Body)
     return std::nullopt;
-  }
+
   return Body->getBeginLoc();
 }
 
@@ -298,15 +291,12 @@ bool isPrimaryExpression(const Expr *Expression) {
   // returns true, the expression is a primary expression. The converse
   // is not necessarily true.
 
-  if (const auto *Cast = llvm::dyn_cast<ImplicitCastExpr>(Expression)) {
+  if (const auto *Cast = llvm::dyn_cast<ImplicitCastExpr>(Expression))
     Expression = Cast->getSubExprAsWritten();
-  }
-  if (llvm::dyn_cast<ParenExpr>(Expression)) {
+  if (llvm::dyn_cast<ParenExpr>(Expression))
     return true;
-  }
-  if (llvm::dyn_cast<DependentScopeDeclRefExpr>(Expression)) {
+  if (llvm::dyn_cast<DependentScopeDeclRefExpr>(Expression))
     return true;
-  }
 
   return false;
 }
@@ -318,9 +308,9 @@ static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
   const LangOptions &LangOpts = Context.getLangOpts();
 
   SourceLocation PrevTokenLoc = ConditionRange.getEnd();
-  if (PrevTokenLoc.isInvalid()) {
+  if (PrevTokenLoc.isInvalid())
     return std::nullopt;
-  }
+
   Token PrevToken = getPreviousToken(PrevTokenLoc, SM, LangOpts);
   bool EndsWithDoubleSlash =
       PrevToken.is(tok::comment) &&
@@ -331,23 +321,20 @@ static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
   bool Invalid = false;
   llvm::StringRef ConditionText = Lexer::getSourceText(
       CharSourceRange::getCharRange(ConditionRange), SM, LangOpts, &Invalid);
-  if (Invalid) {
+  if (Invalid)
     return std::nullopt;
-  }
 
   auto AddParens = [&](llvm::StringRef Text) -> std::string {
-    if (isPrimaryExpression(ConditionExpr)) {
+    if (isPrimaryExpression(ConditionExpr))
       return Text.str();
-    } else {
+    else
       return "(" + Text.str() + ")";
-    }
   };
 
-  if (EndsWithDoubleSlash) {
+  if (EndsWithDoubleSlash)
     return std::make_optional(AddParens(ConditionText.str()));
-  } else {
+  else
     return std::make_optional(AddParens(ConditionText.trim().str()));
-  }
 }
 
 static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
@@ -361,9 +348,8 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
   std::optional<std::string> ConditionText = getConditionText(
       EnableCondition.getSourceExpression(), ConditionRange, Context);
   std::optional<std::string> TypeText = getTypeText(Context, EnableIf.Loc);
-  if (!TypeText) {
+  if (!TypeText)
     return {};
-  }
 
   SmallVector<const Expr *, 3> ExistingConstraints;
   Function->getAssociatedConstraints(ExistingConstraints);
@@ -375,9 +361,9 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
 
   std::optional<SourceLocation> ConstraintInsertionLoc =
       findInsertionForConstraint(Function, Context);
-  if (!ConstraintInsertionLoc) {
+  if (!ConstraintInsertionLoc)
     return {};
-  }
+
   std::vector<FixItHint> FixIts;
   FixIts.push_back(FixItHint::CreateReplacement(
       CharSourceRange::getTokenRange(EnableIf.Outer.getSourceRange()),
@@ -401,9 +387,8 @@ handleTrailingTemplateType(const FunctionTemplateDecl *FunctionTemplate,
 
   std::optional<std::string> ConditionText = getConditionText(
       EnableCondition.getSourceExpression(), ConditionRange, Context);
-  if (!ConditionText) {
+  if (!ConditionText)
     return {};
-  }
 
   SmallVector<const Expr *, 3> ExistingConstraints;
   Function->getAssociatedConstraints(ExistingConstraints);
@@ -416,9 +401,8 @@ handleTrailingTemplateType(const FunctionTemplateDecl *FunctionTemplate,
   SourceRange RemovalRange;
   const TemplateParameterList *TemplateParams =
       FunctionTemplate->getTemplateParameters();
-  if (!TemplateParams || TemplateParams->size() == 0) {
+  if (!TemplateParams || TemplateParams->size() == 0)
     return {};
-  }
 
   if (TemplateParams->size() == 1) {
     RemovalRange =
@@ -434,9 +418,9 @@ handleTrailingTemplateType(const FunctionTemplateDecl *FunctionTemplate,
 
   std::optional<SourceLocation> ConstraintInsertionLoc =
       findInsertionForConstraint(Function, Context);
-  if (!ConstraintInsertionLoc) {
+  if (!ConstraintInsertionLoc)
     return {};
-  }
+
   std::vector<FixItHint> FixIts;
   FixIts.push_back(
       FixItHint::CreateRemoval(CharSourceRange::getCharRange(RemovalRange)));
@@ -450,9 +434,8 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
       Result.Nodes.getNodeAs<FunctionTemplateDecl>("functionTemplate");
   const auto *Function = Result.Nodes.getNodeAs<FunctionDecl>("function");
   const auto *ReturnType = Result.Nodes.getNodeAs<TypeLoc>("return");
-  if (!FunctionTemplate || !Function || !ReturnType) {
+  if (!FunctionTemplate || !Function || !ReturnType)
     return;
-  }
 
   // Check for
   //
