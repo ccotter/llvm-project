@@ -932,11 +932,8 @@ bool LoopConvertCheck::isConvertible(ASTContext *Context,
       // This call is required to obtain the container.
       if (!isa<MemberExpr>(EndCall->getCallee()))
         return false;
-    } else if (Nodes.getNodeAs<CallExpr>(EndCallName)) {
-      return true;
-    } else {
-      return false;
-    }
+    } else
+      return Nodes.getNodeAs<CallExpr>(EndCallName) != nullptr;
   }
   return true;
 }
