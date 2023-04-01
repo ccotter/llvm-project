@@ -26,6 +26,7 @@
 #include "MacroUsageCheck.h"
 #include "NarrowingConversionsCheck.h"
 #include "NoMallocCheck.h"
+#include "NoSuspendWithLockCheck.h"
 #include "OwningMemoryCheck.h"
 #include "PreferMemberInitializerCheck.h"
 #include "ProBoundsArrayToPointerDecayCheck.h"
@@ -79,6 +80,8 @@ public:
     CheckFactories.registerCheck<NarrowingConversionsCheck>(
         "cppcoreguidelines-narrowing-conversions");
     CheckFactories.registerCheck<NoMallocCheck>("cppcoreguidelines-no-malloc");
+    CheckFactories.registerCheck<NoSuspendWithLockCheck>(
+        "cppcoreguidelines-no-suspend-with-lock");
     CheckFactories.registerCheck<misc::NonPrivateMemberVariablesInClassesCheck>(
         "cppcoreguidelines-non-private-member-variables-in-classes");
     CheckFactories.registerCheck<OwningMemoryCheck>(

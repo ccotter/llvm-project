@@ -121,6 +121,11 @@ New checks
   use-after-free errors and suggests avoiding captures or ensuring the lambda
   closure object has a guaranteed lifetime.
 
+- New :doc:`cppcoreguidelines-no-suspend-with-lock
+  <clang-tidy/checks/cppcoreguidelines/no-suspend-with-lock>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
   <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
 
