@@ -34,6 +34,7 @@ struct Ctor {
   Ctor() {
     Ctor(0); // TODO: warn here.
   }
+  ~Ctor();
 };
 
 template <typename T>

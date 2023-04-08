@@ -26,7 +26,7 @@ void UnusedRaiiCheck::registerMatchers(MatchFinder *Finder) {
   // destroyed.
   Finder->addMatcher(
       mapAnyOf(cxxConstructExpr, cxxUnresolvedConstructExpr)
-          .with(hasParent(compoundStmt().bind("compound")),
+          .with(hasParent(compoundStmt(optionally(hasAncestor(cxxConstructorDecl().bind("in-ctor")))).bind("compound")),
                 anyOf(hasType(hasCanonicalType(recordType(hasDeclaration(
                           cxxRecordDecl(hasNonTrivialDestructor()))))),
                       hasType(hasCanonicalType(templateSpecializationType(
@@ -67,9 +67,13 @@ void UnusedRaiiCheck::check(const MatchFinder::MatchResult &Result) {
   // statement.
   const auto *CS = Result.Nodes.getNodeAs<CompoundStmt>("compound");
   const auto *LastExpr = dyn_cast<Expr>(CS->body_back());
+  bool InCtorDef = Result.Nodes.getNodeAs<CXXConstructorDecl>("in-ctor") != nullptr;
 
-  if (LastExpr && E == LastExpr->IgnoreUnlessSpelledInSource())
+  llvm::errs() << "InCtorDef=" << InCtorDef << "\n";
+
+  if (!InCtorDef && LastExpr && E == LastExpr->IgnoreUnlessSpelledInSource())
     return;
+  llvm::errs() << "InCtorDef done=" << InCtorDef << "\n";
 
   // Emit a warning.
   auto D = diag(E->getBeginLoc(), "object destroyed immediately after "
