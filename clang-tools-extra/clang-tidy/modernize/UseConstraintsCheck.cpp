@@ -14,7 +14,7 @@
 #include "../utils/LexerUtils.h"
 
 #include <optional>
-#include <tuple>
+#include <utility>
 
 using namespace clang::ast_matchers;
 
@@ -68,7 +68,7 @@ matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
     if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
 
-    return std::make_optional(Specialization);
+    return Specialization;
   }
   return std::nullopt;
 }
@@ -86,7 +86,7 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
     if (!Specialization.getTypePtr()->isTypeAlias())
       return std::nullopt;
 
-    if (const auto *AliasedType = llvm::dyn_cast<DependentNameType>(
+    if (const auto *AliasedType = dyn_cast<DependentNameType>(
             Specialization.getTypePtr()->getAliasedType())) {
       if (AliasedType->getIdentifier()->getName() != "type" ||
           AliasedType->getKeyword() != ETK_Typename) {
@@ -99,16 +99,14 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
     if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
 
-    return std::make_optional(Specialization);
+    return Specialization;
   }
   return std::nullopt;
 }
 
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecializationImpl(TypeLoc TheType) {
-  std::optional<TemplateSpecializationTypeLoc> EnableIf;
-  EnableIf = matchEnableIfSpecializationImplTypename(TheType);
-  if (EnableIf)
+  if (auto EnableIf = matchEnableIfSpecializationImplTypename(TheType))
     return EnableIf;
   return matchEnableIfSpecializationImplTrait(TheType);
 }
@@ -122,15 +120,12 @@ matchEnableIfSpecialization(TypeLoc TheType) {
   if (const auto Qualified = TheType.getAs<QualifiedTypeLoc>())
     TheType = Qualified.getUnqualifiedLoc();
 
-  std::optional<TemplateSpecializationTypeLoc> EnableIf =
-      matchEnableIfSpecializationImpl(TheType);
-  if (EnableIf)
-    return std::make_optional(EnableIfData{std::move(*EnableIf), TheType});
-  else
-    return std::nullopt;
+  if (auto EnableIf = matchEnableIfSpecializationImpl(TheType))
+    return EnableIfData{std::move(*EnableIf), TheType};
+  return std::nullopt;
 }
 
-static std::tuple<std::optional<EnableIfData>, const Decl *>
+static std::pair<std::optional<EnableIfData>, const Decl *>
 matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
   // For non-type trailing param, match very specifically
   // 'template <..., enable_if_type<Condition, Type> = Default>' where
@@ -148,24 +143,22 @@ matchTrailingTemplateParam(const FunctionTemplateDecl *FunctionTemplate) {
   const NamedDecl *LastParam =
       TemplateParams->getParam(TemplateParams->size() - 1);
   if (const auto *LastTemplateParam =
-          llvm::dyn_cast<NonTypeTemplateParmDecl>(LastParam)) {
+          dyn_cast<NonTypeTemplateParmDecl>(LastParam)) {
 
     if (!LastTemplateParam->hasDefaultArgument() ||
         !LastTemplateParam->getName().empty())
       return {};
 
-    return std::make_tuple(
-        matchEnableIfSpecialization(
-            LastTemplateParam->getTypeSourceInfo()->getTypeLoc()),
-        LastTemplateParam);
+    return {matchEnableIfSpecialization(
+                LastTemplateParam->getTypeSourceInfo()->getTypeLoc()),
+            LastTemplateParam};
   } else if (const auto *LastTemplateParam =
-                 llvm::dyn_cast<TemplateTypeParmDecl>(LastParam)) {
+                 dyn_cast<TemplateTypeParmDecl>(LastParam)) {
     if (LastTemplateParam->hasDefaultArgument() &&
         LastTemplateParam->getIdentifier() == nullptr) {
-      return std::make_tuple(
-          matchEnableIfSpecialization(
-              LastTemplateParam->getDefaultArgumentInfo()->getTypeLoc()),
-          LastTemplateParam);
+      return {matchEnableIfSpecialization(
+                  LastTemplateParam->getDefaultArgumentInfo()->getTypeLoc()),
+              LastTemplateParam};
     }
   }
   return {};
@@ -212,26 +205,24 @@ static SourceRange getTypeRange(ASTContext &Context,
       getRAngleFileLoc(SM, EnableIf));
 }
 
-static std::optional<std::string>
+static std::optional<StringRef>
 getTypeText(ASTContext &Context,
             const TemplateSpecializationTypeLoc &EnableIf) {
   if (EnableIf.getNumArgs() > 1) {
     const LangOptions &LangOpts = Context.getLangOpts();
     const SourceManager &SM = Context.getSourceManager();
     bool Invalid = false;
-    std::string Text =
-        Lexer::getSourceText(
-            CharSourceRange::getCharRange(getTypeRange(Context, EnableIf)), SM,
-            LangOpts, &Invalid)
-            .trim()
-            .str();
+    StringRef Text = Lexer::getSourceText(CharSourceRange::getCharRange(
+                                              getTypeRange(Context, EnableIf)),
+                                          SM, LangOpts, &Invalid)
+                         .trim();
     if (Invalid)
       return std::nullopt;
 
-    return std::make_optional(std::move(Text));
-  } else {
-    return std::make_optional("void");
+    return std::move(Text);
   }
+
+  return "void";
 }
 
 static std::optional<SourceLocation>
@@ -239,7 +230,7 @@ findInsertionForConstraint(const FunctionDecl *Function, ASTContext &Context) {
   SourceManager &SM = Context.getSourceManager();
   const LangOptions &LangOpts = Context.getLangOpts();
 
-  if (const auto *Constructor = llvm::dyn_cast<CXXConstructorDecl>(Function)) {
+  if (const auto *Constructor = dyn_cast<CXXConstructorDecl>(Function)) {
     if (Constructor->init_begin() != Constructor->init_end()) {
       const CXXCtorInitializer *FirstInit = *Constructor->init_begin();
       return utils::lexer::findPreviousTokenKind(FirstInit->getSourceLocation(),
@@ -291,11 +282,9 @@ bool isPrimaryExpression(const Expr *Expression) {
   // returns true, the expression is a primary expression. The converse
   // is not necessarily true.
 
-  if (const auto *Cast = llvm::dyn_cast<ImplicitCastExpr>(Expression))
+  if (const auto *Cast = dyn_cast<ImplicitCastExpr>(Expression))
     Expression = Cast->getSubExprAsWritten();
-  if (llvm::dyn_cast<ParenExpr>(Expression))
-    return true;
-  if (llvm::dyn_cast<DependentScopeDeclRefExpr>(Expression))
+  if (isa<ParenExpr, DependentScopeDeclRefExpr>(Expression))
     return true;
 
   return false;
@@ -327,14 +316,12 @@ static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
   auto AddParens = [&](llvm::StringRef Text) -> std::string {
     if (isPrimaryExpression(ConditionExpr))
       return Text.str();
-    else
-      return "(" + Text.str() + ")";
+    return "(" + Text.str() + ")";
   };
 
   if (EndsWithDoubleSlash)
-    return std::make_optional(AddParens(ConditionText.str()));
-  else
-    return std::make_optional(AddParens(ConditionText.trim().str()));
+    return AddParens(ConditionText);
+  return AddParens(ConditionText.trim());
 }
 
 static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
@@ -347,7 +334,7 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
 
   std::optional<std::string> ConditionText = getConditionText(
       EnableCondition.getSourceExpression(), ConditionRange, Context);
-  std::optional<std::string> TypeText = getTypeText(Context, EnableIf.Loc);
+  std::optional<StringRef> TypeText = getTypeText(Context, EnableIf.Loc);
   if (!TypeText)
     return {};
 
@@ -456,28 +443,22 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   //
 
   // Case 1. Return type of function
-  std::optional<EnableIfData> EnableIf;
-  EnableIf = matchEnableIfSpecialization(*ReturnType);
-  if (EnableIf.has_value()) {
-    std::vector<FixItHint> FixIts =
-        handleReturnType(Function, *ReturnType, *EnableIf, *Result.Context);
+  if (auto EnableIf = matchEnableIfSpecialization(*ReturnType)) {
     diag(ReturnType->getBeginLoc(),
          "use C++20 requires constraints instead of enable_if")
-        << FixIts;
+        << handleReturnType(Function, *ReturnType, *EnableIf, *Result.Context);
     return;
   }
 
   // Case 2. Trailing template parameter
-  const Decl *LastTemplateParam = nullptr;
-  std::tie(EnableIf, LastTemplateParam) =
-      matchTrailingTemplateParam(FunctionTemplate);
-  if (EnableIf.has_value() && LastTemplateParam) {
-    std::vector<FixItHint> FixIts = handleTrailingTemplateType(
-        FunctionTemplate, Function, LastTemplateParam, *EnableIf,
-        *Result.Context);
+  if (auto [EnableIf, LastTemplateParam] =
+          matchTrailingTemplateParam(FunctionTemplate);
+      EnableIf && LastTemplateParam) {
     diag(LastTemplateParam->getSourceRange().getBegin(),
          "use C++20 requires constraints instead of enable_if")
-        << FixIts;
+        << handleTrailingTemplateType(FunctionTemplate, Function,
+                                      LastTemplateParam, *EnableIf,
+                                      *Result.Context);
     return;
   }
 }
