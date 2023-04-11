@@ -254,28 +254,6 @@ findInsertionForConstraint(const FunctionDecl *Function, ASTContext &Context) {
   return Body->getBeginLoc();
 }
 
-static Token getPreviousToken(SourceLocation &Location, const SourceManager &SM,
-                              const LangOptions &LangOpts,
-                              bool SkipComments = false) {
-  Token Token;
-  Token.setKind(tok::unknown);
-
-  Location = Location.getLocWithOffset(-1);
-  if (Location.isInvalid())
-    return Token;
-
-  auto StartOfFile = SM.getLocForStartOfFile(SM.getFileID(Location));
-  while (Location != StartOfFile) {
-    Location = Lexer::GetBeginningOfToken(Location, SM, LangOpts);
-    if (!Lexer::getRawToken(Location, Token, SM, LangOpts) &&
-        (!SkipComments || !Token.is(tok::comment))) {
-      break;
-    }
-    Location = Location.getLocWithOffset(-1);
-  }
-  return Token;
-}
-
 bool isPrimaryExpression(const Expr *Expression) {
   // This function is an incomplete approximation of checking whether
   // an Expr is a primary expression. In particular, if this function
@@ -300,7 +278,10 @@ static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
   if (PrevTokenLoc.isInvalid())
     return std::nullopt;
 
-  Token PrevToken = getPreviousToken(PrevTokenLoc, SM, LangOpts);
+  const bool SkipComments = false;
+  Token PrevToken;
+  std::tie(PrevToken, PrevTokenLoc) = utils::lexer::getPreviousTokenAndStart(
+      PrevTokenLoc, SM, LangOpts, SkipComments);
   bool EndsWithDoubleSlash =
       PrevToken.is(tok::comment) &&
       Lexer::getSourceText(CharSourceRange::getCharRange(
