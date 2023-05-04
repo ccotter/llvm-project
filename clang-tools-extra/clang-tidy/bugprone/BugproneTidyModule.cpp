@@ -32,6 +32,7 @@
 #include "LambdaFunctionNameCheck.h"
 #include "MacroParenthesesCheck.h"
 #include "MacroRepeatedSideEffectsCheck.h"
+#include "MismatchedIteratorCompareCheck.h"
 #include "MisplacedOperatorInStrlenInAllocCheck.h"
 #include "MisplacedPointerArithmeticInAllocCheck.h"
 #include "MisplacedWideningCastCheck.h"
@@ -124,6 +125,8 @@ public:
         "bugprone-macro-parentheses");
     CheckFactories.registerCheck<MacroRepeatedSideEffectsCheck>(
         "bugprone-macro-repeated-side-effects");
+    CheckFactories.registerCheck<MismatchedIteratorCompareCheck>(
+        "bugprone-mismatched-iterator-compare");
     CheckFactories.registerCheck<MisplacedOperatorInStrlenInAllocCheck>(
         "bugprone-misplaced-operator-in-strlen-in-alloc");
     CheckFactories.registerCheck<MisplacedPointerArithmeticInAllocCheck>(

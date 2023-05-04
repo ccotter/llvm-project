@@ -102,6 +102,11 @@ Improvements to clang-tidy
 New checks
 ^^^^^^^^^^
 
+- New :doc:`bugprone-mismatched-iterator-compare
+  <clang-tidy/checks/bugprone/mismatched-iterator-compare>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`bugprone-suspicious-realloc-usage
   <clang-tidy/checks/bugprone/suspicious-realloc-usage>` check.
 

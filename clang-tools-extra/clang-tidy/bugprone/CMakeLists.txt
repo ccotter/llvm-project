@@ -27,6 +27,7 @@ add_clang_library(clangTidyBugproneModule
   LambdaFunctionNameCheck.cpp
   MacroParenthesesCheck.cpp
   MacroRepeatedSideEffectsCheck.cpp
+  MismatchedIteratorCompareCheck.cpp
   MisplacedOperatorInStrlenInAllocCheck.cpp
   MisplacedPointerArithmeticInAllocCheck.cpp
   MisplacedWideningCastCheck.cpp
