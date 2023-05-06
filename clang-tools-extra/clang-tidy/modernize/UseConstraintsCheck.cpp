@@ -246,11 +246,13 @@ findInsertionForConstraint(const FunctionDecl *Function, ASTContext &Context) {
   const LangOptions &LangOpts = Context.getLangOpts();
 
   if (const auto *Constructor = dyn_cast<CXXConstructorDecl>(Function)) {
-    if (Constructor->init_begin() != Constructor->init_end()) {
-      const CXXCtorInitializer *FirstInit = *Constructor->init_begin();
-      return utils::lexer::findPreviousTokenKind(FirstInit->getSourceLocation(),
-                                                 SM, LangOpts, tok::colon);
+    for (const CXXCtorInitializer *Init : Constructor->inits()) {
+      if (Init->getSourceOrder() == 0)
+        return utils::lexer::findPreviousTokenKind(Init->getSourceLocation(),
+                                                   SM, LangOpts, tok::colon);
     }
+    if (Constructor->init_begin() != Constructor->init_end())
+      return std::nullopt;
   }
   if (Function->isDeleted()) {
     SourceLocation FunctionEnd = Function->getSourceRange().getEnd();

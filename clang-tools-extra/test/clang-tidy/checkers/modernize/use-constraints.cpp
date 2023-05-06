@@ -484,7 +484,34 @@ struct AClass : ABaseClass {
   // CHECK-FIXES: {{^}}  template <typename U>{{$}}
   // CHECK-FIXES-NEXT: {{^}}  AClass(int, int, int) requires U::some_value : ABaseClass(0) {}{{$}}
 
+  template <typename U, std::enable_if_t<U::some_value, int> = 0>
+  AClass(int, int, int, int) : data2(), data() {}
+  // CHECK-MESSAGES: :[[@LINE-2]]:25: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+  // CHECK-FIXES: {{^}}  template <typename U>{{$}}
+  // CHECK-FIXES-NEXT: {{^}}  AClass(int, int, int, int) requires U::some_value : data2(), data() {}{{$}}
+
   int data;
+  int data2;
+};
+
+template <typename T>
+struct AClass2 : ABaseClass {
+
+  template <typename U, std::enable_if_t<U::some_value, int> = 0>
+  AClass2() {}
+  // CHECK-MESSAGES: :[[@LINE-2]]:25: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+  // CHECK-FIXES: {{^}}  template <typename U>{{$}}
+  // CHECK-FIXES-NEXT: {{^}}  AClass2() requires U::some_value {}{{$}}
+
+  template <typename U, std::enable_if_t<U::some_value, int> = 0>
+  AClass2(int) : data2(0) {}
+  // CHECK-MESSAGES: :[[@LINE-2]]:25: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+  // CHECK-FIXES: {{^}}  template <typename U>{{$}}
+  // CHECK-FIXES-NEXT: {{^}}  AClass2(int) requires U::some_value : data2(0) {}{{$}}
+
+  int data = 10;
+  int data2;
+  int data3;
 };
 
 template <typename T, std::enable_if_t<T::some_value, T>* = 0>
