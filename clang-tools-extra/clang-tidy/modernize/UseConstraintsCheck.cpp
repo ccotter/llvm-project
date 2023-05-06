@@ -58,17 +58,24 @@ matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
     TheType = Dep.getQualifierLoc().getTypeLoc();
   }
 
-  if (const auto Specialization =
+  if (const auto SpecializationLoc =
           TheType.getAs<TemplateSpecializationTypeLoc>()) {
-    std::string Name = TheType.getType().getAsString();
-    if (Name.find("enable_if<") == std::string::npos)
+
+    const auto *Specialization =
+        dyn_cast<TemplateSpecializationType>(SpecializationLoc.getTypePtr());
+    if (!Specialization)
       return std::nullopt;
 
-    int NumArgs = Specialization.getNumArgs();
+    const TemplateDecl *TD =
+        Specialization->getTemplateName().getAsTemplateDecl();
+    if (!TD || TD->getName() != "enable_if")
+      return std::nullopt;
+
+    int NumArgs = SpecializationLoc.getNumArgs();
     if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
 
-    return Specialization;
+    return SpecializationLoc;
   }
   return std::nullopt;
 }
@@ -78,16 +85,24 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
   if (const auto Elaborated = TheType.getAs<ElaboratedTypeLoc>())
     TheType = Elaborated.getNamedTypeLoc();
 
-  if (const auto Specialization =
+  if (const auto SpecializationLoc =
           TheType.getAs<TemplateSpecializationTypeLoc>()) {
-    std::string Name = TheType.getType().getAsString();
-    if (Name.find("enable_if_t<") == std::string::npos)
-      return std::nullopt;
-    if (!Specialization.getTypePtr()->isTypeAlias())
+
+    const auto *Specialization =
+        dyn_cast<TemplateSpecializationType>(SpecializationLoc.getTypePtr());
+    if (!Specialization)
       return std::nullopt;
 
-    if (const auto *AliasedType = dyn_cast<DependentNameType>(
-            Specialization.getTypePtr()->getAliasedType())) {
+    const TemplateDecl *TD =
+        Specialization->getTemplateName().getAsTemplateDecl();
+    if (!TD || TD->getName() != "enable_if_t")
+      return std::nullopt;
+
+    if (!Specialization->isTypeAlias())
+      return std::nullopt;
+
+    if (const auto *AliasedType =
+            dyn_cast<DependentNameType>(Specialization->getAliasedType())) {
       if (AliasedType->getIdentifier()->getName() != "type" ||
           AliasedType->getKeyword() != ETK_Typename) {
         return std::nullopt;
@@ -95,11 +110,11 @@ matchEnableIfSpecializationImplTrait(TypeLoc TheType) {
     } else {
       return std::nullopt;
     }
-    int NumArgs = Specialization.getNumArgs();
+    int NumArgs = SpecializationLoc.getNumArgs();
     if (NumArgs != 1 && NumArgs != 2)
       return std::nullopt;
 
-    return Specialization;
+    return SpecializationLoc;
   }
   return std::nullopt;
 }
@@ -219,7 +234,7 @@ getTypeText(ASTContext &Context,
     if (Invalid)
       return std::nullopt;
 
-    return std::move(Text);
+    return Text;
   }
 
   return "void";
@@ -238,13 +253,8 @@ findInsertionForConstraint(const FunctionDecl *Function, ASTContext &Context) {
     }
   }
   if (Function->isDeleted()) {
-    SourceRange ParamsRange = Function->getParametersSourceRange();
-    if (!ParamsRange.isValid())
-      return std::nullopt;
-
-    SourceLocation EndParens = utils::lexer::findNextAnyTokenKind(
-        ParamsRange.getEnd(), SM, LangOpts, tok::r_paren, tok::r_paren);
-    return utils::lexer::findNextAnyTokenKind(EndParens, SM, LangOpts,
+    SourceLocation FunctionEnd = Function->getSourceRange().getEnd();
+    return utils::lexer::findNextAnyTokenKind(FunctionEnd, SM, LangOpts,
                                               tok::equal, tok::equal);
   }
   const Stmt *Body = Function->getBody();

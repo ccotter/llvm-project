@@ -296,6 +296,7 @@ constexpr /* comment */ typename std::enable_if<T::some_value, int>::type conste
 ////////////////////////////////
 
 struct AClass {
+
   template <typename T>
   static typename std::enable_if<T::some_value, Obj>::type static_method() {
     return Obj{};
@@ -335,6 +336,11 @@ struct AClass {
   std::enable_if_t<T::some_value, AClass&> operator=(T&&) = delete;
   // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
   // CHECK-FIXES: {{^}}  AClass& operator=(T&&) requires T::some_value = delete;
+
+  template<typename T>
+  std::enable_if_t<T::some_value, AClass&> operator=(ConsumeVariadic<T>) noexcept(requires (T t) { t = 4; }) = delete;
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: use C++20 requires constraints instead of enable_if [modernize-use-constraints]
+  // CHECK-FIXES: {{^}}  AClass& operator=(ConsumeVariadic<T>) noexcept(requires (T t) { t = 4; }) requires T::some_value = delete;
 
 };
 
