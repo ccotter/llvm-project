@@ -17,13 +17,13 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstring>
 #include <optional>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 
 using namespace clang::ast_matchers;
@@ -68,10 +68,10 @@ static const char EndCallName[] = "endCall";
 static const char EndVarName[] = "endVar";
 static const char DerefByValueResultName[] = "derefByValueResult";
 static const char DerefByRefResultName[] = "derefByRefResult";
-static const std::set<llvm::StringRef> ADLNames{"begin",   "cbegin", "rbegin",
-                                                "crbegin", "end",    "cend",
-                                                "rend",    "crend",  "size"};
-static const std::set<llvm::StringRef> StdNames{
+static const llvm::StringSet<> ADLNames{"begin",   "cbegin", "rbegin",
+                                        "crbegin", "end",    "cend",
+                                        "rend",    "crend",  "size"};
+static const llvm::StringSet<> StdNames{
     "std::begin", "std::cbegin", "std::rbegin", "std::crbegin", "std::end",
     "std::cend",  "std::rend",   "std::crend",  "std::size"};
 
@@ -299,10 +299,10 @@ StatementMatcher makePseudoArrayLoopMatcher() {
                         callee(cxxMethodDecl(hasAnyName("size", "length"))),
                         on(anyOf(hasType(pointsTo(RecordWithBeginEnd)),
                                  hasType(RecordWithBeginEnd)))),
-      callExpr(argumentCountIs(1), callee(functionDecl(hasAnyName("size"))),
+      callExpr(argumentCountIs(1), callee(functionDecl(hasName("size"))),
                usesADL()),
       callExpr(argumentCountIs(1),
-               callee(functionDecl(hasAnyName("::std::size"))))));
+               callee(functionDecl(hasName("::std::size"))))));
 
   StatementMatcher EndInitMatcher =
       expr(anyOf(ignoringParenImpCasts(expr(SizeCallMatcher).bind(EndCallName)),
@@ -336,6 +336,13 @@ enum IteratorCallKind {
   ICK_Std,
 };
 
+struct ContainerCall {
+  const Expr *Container;
+  StringRef Name;
+  bool IsArrow;
+  IteratorCallKind CallKind;
+};
+
 // Find the Expr likely initializing an iterator.
 //
 // Call is either a CXXMemberCallExpr ('c.begin()') or CallExpr of a free
@@ -343,43 +350,42 @@ enum IteratorCallKind {
 // Returns at a 3-tuple with the container expr, function name (begin/end/etc),
 // and whether the call is made through an arrow (->) for CXXMemberCallExprs.
 // The returned Expr* is nullptr if any of the assumptions are not met.
-static std::tuple<const Expr *, StringRef, bool, IteratorCallKind>
-getContainerExpr(const Expr *Call) {
+// static std::tuple<const Expr *, StringRef, bool, IteratorCallKind>
+static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
   const Expr *Dug = digThroughConstructorsConversions(Call);
 
-  IteratorCallKind CallKind;
+  IteratorCallKind CallKind = ICK_Member;
 
   if (const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(Dug)) {
     CallKind = ICK_Member;
-    if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee())) {
-      return std::make_tuple(TheCall->getImplicitObjectArgument(),
-                             Member->getMemberDecl()->getName(),
-                             Member->isArrow(), CallKind);
-    } else {
-      return std::make_tuple(TheCall->getArg(0),
-                             TheCall->getDirectCallee()->getName(), false,
-                             CallKind);
-    }
+    if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee()))
+      return ContainerCall{TheCall->getImplicitObjectArgument(),
+                           Member->getMemberDecl()->getName(),
+                           Member->isArrow(), CallKind};
+    else
+      return ContainerCall{TheCall->getArg(0),
+                           TheCall->getDirectCallee()->getName(), false,
+                           CallKind};
   } else if (const auto *TheCall = dyn_cast_or_null<CallExpr>(Dug)) {
     if (TheCall->getNumArgs() != 1)
-      return std::make_tuple(nullptr, StringRef{}, false, CallKind);
+      return std::nullopt;
 
     if (TheCall->usesADL()) {
-      if (!ADLNames.count(TheCall->getDirectCallee()->getName()))
-        return {};
+      if (!ADLNames.contains(TheCall->getDirectCallee()->getName()))
+        return std::nullopt;
       CallKind = ICK_ADL;
     } else {
-      if (!StdNames.count(
+      if (!StdNames.contains(
               TheCall->getDirectCallee()->getQualifiedNameAsString()))
-        return {};
+        return std::nullopt;
       CallKind = ICK_Std;
     }
 
-    return std::make_tuple(TheCall->getArg(0),
-                           TheCall->getDirectCallee()->getName(), false,
-                           CallKind);
+    return ContainerCall{TheCall->getArg(0),
+                         TheCall->getDirectCallee()->getName(), false,
+                         CallKind};
   }
-  return {};
+  return std::nullopt;
 }
 
 /// Determine whether Init appears to be an initializing an iterator.
@@ -387,24 +393,23 @@ getContainerExpr(const Expr *Call) {
 /// If it is, returns the object whose begin() or end() method is called, and
 /// the output parameter isArrow is set to indicate whether the initialization
 /// is called via . or ->.
-static std::tuple<const Expr *, IteratorCallKind>
+static std::pair<const Expr *, IteratorCallKind>
 getContainerFromBeginEndCall(const Expr *Init, bool IsBegin, bool *IsArrow,
                              bool IsReverse) {
   // FIXME: Maybe allow declaration/initialization outside of the for loop.
 
-  StringRef Name;
-  const Expr *ContainerExpr;
-  IteratorCallKind CallKind;
-  std::tie(ContainerExpr, Name, *IsArrow, CallKind) = getContainerExpr(Init);
-  if (!ContainerExpr)
+  std::optional<ContainerCall> Call = getContainerExpr(Init);
+  if (!Call)
     return {};
-  if (!Name.consume_back(IsBegin ? "begin" : "end"))
+
+  *IsArrow = Call->IsArrow;
+  if (!Call->Name.consume_back(IsBegin ? "begin" : "end"))
     return {};
-  if (IsReverse && !Name.consume_back("r"))
+  if (IsReverse && !Call->Name.consume_back("r"))
     return {};
-  if (!Name.empty() && !Name.equals("c"))
+  if (!Call->Name.empty() && !Call->Name.equals("c"))
     return {};
-  return std::make_tuple(ContainerExpr, CallKind);
+  return std::make_tuple(Call->Container, Call->CallKind);
 }
 
 /// Determines the container whose begin() and end() functions are called
@@ -986,9 +991,11 @@ void LoopConvertCheck::check(const MatchFinder::MatchResult &Result) {
         &Descriptor.ContainerNeedsDereference,
         /*IsReverse=*/FixerKind == LFK_ReverseIterator);
   } else if (FixerKind == LFK_PseudoArray) {
-    IteratorCallKind IgnoreCallKind;
-    std::tie(ContainerExpr, std::ignore, Descriptor.ContainerNeedsDereference,
-             IgnoreCallKind) = getContainerExpr(EndCall);
+    std::optional<ContainerCall> Call = getContainerExpr(EndCall);
+    if (Call) {
+      ContainerExpr = Call->Container;
+      Descriptor.ContainerNeedsDereference = Call->IsArrow;
+    }
   }
 
   // We must know the container or an array length bound.
