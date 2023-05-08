@@ -409,7 +409,7 @@ getContainerFromBeginEndCall(const Expr *Init, bool IsBegin, bool *IsArrow,
     return {};
   if (!Call->Name.empty() && !Call->Name.equals("c"))
     return {};
-  return std::make_tuple(Call->Container, Call->CallKind);
+  return std::make_pair(Call->Container, Call->CallKind);
 }
 
 /// Determines the container whose begin() and end() functions are called
