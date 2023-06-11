@@ -36,6 +36,8 @@ struct CharLikeObj {
   operator char() const;
 };
 
+unsigned char getUChar();
+
 void Test() {
   short sh;
   int i;
@@ -155,6 +157,10 @@ void Valid() {
   std::string s3("test");
   std::string s4((int)kText[1], i);
   std::string s5(kText[1], (char)i);
+
+  unsigned char Sz = 5;
+  std::string s6(Sz, 'x');
+  std::string s7(getUChar(), 'x');
 
   std::string_view emptyv();
   std::string_view sv1("test", 4);
