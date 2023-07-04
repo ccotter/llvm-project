@@ -219,6 +219,11 @@ New checks
   Enforces consistent token representation for invoked binary, unary and
   overloaded operators in C++ code.
 
+- New :doc:`readability-use-named-cast
+  <clang-tidy/checks/readability/use-named-cast>` check.
+
+  FIXME: add release notes.
+
 New check aliases
 ^^^^^^^^^^^^^^^^^
 

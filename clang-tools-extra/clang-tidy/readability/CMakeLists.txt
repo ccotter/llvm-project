@@ -50,6 +50,7 @@ add_clang_library(clangTidyReadabilityModule
   UniqueptrDeleteReleaseCheck.cpp
   UppercaseLiteralSuffixCheck.cpp
   UseAnyOfAllOfCheck.cpp
+  UseNamedCastCheck.cpp
 
   LINK_LIBS
   clangTidy
