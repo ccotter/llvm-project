@@ -1,7 +1,7 @@
 .. title:: clang-tidy - modernize-use-constraints
 
 modernize-use-constraints
-======================
+=========================
 
 Replace ``enable_if`` with C++20 requires clauses.
 
