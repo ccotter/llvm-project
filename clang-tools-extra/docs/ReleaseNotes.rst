@@ -116,80 +116,10 @@ Improvements to clang-tidy
 New checks
 ^^^^^^^^^^
 
-- New :doc:`bugprone-multi-level-implicit-pointer-conversion
-  <clang-tidy/checks/bugprone/multi-level-implicit-pointer-conversion>` check.
-
-  Detects implicit conversions between pointers of different levels of
-  indirection.
-
-- New :doc:`performance-enum-size
-  <clang-tidy/checks/performance/enum-size>` check.
-
-  Recommends the smallest possible underlying type for an ``enum`` or ``enum``
-  class based on the range of its enumerators.
-  Detect implicit and explicit casts of ``enum`` type into ``bool`` where ``enum`` type
-  doesn't have a zero-value enumerator.
-
-- New :doc:`bugprone-unsafe-functions
-  <clang-tidy/checks/bugprone/unsafe-functions>` check.
-
-  Checks for functions that have safer, more secure replacements available, or
-  are considered deprecated due to design flaws.
-  This check relies heavily on, but is not exclusive to, the functions from
-  the *Annex K. "Bounds-checking interfaces"* of C11.
-
-- New :doc:`cppcoreguidelines-avoid-capturing-lambda-coroutines
-  <clang-tidy/checks/cppcoreguidelines/avoid-capturing-lambda-coroutines>` check.
-
-  Flags C++20 coroutine lambdas with non-empty capture lists that may cause
-  use-after-free errors and suggests avoiding captures or ensuring the lambda
-  closure object has a guaranteed lifetime.
-
-- New :doc:`cppcoreguidelines-misleading-capture-default-by-value
-  <clang-tidy/checks/cppcoreguidelines/misleading-capture-default-by-value>` check.
-
-  Warns when lambda specify a by-value capture default and capture ``this``.
-
-- New :doc:`cppcoreguidelines-rvalue-reference-param-not-moved
-  <clang-tidy/checks/cppcoreguidelines/rvalue-reference-param-not-moved>` check.
-
-  Warns when an rvalue reference function parameter is never moved within
-  the function body.
-
-- New :doc:`llvmlibc-inline-function-decl
-  <clang-tidy/checks/llvmlibc/inline-function-decl>` check.
-
-  Checks that all implicit and explicit inline functions in header files are
-  tagged with the ``LIBC_INLINE`` macro.
-
-- New :doc:`modernize-type-traits
-  <clang-tidy/checks/modernize/type-traits>` check.
-
-  Converts standard library type traits of the form ``traits<...>::type`` and
-  ``traits<...>::value`` into ``traits_t<...>`` and ``traits_v<...>`` respectively.
-
-- New :doc:`performance-avoid-endl
-  <clang-tidy/checks/performance/avoid-endl>` check.
-
-  Finds uses of ``std::endl`` on streams and replaces them with ``'\n'``.
-
 - New :doc:`modernize-use-constraints
   <clang-tidy/checks/modernize/use-constraints>` check.
 
   Replace ``enable_if`` with C++20 requires clauses.
-
-- New :doc:`readability-avoid-unconditional-preprocessor-if
-  <clang-tidy/checks/readability/avoid-unconditional-preprocessor-if>` check.
-
-  Finds code blocks that are constantly enabled or disabled in preprocessor
-  directives by analyzing ``#if`` conditions, such as ``#if 0`` and
-  ``#if 1``, etc.
-
-- New :doc:`readability-operators-representation
-  <clang-tidy/checks/readability/operators-representation>` check.
-
-  Enforces consistent token representation for invoked binary, unary and
-  overloaded operators in C++ code.
 
 New check aliases
 ^^^^^^^^^^^^^^^^^
