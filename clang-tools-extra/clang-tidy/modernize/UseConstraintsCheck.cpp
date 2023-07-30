@@ -51,7 +51,8 @@ void UseConstraintsCheck::registerMatchers(MatchFinder *Finder) {
 static std::optional<TemplateSpecializationTypeLoc>
 matchEnableIfSpecializationImplTypename(TypeLoc TheType) {
   if (const auto Dep = TheType.getAs<DependentNameTypeLoc>()) {
-    if (Dep.getTypePtr()->getIdentifier()->getName() != "type" ||
+    const IdentifierInfo *Identifier = Dep.getTypePtr()->getIdentifier();
+    if (!Identifier || Identifier->getName() != "type" ||
         Dep.getTypePtr()->getKeyword() != ETK_Typename) {
       return std::nullopt;
     }
@@ -202,10 +203,10 @@ getConditionRange(ASTContext &Context,
         EnableIf.getLAngleLoc().getLocWithOffset(1),
         utils::lexer::findPreviousTokenKind(NextArg.getSourceRange().getBegin(),
                                             SM, LangOpts, tok::comma));
-  } else {
-    return SourceRange(EnableIf.getLAngleLoc().getLocWithOffset(1),
-                       getRAngleFileLoc(SM, EnableIf));
   }
+
+  return SourceRange(EnableIf.getLAngleLoc().getLocWithOffset(1),
+                     getRAngleFileLoc(SM, EnableIf));
 }
 
 static SourceRange getTypeRange(ASTContext &Context,
@@ -220,6 +221,9 @@ static SourceRange getTypeRange(ASTContext &Context,
       getRAngleFileLoc(SM, EnableIf));
 }
 
+// Returns the original source text of the second argument of a call to
+// enable_if_t. E.g., in enable_if_t<Condition, TheType>, this function
+// returns 'TheType'.
 static std::optional<StringRef>
 getTypeText(ASTContext &Context,
             const TemplateSpecializationTypeLoc &EnableIf) {
@@ -280,6 +284,10 @@ bool isPrimaryExpression(const Expr *Expression) {
   return false;
 }
 
+// Return the original source text of an enable_if_t condition, i.e., the
+// first template argument). For example, in
+// 'enable_if_t<FirstCondition || SecondCondition, AType>', the text
+// the text 'FirstCondition || SecondCondition' is returned.
 static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
                                                    SourceRange ConditionRange,
                                                    ASTContext &Context) {
@@ -317,6 +325,15 @@ static std::optional<std::string> getConditionText(const Expr *ConditionExpr,
   return AddParens(ConditionText.trim());
 }
 
+// Handle functions that return enable_if_t, e.g.,
+//   template <...>
+//   enable_if_t<Condition, ReturnType> function();
+//
+// Return a vector of FixItHints if the code can be replaced with
+// a C++20 requires clause. In the example above, returns FixItHints
+// to result in
+//   template <...>
+//   ReturnType function() requires Condition {}
 static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
                                                const TypeLoc &ReturnType,
                                                const EnableIfData &EnableIf,
@@ -327,6 +344,9 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
 
   std::optional<std::string> ConditionText = getConditionText(
       EnableCondition.getSourceExpression(), ConditionRange, Context);
+  if (!ConditionText)
+    return {};
+
   std::optional<StringRef> TypeText = getTypeText(Context, EnableIf.Loc);
   if (!TypeText)
     return {};
@@ -353,6 +373,15 @@ static std::vector<FixItHint> handleReturnType(const FunctionDecl *Function,
   return FixIts;
 }
 
+// Handle enable_if_t in a trailing template parameter, e.g.,
+//   template <..., enable_if_t<Condition, Type> = Type{}>
+//   ReturnType function();
+//
+// Return a vector of FixItHints if the code can be replaced with
+// a C++20 requires clause. In the example above, returns FixItHints
+// to result in
+//   template <...>
+//   ReturnType function() requires Condition {}
 static std::vector<FixItHint>
 handleTrailingTemplateType(const FunctionTemplateDecl *FunctionTemplate,
                            const FunctionDecl *Function,
@@ -422,17 +451,17 @@ void UseConstraintsCheck::check(const MatchFinder::MatchResult &Result) {
   //   Case 1. Return type of function
   //
   //     template <...>
-  //     enable_if<Condition, ReturnType> function();
+  //     enable_if_t<Condition, ReturnType>::type function() {}
   //
   //   Case 2. Trailing template parameter
   //
-  //     template <..., enable_if<Condition, Type> = Type{}>
-  //     type function();
+  //     template <..., enable_if_t<Condition, Type> = Type{}>
+  //     ReturnType function() {}
   //
   //     or
   //
-  //     template <..., typename = enable_if<Condition, void>>
-  //     type function();
+  //     template <..., typename = enable_if_t<Condition, void>>
+  //     ReturnType function() {}
   //
 
   // Case 1. Return type of function
