@@ -68,6 +68,9 @@ static const char EndCallName[] = "endCall";
 static const char EndVarName[] = "endVar";
 static const char DerefByValueResultName[] = "derefByValueResult";
 static const char DerefByRefResultName[] = "derefByRefResult";
+static const llvm::StringSet<> MemberNames{"begin",   "cbegin", "rbegin",
+                                           "crbegin", "end",    "cend",
+                                           "rend",    "crend",  "size"};
 static const llvm::StringSet<> ADLNames{"begin",   "cbegin", "rbegin",
                                         "crbegin", "end",    "cend",
                                         "rend",    "crend",  "size"};
@@ -330,7 +333,7 @@ StatementMatcher makePseudoArrayLoopMatcher() {
       .bind(LoopNamePseudoArray);
 }
 
-enum IteratorCallKind {
+enum class IteratorCallKind {
   ICK_Member,
   ICK_ADL,
   ICK_Std,
@@ -354,18 +357,23 @@ struct ContainerCall {
 static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
   const Expr *Dug = digThroughConstructorsConversions(Call);
 
-  IteratorCallKind CallKind = ICK_Member;
+  IteratorCallKind CallKind = IteratorCallKind::ICK_Member;
 
   if (const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(Dug)) {
-    CallKind = ICK_Member;
-    if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee()))
+    CallKind = IteratorCallKind::ICK_Member;
+    if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee())) {
+      if (!MemberNames.contains(Member->getMemberDecl()->getName()))
+        return std::nullopt;
       return ContainerCall{TheCall->getImplicitObjectArgument(),
                            Member->getMemberDecl()->getName(),
                            Member->isArrow(), CallKind};
-    else
+    } else {
+      if (!MemberNames.contains(TheCall->getDirectCallee()->getName()))
+        return std::nullopt;
       return ContainerCall{TheCall->getArg(0),
                            TheCall->getDirectCallee()->getName(), false,
                            CallKind};
+    }
   } else if (const auto *TheCall = dyn_cast_or_null<CallExpr>(Dug)) {
     if (TheCall->getNumArgs() != 1)
       return std::nullopt;
@@ -373,12 +381,12 @@ static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
     if (TheCall->usesADL()) {
       if (!ADLNames.contains(TheCall->getDirectCallee()->getName()))
         return std::nullopt;
-      CallKind = ICK_ADL;
+      CallKind = IteratorCallKind::ICK_ADL;
     } else {
       if (!StdNames.contains(
               TheCall->getDirectCallee()->getQualifiedNameAsString()))
         return std::nullopt;
-      CallKind = ICK_Std;
+      CallKind = IteratorCallKind::ICK_Std;
     }
 
     return ContainerCall{TheCall->getArg(0),
@@ -937,8 +945,8 @@ bool LoopConvertCheck::isConvertible(ASTContext *Context,
       // This call is required to obtain the container.
       if (!isa<MemberExpr>(EndCall->getCallee()))
         return false;
-    } else
-      return Nodes.getNodeAs<CallExpr>(EndCallName) != nullptr;
+    }
+    return Nodes.getNodeAs<CallExpr>(EndCallName) != nullptr;
   }
   return true;
 }
