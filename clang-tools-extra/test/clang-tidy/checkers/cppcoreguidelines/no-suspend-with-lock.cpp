@@ -46,6 +46,12 @@ public:
 };
 } // namespace std
 
+class my_own_mutex {
+public:
+  void lock();
+  void unlock();
+};
+
 struct Awaiter {
   bool await_ready() noexcept;
   void await_suspend(std::coroutine_handle<>) noexcept;
@@ -182,8 +188,92 @@ first:
   goto first;
 }
 
+void await_in_lambda() {
+  auto f1 = []() -> Coro {
+    std::unique_lock<std::mutex> lock(mtx);
+    co_await Awaiter{};
+    // CHECK-MESSAGES: [[@LINE-1]]:5: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+  };
+
+  auto f2 = [](auto& m) -> Coro {
+    std::unique_lock<decltype(m)> lock(m);
+    co_await Awaiter{};
+    // CHECK-MESSAGES: [[@LINE-1]]:5: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+  };
+}
+
+void await_in_lambda_without_immediate_mutex() {
+  std::unique_lock<std::mutex> lock(mtx);
+
+  auto f1 = []() -> Coro {
+    co_await Awaiter{};
+  };
+
+  // The check only finds suspension points where there is a lock held in the
+  // immediate callable.
+  f1();
+}
+
 Coro yields_with_lock() {
   std::unique_lock<std::mutex> lock(mtx);
   co_yield 0;
   // CHECK-MESSAGES: [[@LINE-1]]:3: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+}
+
+template <class Mutex>
+Coro awaits_templated_type(Mutex& m) {
+  std::unique_lock<Mutex> lock(m);
+  co_await Awaiter{};
+  // CHECK-MESSAGES: [[@LINE-1]]:3: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+}
+
+template <class T>
+Coro awaits_in_template_function(T) {
+  std::unique_lock<std::mutex> lock(mtx);
+  co_await Awaiter{};
+  // CHECK-MESSAGES: [[@LINE-1]]:3: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+}
+
+template <class Mutex>
+Coro awaits_in_never_instantiated_template_of_mutex(Mutex& m) {
+  // Nothing should instantiate this function
+  std::unique_lock<Mutex> lock(m);
+  co_await Awaiter{};
+  // CHECK-MESSAGES: [[@LINE-1]]:3: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+}
+
+template <class T>
+Coro awaits_in_never_instantiated_templated_function(T) {
+  // Nothing should instantiate this function
+  std::unique_lock<std::mutex> lock(mtx);
+  co_await Awaiter{};
+  // CHECK-MESSAGES: [[@LINE-1]]:3: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+}
+
+template <class T>
+struct my_container {
+
+  Coro push_back() {
+    std::unique_lock<std::mutex> lock(mtx_);
+    co_await Awaiter{};
+    // CHECK-MESSAGES: [[@LINE-1]]:5: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+  }
+
+  template <class... Args>
+  Coro emplace_back(Args&&...) {
+    std::unique_lock<std::mutex> lock(mtx_);
+    co_await Awaiter{};
+    // CHECK-MESSAGES: [[@LINE-1]]:5: warning: coroutine suspended with lock 'lock' held [cppcoreguidelines-no-suspend-with-lock]
+  }
+
+  std::mutex mtx_;
+};
+
+void calls_templated_functions() {
+  my_own_mutex m2;
+  awaits_templated_type(mtx);
+  awaits_templated_type(m2);
+
+  awaits_in_template_function(1);
+  awaits_in_template_function(1.0);
 }

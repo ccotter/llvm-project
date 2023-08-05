@@ -3,13 +3,18 @@
 cppcoreguidelines-no-suspend-with-lock
 ======================================
 
-Warns when a coroutine suspends while a lock guard object is in scope.
+Flags coroutines that suspend while a lock guard is in scope at the
+suspension point.
 
 When a coroutine suspends, any mutexes held by the coroutine will remain
 locked until the coroutine resumes and eventually destructs the lock guard.
 This can lead to long periods with a mutex held and runs the risk of deadlock.
 
 Instead, locks should be released before suspending a coroutine.
+
+This check only checks suspending coroutines while a lock_guard is in scope;
+it does not consider manual locking or unlocking of mutexes, e.g., through
+calls to ``std::mutex::lock()``.
 
 Examples:
 

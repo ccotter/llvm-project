@@ -136,6 +136,12 @@ New checks
   extracted from an optional-like type and then used to create a new instance
   of the same optional-like type.
 
+- New :doc:`cppcoreguidelines-no-suspend-with-lock
+  <clang-tidy/checks/cppcoreguidelines/no-suspend-with-lock>` check.
+
+  Flags coroutines that suspend while a lock guard is in scope at the
+  suspension point.
+
 - New :doc:`modernize-use-constraints
   <clang-tidy/checks/modernize/use-constraints>` check.
 
@@ -152,12 +158,6 @@ New checks
 
   Detects C++ code where a reference variable is used to extend the lifetime
   of a temporary object that has just been constructed.
-
-- New :doc:`cppcoreguidelines-no-suspend-with-lock
-  <clang-tidy/checks/cppcoreguidelines/no-suspend-with-lock>` check.
-
-  Flags coroutines that suspend while a lock guard is in scope at the
-  suspension point.
 
 New check aliases
 ^^^^^^^^^^^^^^^^^

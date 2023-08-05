@@ -21,12 +21,22 @@ namespace clang::tidy::cppcoreguidelines {
 class NoSuspendWithLockCheck : public ClangTidyCheck {
 public:
   NoSuspendWithLockCheck(StringRef Name, ClangTidyContext *Context)
-      : ClangTidyCheck(Name, Context) {}
+      : ClangTidyCheck(Name, Context),
+        LockGuards(Options.get("LockGuards",
+                               "::std::unique_lock;::std::scoped_lock;::"
+                               "std::shared_lock;::std::lock_guard")) {}
+  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
   bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
     return LangOpts.CPlusPlus20;
   }
+
+private:
+  /// Semicolon-separated list of fully qualified names of lock guard template
+  /// types. Defaults to
+  /// `::std::unique_lock;::std::scoped_lock;::std::shared_lock;::std::lock_guard`.
+  const StringRef LockGuards;
 };
 
 } // namespace clang::tidy::cppcoreguidelines

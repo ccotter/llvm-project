@@ -8,6 +8,7 @@
 
 #include "NoSuspendWithLockCheck.h"
 #include "../utils/ExprSequence.h"
+#include "../utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Analysis/CFG.h"
@@ -16,21 +17,27 @@ using namespace clang::ast_matchers;
 
 namespace clang::tidy::cppcoreguidelines {
 
+void NoSuspendWithLockCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "LockGuards", LockGuards);
+}
+
 void NoSuspendWithLockCheck::registerMatchers(MatchFinder *Finder) {
+  auto LockType = elaboratedType(
+      namesType(templateSpecializationType(hasDeclaration(namedDecl(
+          hasAnyName(utils::options::parseStringList(LockGuards)))))));
+
   StatementMatcher Lock =
-      declStmt(
-          has(varDecl(hasInitializer(
-                          cxxConstructExpr(
-                              hasType(recordDecl(hasAnyName(
-                                  "::std::unique_lock", "::std::lock_guard",
-                                  "::std::scoped_lock", "::std::shared_lock"))))
-                              .bind("lock")))
-                  .bind("lock-decl")))
+      declStmt(has(varDecl(hasType(LockType)).bind("lock-decl")))
           .bind("lock-decl-stmt");
-  Finder->addMatcher(expr(anyOf(coawaitExpr(), coyieldExpr()),
-                          hasAncestor(compoundStmt(has(Lock)).bind("block")))
-                         .bind("suspend"),
-                     this);
+  Finder->addMatcher(
+      expr(anyOf(coawaitExpr(), coyieldExpr(), dependentCoawaitExpr()),
+           forCallable(functionDecl().bind("function")),
+           unless(isInTemplateInstantiation()),
+           hasAncestor(
+               compoundStmt(has(Lock), forCallable(equalsBoundNode("function")))
+                   .bind("block")))
+          .bind("suspend"),
+      this);
 }
 
 void NoSuspendWithLockCheck::check(const MatchFinder::MatchResult &Result) {
