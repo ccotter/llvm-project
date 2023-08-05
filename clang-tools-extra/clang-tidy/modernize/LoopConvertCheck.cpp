@@ -362,13 +362,15 @@ static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
   if (const auto *TheCall = dyn_cast_or_null<CXXMemberCallExpr>(Dug)) {
     CallKind = IteratorCallKind::ICK_Member;
     if (const auto *Member = dyn_cast<MemberExpr>(TheCall->getCallee())) {
-      if (!MemberNames.contains(Member->getMemberDecl()->getName()))
+      if (Member->getMemberDecl() == nullptr ||
+          !MemberNames.contains(Member->getMemberDecl()->getName()))
         return std::nullopt;
       return ContainerCall{TheCall->getImplicitObjectArgument(),
                            Member->getMemberDecl()->getName(),
                            Member->isArrow(), CallKind};
     } else {
-      if (!MemberNames.contains(TheCall->getDirectCallee()->getName()))
+      if (TheCall->getDirectCallee() == nullptr ||
+          !MemberNames.contains(TheCall->getDirectCallee()->getName()))
         return std::nullopt;
       return ContainerCall{TheCall->getArg(0),
                            TheCall->getDirectCallee()->getName(), false,
@@ -379,7 +381,8 @@ static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
       return std::nullopt;
 
     if (TheCall->usesADL()) {
-      if (!ADLNames.contains(TheCall->getDirectCallee()->getName()))
+      if (TheCall->getDirectCallee() == nullptr ||
+          !ADLNames.contains(TheCall->getDirectCallee()->getName()))
         return std::nullopt;
       CallKind = IteratorCallKind::ICK_ADL;
     } else {
@@ -388,6 +391,9 @@ static std::optional<ContainerCall> getContainerExpr(const Expr *Call) {
         return std::nullopt;
       CallKind = IteratorCallKind::ICK_Std;
     }
+
+    if (TheCall->getDirectCallee() == nullptr)
+      return std::nullopt;
 
     return ContainerCall{TheCall->getArg(0),
                          TheCall->getDirectCallee()->getName(), false,
