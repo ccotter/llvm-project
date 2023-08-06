@@ -8,6 +8,7 @@
 
 #include "NoSuspendWithLockCheck.h"
 #include "../utils/ExprSequence.h"
+#include "../utils/Matchers.h"
 #include "../utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -22,9 +23,9 @@ void NoSuspendWithLockCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 }
 
 void NoSuspendWithLockCheck::registerMatchers(MatchFinder *Finder) {
-  auto LockType = elaboratedType(
-      namesType(templateSpecializationType(hasDeclaration(namedDecl(
-          hasAnyName(utils::options::parseStringList(LockGuards)))))));
+  auto LockType = elaboratedType(namesType(templateSpecializationType(
+      hasDeclaration(namedDecl(matchers::matchesAnyListedName(
+          utils::options::parseStringList(LockGuards)))))));
 
   StatementMatcher Lock =
       declStmt(has(varDecl(hasType(LockType)).bind("lock-decl")))
