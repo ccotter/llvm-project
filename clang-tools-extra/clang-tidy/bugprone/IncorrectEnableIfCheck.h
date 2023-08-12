@@ -13,8 +13,8 @@
 
 namespace clang::tidy::bugprone {
 
-/// Detects incorrect usages of std::enable_if that don't name the nested 'type'
-/// type.
+/// Detects incorrect usages of ``std::enable_if`` that don't name the nested
+/// ``type`` type.
 ///
 /// For the user-facing documentation see:
 /// http://clang.llvm.org/extra/clang-tidy/checks/bugprone/incorrect-enable-if.html

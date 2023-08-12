@@ -3,8 +3,8 @@
 bugprone-incorrect-enable-if
 ============================
 
-Detects incorrect usages of std::enable_if that don't name the nested 'type'
-type.
+Detects incorrect usages of ``std::enable_if`` that don't name the nested 
+``type`` type.
 
 In C++11 introduced ``std::enable_if`` as a convenient way to leverage SFINAE.
 One form of using ``std::enable_if`` is to declare an unnamed template type
@@ -18,7 +18,7 @@ incorrect examples that this check flags.
 
 .. code-block:: c++
 
-  template <typename T, typename = typename std::enable_if_t<T::some_trait>::type>
+  template <typename T, typename = typename std::enable_if<T::some_trait>::type>
   void valid_usage() { ... }
 
   template <typename T, typename = std::enable_if_t<T::some_trait>>
@@ -30,19 +30,19 @@ incorrect examples that this check flags.
   // when it should not be a candidates, and/or lead to hard compile errors
   // if the body of the template does not compile if the condition is not
   // satisfied.
-  template <typename T, typename = std::enable_if_t<T::some_trait>>
+  template <typename T, typename = std::enable_if<T::some_trait>>
   void invalid_usage() { ... }
 
   // The tool suggests the following replacement for 'invalid_usage':
-  template <typename T, typename = typename std::enable_if_t<T::some_trait>::type>
-  void invalid_usage() { ... }
+  template <typename T, typename = typename std::enable_if<T::some_trait>::type>
+  void fixed_invalid_usage() { ... }
 
 C++14 introduced the trait helper ``std::enable_if_t`` which reduces the
 likelihood of this error. C++20 introduces constraints, which generally
 supersede the use of ``std::enable_if``. See
 `modernize-type-traits <../modernize/type-traits.html>`_ for another tool
-that will replace ``typename std::enable_if<...>::type`` with
-``std::enable_if_t<...>``, and see
+that will replace ``std::enable_if`` with
+``std::enable_if_t``, and see
 `modernize-use-constraints <../modernize/use-constraints.html>`_ for another
-tool that replaces ``std::enable_if`` with C++20 constraints. Use these
+tool that replaces ``std::enable_if`` with C++20 constraints. Consider these
 newer mechanisms where possible.

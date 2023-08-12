@@ -126,8 +126,8 @@ New checks
 - New :doc:`bugprone-incorrect-enable-if
   <clang-tidy/checks/bugprone/incorrect-enable-if>` check.
 
-  Detects incorrect usages of std::enable_if that don't name the nested 'type'
-  type.
+  Detects incorrect usages of ``std::enable_if`` that don't name the nested 
+  ``type`` type.
 
 - New :doc:`bugprone-multi-level-implicit-pointer-conversion
   <clang-tidy/checks/bugprone/multi-level-implicit-pointer-conversion>` check.

@@ -54,7 +54,7 @@ void IncorrectEnableIfCheck::check(const MatchFinder::MatchResult &Result) {
   if (!EnableIf || !ElaboratedLoc || !EnableIfSpecializationLoc)
     return;
 
-  const SourceManager &SM = Result.Context->getSourceManager();
+  const SourceManager &SM = *Result.SourceManager;
   SourceLocation RAngleLoc =
       SM.getExpansionLoc(EnableIfSpecializationLoc->getRAngleLoc());
 
