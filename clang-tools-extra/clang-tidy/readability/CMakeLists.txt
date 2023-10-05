@@ -42,6 +42,7 @@ add_clang_library(clangTidyReadabilityModule
   RedundantStringCStrCheck.cpp
   RedundantStringInitCheck.cpp
   ReferenceToConstructedTemporaryCheck.cpp
+  RemoveTemplateFromCtorNamesCheck.cpp
   SimplifyBooleanExprCheck.cpp
   SimplifySubscriptExprCheck.cpp
   StaticAccessedThroughInstanceCheck.cpp

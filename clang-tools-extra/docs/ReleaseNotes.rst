@@ -157,6 +157,11 @@ New checks
   Flags coroutines that suspend while a lock guard is in scope at the
   suspension point.
 
+- New :doc:`readability-remove-template-from-ctor-names
+  <clang-tidy/checks/readability/remove-template-from-ctor-names>` check.
+
+  FIXME: add release notes.
+
 - New :doc:`modernize-use-constraints
   <clang-tidy/checks/modernize/use-constraints>` check.
 

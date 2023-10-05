@@ -365,6 +365,7 @@ Clang-Tidy Checks
    :doc:`readability-redundant-string-cstr <readability/redundant-string-cstr>`, "Yes"
    :doc:`readability-redundant-string-init <readability/redundant-string-init>`, "Yes"
    :doc:`readability-reference-to-constructed-temporary <readability/reference-to-constructed-temporary>`,
+   :doc:`readability-remove-template-from-ctor-names <readability/remove-template-from-ctor-names>`, "Yes"
    :doc:`readability-simplify-boolean-expr <readability/simplify-boolean-expr>`, "Yes"
    :doc:`readability-simplify-subscript-expr <readability/simplify-subscript-expr>`, "Yes"
    :doc:`readability-static-accessed-through-instance <readability/static-accessed-through-instance>`, "Yes"
