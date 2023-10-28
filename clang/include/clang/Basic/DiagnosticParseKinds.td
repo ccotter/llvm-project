@@ -881,6 +881,10 @@ def warn_static_inline_explicit_inst_ignored : Warning<
 def err_out_of_line_constructor_template_id : Error<
   "out-of-line constructor for %0 cannot have template arguments">;
 
+def warn_template_id_declarator_class_template : Warning<
+  "using a template-id for the %select{constructor|destructor}0 name no longer "
+  "valid in C++20">, InGroup<DeprecatedTemplateIdClassDeclarator>;
+
 def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;
 def warn_expected_qualified_after_typename : ExtWarn<
