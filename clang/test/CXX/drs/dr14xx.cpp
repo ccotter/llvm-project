@@ -545,4 +545,23 @@ static_assert(__is_trivial(A), "");
 #endif
 }
 
+namespace dr1435 {
+  template <class... T> struct Consume;
+
+  template <class T>
+  struct A {
+    A<T>(int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+    A<int>(int,int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+    A<T,T>(int,int,int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+    A<Consume<T>>(int,int,int,int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+    ~A<T>(); // expected-warning {{using a template-id for the destructor name no longer valid in C++20}}
+  };
+
+  template <class T1, class T2, int N>
+  struct B {
+    B<T1, T2, N>() = default; // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+    B<T1, T2, N>(int){}; // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+  };
+}
+
 #endif

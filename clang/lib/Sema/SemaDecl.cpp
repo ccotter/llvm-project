@@ -9208,6 +9208,62 @@ static StorageClass getFunctionStorageClass(Sema &SemaRef, Declarator &D) {
   return SC_None;
 }
 
+std::optional<Token> findLBracket(SourceLocation NameLoc,
+                                  const SourceManager &SM,
+                                  const LangOptions &LangOpts) {
+  std::optional<Token> Next = Lexer::findNextToken(NameLoc, SM, LangOpts);
+  if (Next && Next->is(tok::less))
+    return Next;
+  return std::nullopt;
+}
+
+std::optional<Token> findNextBracket(SourceLocation Loc,
+                                     const SourceManager &SM,
+                                     const LangOptions &LangOpts) {
+  while (Loc.isValid()) {
+    std::optional<Token> Next = Lexer::findNextToken(Loc, SM, LangOpts);
+    if (!Next)
+      return std::nullopt;
+
+    if (Next->isOneOf(tok::less, tok::greater, tok::greatergreater))
+      return Next;
+
+    Loc = Next->getLocation();
+  }
+
+  return std::nullopt;
+}
+
+std::optional<Token> findRBracket(SourceLocation NameLoc,
+                                  const SourceManager &SM,
+                                  const LangOptions &LangOpts) {
+  std::optional<Token> LBracket = findLBracket(NameLoc, SM, LangOpts);
+  if (!LBracket)
+    return std::nullopt;
+
+  SourceLocation Loc = LBracket->getLocation();
+  int bracket_level = 1;
+  while (Loc.isValid()) {
+    std::optional<Token> Next = findNextBracket(Loc, SM, LangOpts);
+    if (!Next)
+      return std::nullopt;
+
+    if (Next->is(tok::less))
+      bracket_level += 1;
+    else if (Next->is(tok::greater))
+      bracket_level -= 1;
+    else if (Next->is(tok::greatergreater))
+      bracket_level -= 2;
+
+    if (bracket_level == 0)
+      return Next;
+
+    Loc = Next->getLocation();
+  }
+
+  return std::nullopt;
+}
+
 static FunctionDecl *CreateNewFunctionDecl(Sema &SemaRef, Declarator &D,
                                            DeclContext *DC, QualType &R,
                                            TypeSourceInfo *TInfo,
