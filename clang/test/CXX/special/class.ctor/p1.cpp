@@ -22,9 +22,9 @@ template<typename T>
 struct X1 {
   struct type { };
 
-  X1<T>();
-  X1<T>(int);
-  (X1<T>)(float);
+  X1<T>(); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+  X1<T>(int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+  (X1<T>)(float); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
   X1(float, float);
   (X1)(double);
   X1<T> (f0)(int);

@@ -2586,11 +2586,13 @@ bool Parser::ParseUnqualifiedIdTemplateId(
   if (Type.isInvalid())
     return true;
 
-  Diag(LAngleLoc,
+  llvm::errs() << "Is ctor=" <<  (Id.getKind() == UnqualifiedIdKind::IK_ConstructorName) << "\n";
+  if (Actions.isCurrentClassName(*Name, getCurScope(), &SS))
+    Diag(LAngleLoc,
                diag::warn_template_id_declarator_class_template)
-      << (Id.getKind() != UnqualifiedIdKind::IK_ConstructorName)
-      << FixItHint::CreateRemoval(
-             SourceRange(LAngleLoc, RAngleLoc));
+        << (Id.getKind() != UnqualifiedIdKind::IK_ConstructorName)
+        << FixItHint::CreateRemoval(
+               SourceRange(LAngleLoc, RAngleLoc));
 
   if (Id.getKind() == UnqualifiedIdKind::IK_ConstructorName)
     Id.setConstructorName(Type.get(), NameLoc, RAngleLoc);
@@ -2971,12 +2973,6 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, ParsedType ObjectType,
     if (AllowConstructorName && TemplateId->Name &&
         Actions.isCurrentClassName(*TemplateId->Name, getCurScope(), &SS)) {
 
-      Diag(TemplateId->LAngleLoc,
-                   diag::warn_template_id_declarator_class_template)
-          << false /* is constructor */
-          << FixItHint::CreateRemoval(
-                 SourceRange(TemplateId->LAngleLoc, TemplateId->RAngleLoc));
-
       if (SS.isSet()) {
         // C++ [class.qual]p2 specifies that a qualified template-name
         // is taken as the constructor name where a constructor can be
@@ -2996,6 +2992,12 @@ bool Parser::ParseUnqualifiedId(CXXScopeSpec &SS, ParsedType ObjectType,
                                   TemplateId->RAngleLoc);
         ConsumeAnnotationToken();
         return false;
+      } else {
+        Diag(TemplateId->LAngleLoc,
+                     diag::warn_template_id_declarator_class_template)
+            << false /* is constructor */
+            << FixItHint::CreateRemoval(
+                   SourceRange(TemplateId->LAngleLoc, TemplateId->RAngleLoc));
       }
 
       Result.setConstructorTemplateId(TemplateId);

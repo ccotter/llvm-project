@@ -340,7 +340,7 @@ namespace dr634 { // dr634: yes
 namespace dr635 { // dr635: yes
   template<typename T> struct A { A(); ~A(); };
   template<typename T> A<T>::A<T>() {} // expected-error {{cannot have template arguments}}
-  template<typename T> A<T>::~A<T>() {}
+  template<typename T> A<T>::~A<T>() {} // expected-warning {{using a template-id for the destructor name no longer valid in C++20}}
 
   template<typename T> struct B { B(); ~B(); };
   template<typename T> B<T>::B() {}

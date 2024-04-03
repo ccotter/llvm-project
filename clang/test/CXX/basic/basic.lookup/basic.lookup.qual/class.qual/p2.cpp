@@ -12,8 +12,8 @@ struct X0 {
 template<typename T>
 struct X1 : X0 {
   X1();
-  X1<T>(int);
-  (X1<T>)(float);
+  X1<T>(int); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
+  (X1<T>)(float); // expected-warning {{using a template-id for the constructor name no longer valid in C++20}}
   X1 f2();
   X1 f2(int);
   X1 f2(float);
