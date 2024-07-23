@@ -2,6 +2,8 @@
 
 #include "absl/types/optional.h"
 #include "folly/types/Optional.h"
+#include "bde/types/bsl_optional.h"
+#include "bde/types/bdlb_nullablevalue.h"
 
 void unchecked_value_access(const absl::optional<int> &opt) {
   opt.value();
@@ -48,6 +50,56 @@ void folly_checked_access(const folly::Optional<int> &opt) {
   if (opt.hasValue()) {
     opt.value();
   }
+}
+
+void bsl_optional_unchecked_value_access(const bsl::optional<int> &opt) {
+  opt.value();
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
+}
+
+void bsl_optional_checked_access(const bsl::optional<int> &opt) {
+  if (opt.has_value()) {
+    opt.value();
+  }
+}
+
+void nullable_value_unchecked_value_access(const BloombergLP::bdlb::NullableValue<int> &opt) {
+  opt.value();
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
+
+  if (opt.isNull()) {
+    opt.value();
+  }
+  // CHECK-MESSAGES: :[[@LINE-2]]:5: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
+
+  if (!opt) {
+    opt.value();
+  }
+  // CHECK-MESSAGES: :[[@LINE-2]]:5: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
+}
+
+void nullable_value_optional_checked_access(const BloombergLP::bdlb::NullableValue<int> &opt) {
+  if (opt.has_value()) {
+    opt.value();
+  }
+  if (opt) {
+    opt.value();
+  }
+  if (!opt.isNull()) {
+    opt.value();
+  }
+}
+
+void nullable_value_emplaced(BloombergLP::bdlb::NullableValue<int> &opt) {
+  opt.value();
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
+
+  opt.emplace(1);
+  opt.value();
+
+  opt.reset();
+  opt.value();
+  // CHECK-MESSAGES: :[[@LINE-1]]:3: warning: unchecked access to optional value [bugprone-unchecked-optional-access]
 }
 
 template <typename T>
