@@ -224,8 +224,8 @@ static const Align kMinOriginAlignment = Align(4);
 static const Align kShadowTLSAlignment = Align(8);
 
 // These constants must be kept in sync with the ones in msan.h.
-static const unsigned kParamTLSSize = 800;
-static const unsigned kRetvalTLSSize = 800;
+static const unsigned kParamTLSSize = 200;
+static const unsigned kRetvalTLSSize = 200;
 
 // Accesses sizes are powers of two: 1, 2, 4, 8.
 static const size_t kNumberOfAccessSizes = 4;
