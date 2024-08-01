@@ -31,6 +31,8 @@
 #include "ubsan/ubsan_flags.h"
 #include "ubsan/ubsan_init.h"
 
+#include <sys/mman.h> // For PROT_READ etc
+
 // ACHTUNG! No system header includes in this file.
 
 using namespace __sanitizer;
@@ -39,28 +41,36 @@ using namespace __sanitizer;
 static THREADLOCAL int msan_expect_umr = 0;
 static THREADLOCAL int msan_expected_umr_found = 0;
 
+#define __msan_param_tls__sizeof (kMsanParamTlsSize / sizeof(u64))
+#define __msan_param_origin_tls__sizeof (kMsanParamTlsSize / sizeof(u32))
+#define __msan_retval_tls__sizeof (kMsanRetvalTlsSize / sizeof(u64))
+#define __msan_va_arg_tls__sizeof (kMsanParamTlsSize / sizeof(u64))
+#define __msan_va_arg_origin_tls__sizeof (kMsanParamTlsSize / sizeof(u32))
+
 // Function argument shadow. Each argument starts at the next available 8-byte
 // aligned address.
 SANITIZER_INTERFACE_ATTRIBUTE
-THREADLOCAL u64 __msan_param_tls[kMsanParamTlsSize / sizeof(u64)];
+THREADLOCAL u64* __msan_param_tls;
 
 // Function argument origin. Each argument starts at the same offset as the
 // corresponding shadow in (__msan_param_tls). Slightly weird, but changing this
 // would break compatibility with older prebuilt binaries.
 SANITIZER_INTERFACE_ATTRIBUTE
-THREADLOCAL u32 __msan_param_origin_tls[kMsanParamTlsSize / sizeof(u32)];
+THREADLOCAL u32* __msan_param_origin_tls;
+
+
 
 SANITIZER_INTERFACE_ATTRIBUTE
-THREADLOCAL u64 __msan_retval_tls[kMsanRetvalTlsSize / sizeof(u64)];
+THREADLOCAL u64* __msan_retval_tls;
 
 SANITIZER_INTERFACE_ATTRIBUTE
 THREADLOCAL u32 __msan_retval_origin_tls;
 
-alignas(16) SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u64
-    __msan_va_arg_tls[kMsanParamTlsSize / sizeof(u64)];
+alignas(16) SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u64*
+    __msan_va_arg_tls;
 
-alignas(16) SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u32
-    __msan_va_arg_origin_tls[kMsanParamTlsSize / sizeof(u32)];
+alignas(16) SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u32*
+    __msan_va_arg_origin_tls;
 
 SANITIZER_INTERFACE_ATTRIBUTE
 THREADLOCAL u64 __msan_va_arg_overflow_size_tls;
@@ -274,17 +284,17 @@ void ScopedThreadLocalStateBackup::Restore() {
   // A lame implementation that only keeps essential state and resets the rest.
   __msan_va_arg_overflow_size_tls = va_arg_overflow_size_tls;
 
-  internal_memset(__msan_param_tls, 0, sizeof(__msan_param_tls));
-  internal_memset(__msan_retval_tls, 0, sizeof(__msan_retval_tls));
-  internal_memset(__msan_va_arg_tls, 0, sizeof(__msan_va_arg_tls));
+  internal_memset(__msan_param_tls, 0, __msan_param_tls__sizeof);
+  internal_memset(__msan_retval_tls, 0, __msan_retval_tls__sizeof);
+  internal_memset(__msan_va_arg_tls, 0, __msan_va_arg_tls__sizeof);
   internal_memset(__msan_va_arg_origin_tls, 0,
-                  sizeof(__msan_va_arg_origin_tls));
+                  __msan_va_arg_origin_tls__sizeof);
 
   if (__msan_get_track_origins()) {
     internal_memset(&__msan_retval_origin_tls, 0,
                     sizeof(__msan_retval_origin_tls));
     internal_memset(__msan_param_origin_tls, 0,
-                    sizeof(__msan_param_origin_tls));
+                    __msan_param_origin_tls__sizeof);
   }
 }
 
@@ -441,11 +451,39 @@ static void CheckUnwind() {
   stack.Print();
 }
 
+extern "C" void __msan_init_tls() {
+  if (__msan_param_tls)
+    return;
+
+  __msan_param_tls = (u64*)internal_mmap(nullptr, 0x1000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  __msan_param_origin_tls = (u32*)internal_mmap(nullptr, 0x1000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  __msan_retval_tls = (u64*)internal_mmap(nullptr, 0x1000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  __msan_va_arg_tls = (u64*)internal_mmap(nullptr, 0x1000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  __msan_va_arg_origin_tls = (u32*)internal_mmap(nullptr, 0x1000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+}
+
+extern "C" void __msan_clear_tls() {
+  return;
+  internal_munmap(__msan_param_tls, 0x1000);
+  internal_munmap(__msan_param_origin_tls, 0x1000);
+  internal_munmap(__msan_retval_tls, 0x1000);
+  internal_munmap(__msan_va_arg_tls, 0x1000);
+  internal_munmap(__msan_va_arg_origin_tls, 0x1000);
+
+  __msan_param_tls = 0;
+  __msan_param_origin_tls = 0;
+  __msan_retval_tls = 0;
+  __msan_va_arg_tls = 0;
+  __msan_va_arg_origin_tls = 0;
+}
+
 void __msan_init() {
   CHECK(!msan_init_is_running);
   if (msan_inited) return;
   msan_init_is_running = 1;
   SanitizerToolName = "MemorySanitizer";
+
+  __msan_init_tls();
 
   AvoidCVE_2016_2143();
 
@@ -719,17 +757,17 @@ void __msan_finish_switch_fiber(const void **bottom_old, uptr *size_old) {
   }
   t->FinishSwitchFiber((uptr *)bottom_old, (uptr *)size_old);
 
-  internal_memset(__msan_param_tls, 0, sizeof(__msan_param_tls));
-  internal_memset(__msan_retval_tls, 0, sizeof(__msan_retval_tls));
-  internal_memset(__msan_va_arg_tls, 0, sizeof(__msan_va_arg_tls));
+  internal_memset(__msan_param_tls, 0, __msan_param_tls__sizeof);
+  internal_memset(__msan_retval_tls, 0, __msan_retval_tls__sizeof);
+  internal_memset(__msan_va_arg_tls, 0, __msan_va_arg_tls__sizeof);
 
   if (__msan_get_track_origins()) {
     internal_memset(__msan_param_origin_tls, 0,
-                    sizeof(__msan_param_origin_tls));
+                    __msan_param_origin_tls__sizeof);
     internal_memset(&__msan_retval_origin_tls, 0,
                     sizeof(__msan_retval_origin_tls));
     internal_memset(__msan_va_arg_origin_tls, 0,
-                    sizeof(__msan_va_arg_origin_tls));
+                    __msan_va_arg_origin_tls__sizeof);
   }
 }
 

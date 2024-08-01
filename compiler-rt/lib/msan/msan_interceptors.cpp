@@ -1154,6 +1154,15 @@ extern "C" int pthread_attr_init(void *attr);
 extern "C" int pthread_attr_destroy(void *attr);
 
 static void *MsanThreadStartFunc(void *arg) {
+  struct MsanTlsGuard {
+    MsanTlsGuard() {
+      __msan_init_tls();
+    }
+    ~MsanTlsGuard() {
+      __msan_clear_tls();
+    }
+  } msanTlsGuard;
+
   MsanThread *t = (MsanThread *)arg;
   SetCurrentThread(t);
   t->Init();

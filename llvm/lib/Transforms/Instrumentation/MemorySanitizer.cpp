@@ -861,25 +861,25 @@ void MemorySanitizer::createUserspaceApi(Module &M, const TargetLibraryInfo &TLI
   // Create the global TLS variables.
   RetvalTLS =
       getOrInsertGlobal(M, "__msan_retval_tls",
-                        ArrayType::get(IRB.getInt64Ty(), kRetvalTLSSize / 8));
+                        PointerType::get(IRB.getInt64Ty(), 0));
 
   RetvalOriginTLS = getOrInsertGlobal(M, "__msan_retval_origin_tls", OriginTy);
 
   ParamTLS =
       getOrInsertGlobal(M, "__msan_param_tls",
-                        ArrayType::get(IRB.getInt64Ty(), kParamTLSSize / 8));
+                        PointerType::get(IRB.getInt64Ty(), 0));
 
   ParamOriginTLS =
       getOrInsertGlobal(M, "__msan_param_origin_tls",
-                        ArrayType::get(OriginTy, kParamTLSSize / 4));
+                        PointerType::get(OriginTy, 0));
 
   VAArgTLS =
       getOrInsertGlobal(M, "__msan_va_arg_tls",
-                        ArrayType::get(IRB.getInt64Ty(), kParamTLSSize / 8));
+                        PointerType::get(IRB.getInt64Ty(), 0));
 
   VAArgOriginTLS =
       getOrInsertGlobal(M, "__msan_va_arg_origin_tls",
-                        ArrayType::get(OriginTy, kParamTLSSize / 4));
+                        PointerType::get(OriginTy, 0));
 
   VAArgOverflowSizeTLS =
       getOrInsertGlobal(M, "__msan_va_arg_overflow_size_tls", IRB.getInt64Ty());
@@ -1850,7 +1850,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   ///
   /// Shadow = ParamTLS+ArgOffset.
   Value *getShadowPtrForArgument(IRBuilder<> &IRB, int ArgOffset) {
-    Value *Base = IRB.CreatePointerCast(MS.ParamTLS, MS.IntptrTy);
+    Value *Base = IRB.CreatePointerCast(IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.ParamTLS), MS.IntptrTy);
     if (ArgOffset)
       Base = IRB.CreateAdd(Base, ConstantInt::get(MS.IntptrTy, ArgOffset));
     return IRB.CreateIntToPtr(Base, IRB.getPtrTy(0), "_msarg");
@@ -1860,7 +1860,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
   Value *getOriginPtrForArgument(IRBuilder<> &IRB, int ArgOffset) {
     if (!MS.TrackOrigins)
       return nullptr;
-    Value *Base = IRB.CreatePointerCast(MS.ParamOriginTLS, MS.IntptrTy);
+    Value *Base = IRB.CreatePointerCast(IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.ParamOriginTLS), MS.IntptrTy);
     if (ArgOffset)
       Base = IRB.CreateAdd(Base, ConstantInt::get(MS.IntptrTy, ArgOffset));
     return IRB.CreateIntToPtr(Base, IRB.getPtrTy(0), "_msarg_o");
@@ -1868,7 +1868,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
 
   /// Compute the shadow address for a retval.
   Value *getShadowPtrForRetval(IRBuilder<> &IRB) {
-    return IRB.CreatePointerCast(MS.RetvalTLS, IRB.getPtrTy(0), "_msret");
+    return IRB.CreatePointerCast(IRB.CreateLoad(PointerType::get(IRB.getInt64Ty(), 0), MS.RetvalTLS), IRB.getPtrTy(0), "_msret");
   }
 
   /// Compute the origin address for a retval.
@@ -4942,14 +4942,14 @@ struct VarArgHelperBase : public VarArgHelper {
       : F(F), MS(MS), MSV(MSV), VAListTagSize(VAListTagSize) {}
 
   Value *getShadowAddrForVAArgument(IRBuilder<> &IRB, unsigned ArgOffset) {
-    Value *Base = IRB.CreatePointerCast(MS.VAArgTLS, MS.IntptrTy);
+    Value *Base = IRB.CreatePointerCast(IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS), MS.IntptrTy);
     return IRB.CreateAdd(Base, ConstantInt::get(MS.IntptrTy, ArgOffset));
   }
 
   /// Compute the shadow address for a given va_arg.
   Value *getShadowPtrForVAArgument(Type *Ty, IRBuilder<> &IRB,
                                    unsigned ArgOffset) {
-    Value *Base = IRB.CreatePointerCast(MS.VAArgTLS, MS.IntptrTy);
+    Value *Base = IRB.CreatePointerCast(IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS), MS.IntptrTy);
     Base = IRB.CreateAdd(Base, ConstantInt::get(MS.IntptrTy, ArgOffset));
     return IRB.CreateIntToPtr(Base, PointerType::get(MSV.getShadowTy(Ty), 0),
                               "_msarg_va_s");
@@ -4966,7 +4966,8 @@ struct VarArgHelperBase : public VarArgHelper {
 
   /// Compute the origin address for a given va_arg.
   Value *getOriginPtrForVAArgument(IRBuilder<> &IRB, int ArgOffset) {
-    Value *Base = IRB.CreatePointerCast(MS.VAArgOriginTLS, MS.IntptrTy);
+    Value *Base = IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgOriginTLS);
+    //Value *Base = IRB.CreatePointerCast(MS.VAArgOriginTLS, MS.IntptrTy);
     // getOriginPtrForVAArgument() is always called after
     // getShadowPtrForVAArgument(), so __msan_va_arg_origin_tls can never
     // overflow.
@@ -5185,13 +5186,15 @@ struct VarArgAMD64Helper : public VarArgHelperBase {
       Value *SrcSize = IRB.CreateBinaryIntrinsic(
           Intrinsic::umin, CopySize,
           ConstantInt::get(MS.IntptrTy, kParamTLSSize));
-      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment, MS.VAArgTLS,
+      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment,
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS),
                        kShadowTLSAlignment, SrcSize);
       if (MS.TrackOrigins) {
         VAArgTLSOriginCopy = IRB.CreateAlloca(Type::getInt8Ty(*MS.C), CopySize);
         VAArgTLSOriginCopy->setAlignment(kShadowTLSAlignment);
         IRB.CreateMemCpy(VAArgTLSOriginCopy, kShadowTLSAlignment,
-                         MS.VAArgOriginTLS, kShadowTLSAlignment, SrcSize);
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgOriginTLS),
+                         kShadowTLSAlignment, SrcSize);
       }
     }
 
@@ -5300,7 +5303,8 @@ struct VarArgMIPS64Helper : public VarArgHelperBase {
       Value *SrcSize = IRB.CreateBinaryIntrinsic(
           Intrinsic::umin, CopySize,
           ConstantInt::get(MS.IntptrTy, kParamTLSSize));
-      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment, MS.VAArgTLS,
+      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment,
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS),
                        kShadowTLSAlignment, SrcSize);
     }
 
@@ -5471,7 +5475,8 @@ struct VarArgAArch64Helper : public VarArgHelperBase {
       Value *SrcSize = IRB.CreateBinaryIntrinsic(
           Intrinsic::umin, CopySize,
           ConstantInt::get(MS.IntptrTy, kParamTLSSize));
-      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment, MS.VAArgTLS,
+      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment,
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS),
                        kShadowTLSAlignment, SrcSize);
     }
 
@@ -5684,7 +5689,8 @@ struct VarArgPowerPC64Helper : public VarArgHelperBase {
       Value *SrcSize = IRB.CreateBinaryIntrinsic(
           Intrinsic::umin, CopySize,
           ConstantInt::get(MS.IntptrTy, kParamTLSSize));
-      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment, MS.VAArgTLS,
+      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment,
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS),
                        kShadowTLSAlignment, SrcSize);
     }
 
@@ -5974,7 +5980,8 @@ struct VarArgSystemZHelper : public VarArgHelperBase {
       Value *SrcSize = IRB.CreateBinaryIntrinsic(
           Intrinsic::umin, CopySize,
           ConstantInt::get(MS.IntptrTy, kParamTLSSize));
-      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment, MS.VAArgTLS,
+      IRB.CreateMemCpy(VAArgTLSCopy, kShadowTLSAlignment,
+                         IRB.CreateLoad(PointerType::get(MS.IntptrTy, 0), MS.VAArgTLS),
                        kShadowTLSAlignment, SrcSize);
       if (MS.TrackOrigins) {
         VAArgTLSOriginCopy = IRB.CreateAlloca(Type::getInt8Ty(*MS.C), CopySize);

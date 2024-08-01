@@ -82,7 +82,7 @@ __attribute__((noinline, no_sanitize("memory"))) void printtls(int line) {
 #endif // DEBUG_VARARG_SHADOW_TEST
 
 const int kMsanParamTlsSize = 800;
-extern "C" __thread uint8_t __msan_va_arg_tls[];
+extern "C" __thread uint8_t* __msan_va_arg_tls;
 
 struct IntInt {
   int a;

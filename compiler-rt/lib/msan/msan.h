@@ -257,6 +257,9 @@ addr_is_type(uptr addr, int mapping_types) {
 const int kMsanParamTlsSize = 800;
 const int kMsanRetvalTlsSize = 800;
 
+extern "C" void __msan_init_tls();
+extern "C" void __msan_clear_tls();
+
 namespace __msan {
 extern int msan_inited;
 extern bool msan_init_is_running;
