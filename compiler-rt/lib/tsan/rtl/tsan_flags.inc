@@ -92,3 +92,6 @@ TSAN_FLAG(LockDuringWriteSetting, lock_during_write, kLockDuringAllWrites,
           "\"disable_for_all_processes\" - don't lock during all writes in "
           "the current process and it's children processes.")
 #endif
+
+TSAN_FLAG(const char *, fuzzing_scheduler, "",
+          "Choosing fuzzing scheduler")
