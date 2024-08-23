@@ -22,6 +22,7 @@
 #include "sanitizer_common/sanitizer_placement_new.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "tsan_flags.h"
+#include "tsan_fuzzing_scheduler.h"
 #include "tsan_interface.h"
 #include "tsan_rtl.h"
 
@@ -522,11 +523,24 @@ static morder to_morder(int mo) {
 
 template <class Op, class... Types>
 ALWAYS_INLINE auto AtomicImpl(morder mo, Types... args) {
+  if (IsFuzzSchedulerEnabled())
+    GetFuzzingScheduler().AtomicOpFence(mo);
   ThreadState *const thr = cur_thread();
   ProcessPendingSignals(thr);
   if (UNLIKELY(thr->ignore_sync || thr->ignore_interceptors))
     return Op::NoTsanAtomic(mo, args...);
   return Op::Atomic(thr, GET_CALLER_PC(), convert_morder(mo), args...);
+}
+
+template <class Op, class AddrType, class... Types>
+ALWAYS_INLINE auto AtomicImpl(morder mo, AddrType addr, Types... args) {
+  if (IsFuzzSchedulerEnabled())
+    GetFuzzingScheduler().AtomicOpAddr((uptr)addr, (int)mo);
+  ThreadState* const thr = cur_thread();
+  ProcessPendingSignals(thr);
+  if (UNLIKELY(thr->ignore_sync || thr->ignore_interceptors))
+    return Op::NoTsanAtomic(mo, addr, args...);
+  return Op::Atomic(thr, GET_CALLER_PC(), convert_morder(mo), addr, args...);
 }
 
 extern "C" {

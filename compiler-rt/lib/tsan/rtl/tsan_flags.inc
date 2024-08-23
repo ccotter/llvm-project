@@ -92,3 +92,23 @@ TSAN_FLAG(LockDuringWriteSetting, lock_during_write, kLockDuringAllWrites,
           "\"disable_for_all_processes\" - don't lock during all writes in "
           "the current process and it's children processes.")
 #endif
+
+TSAN_FLAG(const char*, fuzzing_scheduler, "",
+          "Choosing fuzzing scheduler: '', 'adaptive'")
+
+TSAN_FLAG(int, adaptive_delay_target_overhead_pct, 25,
+          "Target percentage overhead for adaptive delay injection")
+TSAN_FLAG(int, adaptive_delay_relaxed_sample_rate, 10000,
+          "Sample 1 in N relaxed atomic operations for delay")
+TSAN_FLAG(int, adaptive_delay_sync_atomic_sample_rate, 100,
+          "Sample 1 in N acquire/release/seq_cst atomic operations for delay")
+TSAN_FLAG(int, adaptive_delay_mutex_sample_rate, 10,
+          "Sample 1 in N mutex/cv operations for delay")
+TSAN_FLAG(int, adaptive_delay_max_atomic_us, 50,
+          "Maximum delay in microseconds for atomic operations")
+TSAN_FLAG(int, adaptive_delay_max_sync_us, 500,
+          "Maximum delay in microseconds for mutex/cv/thread operations")
+TSAN_FLAG(int, adaptive_delay_window_ms, 100,
+          "Time window in milliseconds for delay budget calculation")
+TSAN_FLAG(int, adaptive_delay_random_seed, 0,
+          "Random seed for delay injection (0 = use time-based seed)")
