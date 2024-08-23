@@ -22,6 +22,7 @@
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_symbolizer.h"
 #include "tsan_defs.h"
+#include "tsan_fuzzing_scheduler.h"
 #include "tsan_interface.h"
 #include "tsan_mman.h"
 #include "tsan_platform.h"
@@ -774,6 +775,10 @@ void Initialize(ThreadState *thr) {
            (int)internal_getpid());
     while (__tsan_resumed == 0) {}
   }
+
+#if !SANITIZER_GO
+  GetFuzzingScheduler().Init();
+#endif
 
   OnInitialize();
 }

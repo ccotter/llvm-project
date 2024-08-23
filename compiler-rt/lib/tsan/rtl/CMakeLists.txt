@@ -26,6 +26,7 @@ set(TSAN_SOURCES
   tsan_external.cpp
   tsan_fd.cpp
   tsan_flags.cpp
+  tsan_fuzzing_scheduler.cpp
   tsan_ignoreset.cpp
   tsan_interceptors_memintrinsics.cpp
   tsan_interceptors_posix.cpp

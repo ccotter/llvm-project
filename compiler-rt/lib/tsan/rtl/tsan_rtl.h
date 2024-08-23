@@ -36,6 +36,7 @@
 #include "sanitizer_common/sanitizer_vector.h"
 #include "tsan_defs.h"
 #include "tsan_flags.h"
+#include "tsan_fuzzing_scheduler_data.h"
 #include "tsan_ignoreset.h"
 #include "tsan_ilist.h"
 #include "tsan_mman.h"
@@ -239,6 +240,8 @@ struct alignas(SANITIZER_CACHE_LINE_SIZE) ThreadState {
 #if SANITIZER_APPLE && !SANITIZER_GO
   bool in_internal_write_call;
 #endif
+
+  FuzzingSchedulerTlsData fuzzingSchedulerTlsData;
 
   explicit ThreadState(Tid tid);
 };
