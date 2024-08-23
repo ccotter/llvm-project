@@ -1,0 +1,149 @@
+#include "fuzzing_scheduler.h"
+#include <tsan_rtl.h>
+#include <sanitizer_common/sanitizer_allocator_internal.h>
+#include <sanitizer_common/sanitizer_placement_new.h>
+#include <interception/interception.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+
+namespace __interception {
+  extern int (*real_pthread_create)(void*, void*, void *(*)(void*), void*);
+  extern int (*real_pthread_detach)(void*);
+}
+
+namespace __tsan {
+
+namespace {
+
+struct NullFuzzingScheduler : IFuzzingScheduler {
+  void SynchronizationPoint() override {
+  }
+};
+
+thread_local u64 tid = 0;
+u64 max_tid = 0;
+
+struct RandomFuzzingScheduler : IFuzzingScheduler {
+  RandomFuzzingScheduler() {
+    srand(NanoTime());
+    pthread_t t;
+    REAL(pthread_create)(&t, NULL, reinterpret_cast<void*(*)(void*)>(&RandomFuzzingScheduler::WatchDog), this);
+    REAL(pthread_detach)(&t);
+  }
+
+
+private:
+  enum class ThreadState {
+    UNKNOWN,
+    RUNNING,
+    WAIT,
+    OUT_TIME
+  };
+
+  struct ThreadContext {
+    ThreadState state = ThreadState::UNKNOWN;
+    u64 start_time = 0;
+  };
+
+  ThreadContext contexts[65536] = {};
+
+  u64 GetTid() {
+    if (tid == 0) {
+      tid = __atomic_add_fetch(&max_tid, 1, __ATOMIC_RELAXED);
+    }
+    if (tid > 65535) {
+      Printf("FATAL: ThreadSanitizer The maximum number of threads created during the program should not exceed 65535");
+      Die();
+    }
+    return tid;
+  }
+
+  void SynchronizationPoint() override {
+    auto tid = GetTid();
+    auto old_state = __atomic_load_n(&contexts[tid].state, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&contexts[tid].state, ThreadState::WAIT, __ATOMIC_SEQ_CST);
+    if (old_state == ThreadState::RUNNING) {
+      auto next_tid = GetNextTid();
+      //fprintf(stderr, "Current Next %ld %ld\n", tid, next_tid);
+      __atomic_store_n(&contexts[next_tid].start_time, NanoTime(), __ATOMIC_SEQ_CST);
+      __atomic_store_n(&contexts[next_tid].state, ThreadState::RUNNING, __ATOMIC_SEQ_CST);
+    }
+    //PrintStates();
+    while (__atomic_load_n(&contexts[tid].state, __ATOMIC_SEQ_CST) == ThreadState::WAIT) {
+      internal_sched_yield();
+      //fprintf(stderr, "Still wait %ld\n", tid);
+    }
+    //fprintf(stderr, "Continue %ld\n", tid);
+  }
+
+  u64 GetNextTid() {
+      const u64 local_max_tid = __atomic_load_n(&max_tid, __ATOMIC_SEQ_CST);
+      const u64 next_tid = rand() % local_max_tid + 1;
+      for (u64 i = 0; i < local_max_tid; i++) {
+        if (next_tid == GetTid()) continue;
+        if (__atomic_load_n(&contexts[(next_tid + i) % max_tid + 1].state, __ATOMIC_SEQ_CST) == ThreadState::WAIT) {
+          return (next_tid + i) % max_tid + 1;
+        }
+      }
+      if (next_tid == GetTid()) {
+        //fprintf(stderr, "Why still %ld\n", next_tid);
+        }
+
+      return next_tid;
+  }
+
+  void* WatchDog() {
+    while (true) {
+      usleep(20);//* 1000);
+      internal_sched_yield();
+      u64 local_max_tid = __atomic_load_n(&max_tid, __ATOMIC_SEQ_CST);
+      for (u64 i = 1; i <= local_max_tid; i++) {
+        if (__atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST) == ThreadState::RUNNING && __atomic_load_n(&contexts[i].start_time, __ATOMIC_SEQ_CST) + 200 * 1000 * 1000ULL <= NanoTime()) {
+          __atomic_store_n(&contexts[i].state, ThreadState::OUT_TIME, __ATOMIC_SEQ_CST);
+        }
+      }
+      bool exists_running = false;
+      for (u64 i = 1; i <= local_max_tid; i++) {
+        if (__atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST) == ThreadState::RUNNING) {
+          //fprintf(stderr, "Watchdog Sees Running %ld\n", i);
+          exists_running = true;
+        }
+      }
+      if (!exists_running) {
+        auto next_tid = GetNextTid();
+        //fprintf(stderr, "Watchdog Continue %ld\n", next_tid);
+        __atomic_store_n(&contexts[next_tid].start_time, NanoTime(), __ATOMIC_SEQ_CST);
+        __atomic_store_n(&contexts[next_tid].state, ThreadState::RUNNING, __ATOMIC_SEQ_CST);
+      }
+    }
+    return nullptr;
+  }
+
+};
+
+IFuzzingScheduler& FuzzingSchedulerDispatcher() {
+  if (!strcmp(flags()->fuzzing_scheduler, "")) {
+    auto* scheduler = static_cast<NullFuzzingScheduler *>(InternalCalloc(1, sizeof(NullFuzzingScheduler)));
+    new (scheduler) NullFuzzingScheduler;
+    return *scheduler;
+  } else if (!strcmp(flags()->fuzzing_scheduler, "random")) {
+    auto* scheduler = static_cast<RandomFuzzingScheduler *>(InternalCalloc(1, sizeof(RandomFuzzingScheduler)));
+    new (scheduler) RandomFuzzingScheduler;
+    Printf("WARNING! ThreadSanitizer lunched under the management of a random fuzzing scheduler new\n");
+    return *scheduler;
+  } else {
+    Printf("FATAL: ThreadSanitizer invalid fuzzing scheduler. Please check TSAN_OPTIONS!\n");
+    Die();
+  }
+}
+
+}
+
+IFuzzingScheduler& GetFuzzingScheduler() {
+  static IFuzzingScheduler& scheduler = FuzzingSchedulerDispatcher();
+  return scheduler;
+}
+
+}  // namespace __tsan
