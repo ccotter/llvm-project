@@ -294,6 +294,9 @@ class LargeMmapAllocator {
   };
 
   Header *GetHeader(uptr p) {
+    if (!IsAligned(p, page_size_)) {
+      while(true);
+    }
     CHECK(IsAligned(p, page_size_));
     return reinterpret_cast<Header*>(p - page_size_);
   }
