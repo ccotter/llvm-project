@@ -224,7 +224,7 @@ struct waitset {
   }
 
   void notify_one_impl() {
-    // no lock here
+    // Lock held by the caller
 
     auto itr = waiters.begin();
     if (itr != waiters.end()) {
@@ -273,13 +273,10 @@ struct mutex {
   mutex(bool is_recursive = false) : is_recursive(is_recursive) {
   }
 
-  void lock(bool need_lock = true) {
-    // XXX ??? confusing mutex logic!
-    if (!need_lock) CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
+  void lock() {
+    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
     GetFuzzingScheduler().SynchronizationPoint();
-    if (!need_lock) CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-
-    if (need_lock) CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
+    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
 
     if (owner != s_tid) {
       while (owner != FREE) {
@@ -290,9 +287,11 @@ struct mutex {
     if (owner == FREE && recurse_count != 0) {
       DEADLOCK("recurse_count not 0 in lock");
     }
+
+#if 0
     // Always support recursive mutex behavior, and let TSAN itself
     // detect locking a locked mutex that is not configured as recursive.
-#if 0
+
     if (owner != FREE && !is_recursive) {
       Printf("FATAL: ThreadSanitizer detected attempt to lock non-recursive mutex that was already locked");
       Die();
@@ -301,15 +300,10 @@ struct mutex {
 
     owner = s_tid;
     ++recurse_count;
-
-    if (need_lock) CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
   int try_lock() {
-    // XXX ??? confusing mutex logic!
     GetFuzzingScheduler().SynchronizationPoint();
-
-    LockGuard lg(&my::BIGLOCK);
 
     if (owner == s_tid) {
       if (is_recursive) {
@@ -333,18 +327,10 @@ struct mutex {
     return 0;
   }
 
-  void unlock(bool need_lock = true) {
-    if (!need_lock) CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
+  void unlock() {
+    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
     GetFuzzingScheduler().SynchronizationPoint();
-    if (!need_lock) CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-
-    if (need_lock) CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-    struct Unlock {
-      ~Unlock() {
-        if (need_lock) CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
-      }
-      bool need_lock;
-    } unlock{need_lock};
+    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
 
     if (recurse_count == 0) {
       DEADLOCK("recurse_count is 0 in unlock");
@@ -369,9 +355,9 @@ struct condition_variable {
 
   void wait(mutex* m) {
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-    m->unlock(false);
+    m->unlock();
     ws.wait();
-    m->lock(false);
+    m->lock();
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
@@ -394,73 +380,6 @@ struct condition_variable {
   static constexpr size_t FREE = (size_t)-1;
 };
 
-static dumb_map<void*, mutex, 1000> Mutexes;
-static dumb_map<void*, condition_variable, 1000> CVs;
-
-void lock(void* mtx) {
-  REAL(pthread_mutex_lock)(&my::BIGLOCK);
-  if (!my::Mutexes.count(mtx)) {
-    my::Mutexes.insert(mtx, {});
-  }
-  REAL(pthread_mutex_unlock)(&my::BIGLOCK);
-
-  assert(Mutexes.count((void*)mtx));
-  auto& m = Mutexes.find((void*)mtx)->value;
-  m.lock();
-}
-int try_lock(void* mtx) {
-  REAL(pthread_mutex_lock)(&my::BIGLOCK);
-  if (!my::Mutexes.count(mtx)) {
-    my::Mutexes.insert(mtx, {});
-  }
-  REAL(pthread_mutex_unlock)(&my::BIGLOCK);
-
-  assert(Mutexes.count((void*)mtx));
-  auto& m = Mutexes.find((void*)mtx)->value;
-  return m.try_lock();
-}
-void unlock(void* mtx) {
-  assert(Mutexes.count((void*)mtx));
-  auto& m = Mutexes.find((void*)mtx)->value;
-  m.unlock();
-}
-void wait(void* cv, void* mtx) {
-  REAL(pthread_mutex_lock)(&my::BIGLOCK);
-  if (!my::CVs.count(cv)) {
-    my::CVs.insert(cv, {});
-  }
-  REAL(pthread_mutex_unlock)(&my::BIGLOCK);
-
-  assert(Mutexes.count((void*)mtx));
-  auto& m = Mutexes.find((void*)mtx)->value;
-  assert(CVs.count((void*)cv));
-  auto& c = CVs.find((void*)cv)->value;
-  c.wait(&m);
-}
-void notify_one(void* cv) {
-  REAL(pthread_mutex_lock)(&my::BIGLOCK);
-  if (!my::CVs.count(cv)) {
-    my::CVs.insert(cv, {});
-  }
-  REAL(pthread_mutex_unlock)(&my::BIGLOCK);
-
-  assert(CVs.count((void*)cv));
-  auto& c = CVs.find((void*)cv)->value;
-  c.notify_one();
-}
-
-void notify_all(void* cv) {
-  REAL(pthread_mutex_lock)(&my::BIGLOCK);
-  if (!my::CVs.count(cv)) {
-    my::CVs.insert(cv, {});
-  }
-  REAL(pthread_mutex_unlock)(&my::BIGLOCK);
-
-  assert(CVs.count((void*)cv));
-  auto& c = CVs.find((void*)cv)->value;
-  c.notify_all();
-}
-
 } // namespace my
 
 struct RandomFuzzingScheduler : IFuzzingScheduler {
@@ -475,8 +394,8 @@ struct RandomFuzzingScheduler : IFuzzingScheduler {
     srand(seed);
     pthread_t t;
     REAL(pthread_create)(&t, NULL, reinterpret_cast<void*(*)(void*)>(&RandomFuzzingScheduler::WatchDog), this);
-    contexts[1].state = ThreadState::RUNNING;
-    contexts[1].exit_count = 2;
+    Contexts[1].state = ThreadState::RUNNING;
+    Contexts[1].exit_count = 2;
     //REAL(pthread_detach)(&t);
   }
 
@@ -492,11 +411,13 @@ private:
     u64 start_time = 0;
   };
 
-  ThreadContext contexts[65536] = {};
+  ThreadContext Contexts[65536] = {};
+  my::dumb_map<void*, my::mutex, 1000> Mutexes;
+  my::dumb_map<void*, my::condition_variable, 1000> CVs;
 
   u64 AllocateTid() {
     for (int i = 1; i <= s_max_tid; ++i) {
-      if (contexts[i].exit_count == 0) {
+      if (Contexts[i].exit_count == 0) {
         return i;
       }
     }
@@ -522,99 +443,145 @@ private:
 
   void UnblockOne(int new_state) override {
     auto tid = GetTid();
-    __atomic_store_n(&contexts[tid].state, new_state, __ATOMIC_SEQ_CST);
+    Contexts[tid].state = (ThreadState)new_state;
 
-    WakeOne(false);
+    WakeOne();
   }
   int GetCurrentState() override { 
-    return (int)__atomic_load_n(&contexts[s_tid].state, __ATOMIC_SEQ_CST);
+    return (int)Contexts[s_tid].state;
   }
 
   // ASSUME: SCHED_LOCK held
   void SetCurrentState(int new_state) override {
-    __atomic_store_n(&contexts[s_tid].state, new_state, __ATOMIC_SEQ_CST);
+    Contexts[s_tid].state = (ThreadState)new_state;
   }
   // ASSUME: SCHED_LOCK held
   void SetState(u64 tid, int new_state) override {
-    __atomic_store_n(&contexts[tid].state, new_state, __ATOMIC_SEQ_CST);
+    Contexts[tid].state = (ThreadState)new_state;
   }
 
+  // No lock held upon call
   void SynchronizationPoint() override {
     auto tid = GetTid();
-    auto old_state = __atomic_load_n(&contexts[tid].state, __ATOMIC_SEQ_CST);
     REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
+    auto old_state = Contexts[tid].state;
     if (old_state == ThreadState::RUNNING) {
       UnblockOne((int)ThreadState::WAIT);
     }
     REAL(pthread_mutex_unlock)(&my::SCHED_LOCK);
 
     //PrintStates();
-    while (__atomic_load_n(&contexts[tid].state, __ATOMIC_SEQ_CST) == ThreadState::WAIT) {
+    while (Contexts[tid].state == ThreadState::WAIT) {
       internal_sched_yield();
     }
   }
 
-  int SynchronizationPoint_MutexLock(void* m) override {
-    my::lock(m);
+  int SynchronizationPoint_MutexLock(void* mtx) override {
+    LockGuard lg(&my::BIGLOCK);
+
+    if (!Mutexes.count(mtx)) {
+      Mutexes.insert(mtx, {});
+    }
+
+    assert(Mutexes.count((void*)mtx));
+    auto& m = Mutexes.find((void*)mtx)->value;
+    m.lock();
     return 0;
   }
-  int SynchronizationPoint_MutexTryLock(void* m) override {
-    return my::try_lock(m);
+  int SynchronizationPoint_MutexTryLock(void* mtx) override {
+    LockGuard lg(&my::BIGLOCK);
+
+    if (!Mutexes.count(mtx)) {
+      Mutexes.insert(mtx, {});
+    }
+
+    assert(Mutexes.count((void*)mtx));
+    auto& m = Mutexes.find((void*)mtx)->value;
+    return m.try_lock();
   }
-  int SynchronizationPoint_MutexUnlock(void* m) override {
-    my::unlock(m);
+  int SynchronizationPoint_MutexUnlock(void* mtx) override {
+    LockGuard lg(&my::BIGLOCK);
+
+    assert(Mutexes.count((void*)mtx));
+    auto& m = Mutexes.find((void*)mtx)->value;
+    m.unlock();
     return 0;
   }
-  int SynchronizationPoint_CondWait(void* c, void* m) override {
+  int SynchronizationPoint_CondWait(void* cv, void* mtx) override {
     // No sync event here.
-    my::wait(c, m);
+    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    if (!CVs.count(cv)) {
+      CVs.insert(cv, {});
+    }
+    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+
+    assert(Mutexes.count((void*)mtx));
+    auto& m = Mutexes.find((void*)mtx)->value;
+    assert(CVs.count((void*)cv));
+    auto& c = CVs.find((void*)cv)->value;
+    c.wait(&m);
     return 0;
   }
-  int SynchronizationPoint_CondNotifyOne(void* c) override {
-    my::notify_one(c);
+  int SynchronizationPoint_CondNotifyOne(void* cv) override {
+    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    if (!CVs.count(cv)) {
+      CVs.insert(cv, {});
+    }
+    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+
+    assert(CVs.count((void*)cv));
+    auto& c = CVs.find((void*)cv)->value;
+    c.notify_one();
     return 0;
   }
-  int SynchronizationPoint_CondNotifyAll(void* c) override {
-    my::notify_all(c);
+  int SynchronizationPoint_CondNotifyAll(void* cv) override {
+    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    if (!CVs.count(cv)) {
+      CVs.insert(cv, {});
+    }
+    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+
+    assert(CVs.count((void*)cv));
+    auto& c = CVs.find((void*)cv)->value;
+    c.notify_all();
     return 0;
   }
   void SynchronizationPoint_MutexInit(void* m, bool recursive) override {
     REAL(pthread_mutex_lock)(&my::BIGLOCK);
     // TODO: detect collisions
-    auto itr = my::Mutexes.find(m);
-    if (itr != my::Mutexes.end()) {
-      my::Mutexes.erase(itr);
+    auto itr = Mutexes.find(m);
+    if (itr != Mutexes.end()) {
+      Mutexes.erase(itr);
     }
-    my::Mutexes.insert(m, my::mutex{recursive});
+    Mutexes.insert(m, my::mutex{recursive});
     REAL(pthread_mutex_unlock)(&my::BIGLOCK);
   }
   void SynchronizationPoint_CondInit(void* c) override {
     REAL(pthread_mutex_lock)(&my::BIGLOCK);
     // TODO: detect collisions
-    auto itr = my::CVs.find(c);
-    if (itr != my::CVs.end()) {
-      my::CVs.erase(itr);
+    auto itr = CVs.find(c);
+    if (itr != CVs.end()) {
+      CVs.erase(itr);
     }
-    my::CVs.insert(c, {});
+    CVs.insert(c, {});
     REAL(pthread_mutex_unlock)(&my::BIGLOCK);
   }
 
 
   void DecrementExitCount(u64 tid) {
-    DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, contexts[tid].exit_count));
-    --contexts[tid].exit_count;
-    if (contexts[tid].exit_count < 0) {
-      Printf("FATAL: ThreadSanitizer exit_count < 0 for tid %d\n", tid);
+    DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, Contexts[tid].exit_count));
+    --Contexts[tid].exit_count;
+    if (Contexts[tid].exit_count < 0) {
+      Printf("FATAL: ThreadSanitizer exit_count < 0 for tid %llu\n", tid);
       Die();
     }
   }
 
   // ASSUME: BIGLOCK held
   u64 FindTidFor(void* th) {
-    u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
-    for (u64 i = 1; i <= local_max_tid; i++) {
+    for (u64 i = 1; i <= s_max_tid; i++) {
       // TODO: clear out old thread_handles
-      if (contexts[i].thread_handle == th && contexts[i].exit_count != 0) {
+      if (Contexts[i].thread_handle == th && Contexts[i].exit_count != 0) {
         return i;
       }
     }
@@ -636,10 +603,10 @@ private:
         // started by the app. TODO: We should handle those as well, so we can
         // have a proper assertion that join_tid is never -1.
 
-        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, contexts[join_tid].state, contexts[join_tid].exited));
-        while (!contexts[join_tid].exited) {
+        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].exited));
+        while (!Contexts[join_tid].exited) {
           DEBUG(fprintf(stderr, "[%ld] JoinThread waiting on %ld\n", s_tid, join_tid));
-          contexts[join_tid].ws.wait();
+          Contexts[join_tid].ws.wait();
         }
         DEBUG(fprintf(stderr, "[%ld] JoinThread finished waiting on %ld\n", s_tid, join_tid));
         DecrementExitCount(join_tid);
@@ -648,7 +615,7 @@ private:
       }
 
       // To wake up any WAIT-ing threads.
-      auto state = __atomic_load_n(&contexts[s_tid].state, __ATOMIC_SEQ_CST);
+      auto state = Contexts[s_tid].state;
       DEBUG(fprintf(stderr, "[%ld] JoinThread will do sync with state %d\n", s_tid, state));
 
       REAL(pthread_mutex_unlock)(&my::BIGLOCK);
@@ -662,7 +629,7 @@ private:
   int SynchronizationPoint_DetachThread(void* th) override {
     REAL(pthread_mutex_lock)(&my::BIGLOCK);
     u64 detach_tid = FindTidFor(th);
-    DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, contexts[detach_tid].exit_count));
+    DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts[detach_tid].exit_count));
     DecrementExitCount(detach_tid);
     REAL(pthread_mutex_unlock)(&my::BIGLOCK);
 
@@ -677,11 +644,11 @@ private:
     }
     REAL(pthread_mutex_lock)(&my::BIGLOCK);
     auto tid = AllocateTid();
-    contexts[tid].thread_handle = th;
-    contexts[tid].exited = false;
-    contexts[tid].exit_count = 2;
+    Contexts[tid].thread_handle = th;
+    Contexts[tid].exited = false;
+    Contexts[tid].exit_count = 2;
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
-    contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
+    Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
     REAL(pthread_mutex_unlock)(&my::BIGLOCK);
   }
 
@@ -696,10 +663,9 @@ private:
     REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
 
     // Assign s_tid from the allocated tid init InitThread.
-    const u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
     s_tid = -1;
-    for (int i = 1; i <= local_max_tid; ++i) {
-      if (contexts[i].thread_handle == th && !contexts[i].exited) {
+    for (int i = 1; i <= s_max_tid; ++i) {
+      if (Contexts[i].thread_handle == th && !Contexts[i].exited) {
         s_tid = i;
         break;
       }
@@ -717,11 +683,11 @@ private:
     CHECK_RC(REAL(pthread_mutex_lock)(&my::BIGLOCK));
     CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
     auto tid = GetTid();
-    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, contexts[tid].state, contexts[tid].exited));
-    __atomic_store_n(&contexts[tid].state, ThreadState::UNKNOWN, __ATOMIC_SEQ_CST);
-    contexts[tid].exited = true;
-    contexts[tid].ws.notify_one_impl();
-    DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, __atomic_load_n(&contexts[tid].state, __ATOMIC_SEQ_CST)));
+    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, Contexts[tid].state, Contexts[tid].exited));
+    Contexts[tid].state = ThreadState::UNKNOWN;
+    Contexts[tid].exited = true;
+    Contexts[tid].ws.notify_one_impl();
+    DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
     DecrementExitCount(tid);
     CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
     REAL(pthread_mutex_unlock)(&my::BIGLOCK);
@@ -735,9 +701,8 @@ private:
     u64 ready_tids[100] = {};
     int c = 0;
 
-    const u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
-    for (u64 i = 1; i <= local_max_tid; i++) {
-      ThreadState state = __atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST);
+    for (u64 i = 1; i <= s_max_tid; i++) {
+      ThreadState state = Contexts[i].state;
       if (state != ThreadState::BLOCKED && state != ThreadState::UNKNOWN) {
         ready_tids[c++] = i;
       }
@@ -757,45 +722,22 @@ private:
     DEBUG(fprintf(stderr, "]\n"));
 #endif
     return choice;
-
-#if 0
-
-    const u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
-    const u64 next_tid = local_max_tid == 0 ? 1 : ((rand() % local_max_tid) + 1);
-    for (u64 i = 0; i < local_max_tid; i++) {
-      ThreadState state = __atomic_load_n(&contexts[(next_tid + i) % local_max_tid + 1].state, __ATOMIC_SEQ_CST);
-      if (state != ThreadState::BLOCKED && state != ThreadState::UNKNOWN) {
-        return (next_tid + i) % local_max_tid + 1;
-      }
-    }
-
-    ThreadState state = __atomic_load_n(&contexts[next_tid].state, __ATOMIC_SEQ_CST);
-    if (state == ThreadState::BLOCKED || state == ThreadState::UNKNOWN) {
-      DEBUG(fprintf(stderr, "DEADLOCK\n"));
-      DEADLOCK();
-      if (getenv("KILL_DEADLOCK")) _exit(1);
-      //while(1);
-    }
-    return next_tid;
-#endif
   }
 
-  void WakeOne(bool need_lock = true) {
-    if (need_lock) CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
+  // ASSUME: Lock held
+  void WakeOne() {
     u64 next_tid = GetNextTid();
-    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, __atomic_load_n(&contexts[next_tid].state, __ATOMIC_SEQ_CST)));
-    __atomic_store_n(&contexts[next_tid].state, ThreadState::RUNNING, __ATOMIC_SEQ_CST);
-    __atomic_store_n(&contexts[next_tid].start_time, NanoTime(), __ATOMIC_SEQ_CST);
-    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, __atomic_load_n(&contexts[next_tid].state, __ATOMIC_SEQ_CST)));
-    if (need_lock) CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
+    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
+    Contexts[next_tid].state = ThreadState::RUNNING;
+    Contexts[next_tid].start_time = NanoTime();
+    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
   }
 
   void WakeOneIfNeeded() {
     LockGuard lg(&my::SCHED_LOCK);
 
-    const u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
-    for (u64 i = 1; i <= local_max_tid; i++) {
-      ThreadState state = __atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST);
+    for (u64 i = 1; i <= s_max_tid; i++) {
+      ThreadState state = Contexts[i].state;
       if (state == ThreadState::RUNNING) {
         return;
       }
@@ -803,8 +745,8 @@ private:
 
     u64 next_tid = GetNextTid();
     DEBUG(fprintf(stderr, "[%ld] WakeOneIfNeeded waking %ld\n", s_tid, next_tid));
-    __atomic_store_n(&contexts[next_tid].state, ThreadState::RUNNING, __ATOMIC_SEQ_CST);
-    __atomic_store_n(&contexts[next_tid].start_time, NanoTime(), __ATOMIC_SEQ_CST);
+    Contexts[next_tid].state = ThreadState::RUNNING;
+    Contexts[next_tid].start_time = NanoTime();
   }
 
   void* WatchDog() {
@@ -812,21 +754,20 @@ private:
       usleep(20 * 1000);
       internal_sched_yield();
       CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
-      u64 local_max_tid = __atomic_load_n(&s_max_tid, __ATOMIC_SEQ_CST);
-      for (u64 i = 1; i <= local_max_tid; i++) {
-        if (__atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST) == ThreadState::RUNNING && __atomic_load_n(&contexts[i].start_time, __ATOMIC_SEQ_CST) + 20 * 1000ULL <= NanoTime()) {
+      for (u64 i = 1; i <= s_max_tid; i++) {
+        if (Contexts[i].state == ThreadState::RUNNING && Contexts[i].start_time + 20 * 1000ULL <= NanoTime()) {
           DEBUG(fprintf(stderr, "[-1] WatchDog timing out %ld\n", i));
-          __atomic_store_n(&contexts[i].state, ThreadState::OUT_TIME, __ATOMIC_SEQ_CST);
+          Contexts[i].state = ThreadState::OUT_TIME;
         }
       }
       bool exists_running = false;
-      for (u64 i = 1; i <= local_max_tid; i++) {
-        if (__atomic_load_n(&contexts[i].state, __ATOMIC_SEQ_CST) == ThreadState::RUNNING) {
+      for (u64 i = 1; i <= s_max_tid; i++) {
+        if (Contexts[i].state == ThreadState::RUNNING) {
           exists_running = true;
         }
       }
       if (!exists_running) {
-        WakeOne(false);
+        WakeOne();
       }
       CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
     }
