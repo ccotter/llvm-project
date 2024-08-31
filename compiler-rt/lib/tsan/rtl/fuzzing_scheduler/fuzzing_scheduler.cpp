@@ -400,10 +400,19 @@ private:
   struct ThreadContext {
     ThreadState state = ThreadState::UNKNOWN;
     void* thread_handle = nullptr; // pointer to pthread_thread_t object
-    bool exited = false;
+
+    // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
+    // starts out as 2 upon thread creation. It is decremented once
+    // when the user supplied callback completes. It is also decremented
+    // in the pthread_join, or pthread_detect (calling both is undefined
+    // behavior per the pthread spec). Whenever exit_count hits zero, the
+    // corresponding ThreadContext object can be recycled to a newly
+    // spawned thread.
     int exit_count = 2;
     impl::waitset ws;
     u64 start_time = 0;
+
+    bool is_free() const { return exit_count == 0; }
   };
 
   ThreadContext Contexts[65536] = {};
@@ -586,8 +595,8 @@ private:
         // started by the app. TODO: We should handle those as well, so we can
         // have a proper assertion that join_tid is never -1.
 
-        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].exited));
-        while (!Contexts[join_tid].exited) {
+        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].is_free()));
+        while (!Contexts[join_tid].is_free()) {
           DEBUG(fprintf(stderr, "[%ld] JoinThread waiting on %ld\n", s_tid, join_tid));
           Contexts[join_tid].ws.wait();
         }
@@ -628,7 +637,6 @@ private:
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     auto tid = AllocateTid();
     Contexts[tid].thread_handle = th;
-    Contexts[tid].exited = false;
     Contexts[tid].exit_count = 2;
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
     Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
@@ -647,7 +655,7 @@ private:
     // Assign s_tid from the allocated tid init InitThread.
     s_tid = -1;
     for (int i = 1; i <= s_max_tid; ++i) {
-      if (Contexts[i].thread_handle == th && !Contexts[i].exited) {
+      if (Contexts[i].thread_handle == th && !Contexts[i].is_free()) {
         s_tid = i;
         break;
       }
@@ -663,9 +671,8 @@ private:
   void SynchronizationPoint_ExitThread() override {
     CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
     auto tid = s_tid;
-    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, Contexts[tid].state, Contexts[tid].exited));
+    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, Contexts[tid].state, Contexts[tid].is_free()));
     Contexts[tid].state = ThreadState::UNKNOWN;
-    Contexts[tid].exited = true;
     Contexts[tid].ws.notify_one_impl();
     DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
     DecrementExitCount(tid);
