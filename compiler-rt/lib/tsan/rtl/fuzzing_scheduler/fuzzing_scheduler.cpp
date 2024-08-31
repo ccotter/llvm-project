@@ -114,16 +114,15 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
 static void DEADLOCK(const char* msg)
 {
   fprintf(stderr, "DEADLOCK %s\n", msg);
+  abort();
 }
 
-namespace my {
+namespace impl {
 
-static pthread_mutex_t SCHED_LOCK;
 static pthread_mutex_t BIGLOCK;
 static pthread_cond_t CV;
 static int x = [] {
   CHECK_RC(REAL(pthread_mutex_init)(&BIGLOCK, nullptr));
-  CHECK_RC(REAL(pthread_mutex_init)(&SCHED_LOCK, nullptr));
   CHECK_RC(REAL(pthread_cond_init)(&CV, nullptr));
   return 0;
 }();
@@ -210,16 +209,12 @@ struct waitset {
     waiters.insert(s_tid, {});
 
     while (waiters.count(s_tid)) {
-      REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
       int old_state = GetFuzzingScheduler().GetCurrentState();
       GetFuzzingScheduler().UnblockOne((int)ThreadState::BLOCKED);
-      REAL(pthread_mutex_unlock)(&my::SCHED_LOCK);
 
       CHECK_RC(REAL(pthread_cond_wait)(&CV, &BIGLOCK));
 
-      REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
       GetFuzzingScheduler().SetCurrentState(old_state);
-      REAL(pthread_mutex_unlock)(&my::SCHED_LOCK);
     }
   }
 
@@ -238,9 +233,7 @@ struct waitset {
   }
 
   void notify_one() {
-    CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
     notify_one_impl();
-    CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
   }
 
   void notify_all_impl() {
@@ -257,9 +250,7 @@ struct waitset {
   }
 
   void notify_all() {
-    CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
     notify_all_impl();
-    CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
   }
 
 };
@@ -303,7 +294,9 @@ struct mutex {
   }
 
   int try_lock() {
+    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
     GetFuzzingScheduler().SynchronizationPoint();
+    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
 
     if (owner == s_tid) {
       if (is_recursive) {
@@ -380,7 +373,7 @@ struct condition_variable {
   static constexpr size_t FREE = (size_t)-1;
 };
 
-} // namespace my
+} // namespace impl
 
 struct RandomFuzzingScheduler : IFuzzingScheduler {
   RandomFuzzingScheduler() {
@@ -391,6 +384,8 @@ struct RandomFuzzingScheduler : IFuzzingScheduler {
       seed = NanoTime();
     }
     Printf("INFO! ThreadSanitizer initialized RandomFuzzingScheduler with seed=%u\n", seed);
+    s_max_tid = 1;
+    s_tid = 1;
     srand(seed);
     pthread_t t;
     REAL(pthread_create)(&t, NULL, reinterpret_cast<void*(*)(void*)>(&RandomFuzzingScheduler::WatchDog), this);
@@ -407,42 +402,31 @@ private:
     void* thread_handle = nullptr; // pointer to pthread_thread_t object
     bool exited = false;
     int exit_count = 2;
-    my::waitset ws;
+    impl::waitset ws;
     u64 start_time = 0;
   };
 
   ThreadContext Contexts[65536] = {};
-  my::dumb_map<void*, my::mutex, 1000> Mutexes;
-  my::dumb_map<void*, my::condition_variable, 1000> CVs;
+  impl::dumb_map<void*, impl::mutex, 1000> Mutexes;
+  impl::dumb_map<void*, impl::condition_variable, 1000> CVs;
 
+  // ASSUME: BIGLOCK held
   u64 AllocateTid() {
     for (int i = 1; i <= s_max_tid; ++i) {
       if (Contexts[i].exit_count == 0) {
         return i;
       }
     }
-    u64 new_tid =__atomic_add_fetch(&s_max_tid, 1, __ATOMIC_RELAXED);
-    return new_tid;
-  }
-
-
-  u64 GetTid() {
-    if (s_tid == 0) {
-      s_tid = __atomic_add_fetch(&s_max_tid, 1, __ATOMIC_RELAXED);
-      if (s_tid != 1) {
-        DEADLOCK("Unexpectedly allocated new TID on the fly");
-        while(1);
-      }
-    }
-    if (s_tid > 65535) {
+    u64 new_tid = ++s_max_tid;
+    if (new_tid > 65535) {
       Printf("FATAL: ThreadSanitizer The maximum number of threads created during the program should not exceed 65535");
       Die();
     }
-    return s_tid;
+    return new_tid;
   }
 
   void UnblockOne(int new_state) override {
-    auto tid = GetTid();
+    auto tid = s_tid;
     Contexts[tid].state = (ThreadState)new_state;
 
     WakeOne();
@@ -451,33 +435,32 @@ private:
     return (int)Contexts[s_tid].state;
   }
 
-  // ASSUME: SCHED_LOCK held
+  // ASSUME: BIGLOCK held
   void SetCurrentState(int new_state) override {
     Contexts[s_tid].state = (ThreadState)new_state;
   }
-  // ASSUME: SCHED_LOCK held
+  // ASSUME: BIGLOCK held
   void SetState(u64 tid, int new_state) override {
     Contexts[tid].state = (ThreadState)new_state;
   }
 
   // No lock held upon call
   void SynchronizationPoint() override {
-    auto tid = GetTid();
-    REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
+    auto tid = s_tid;
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     auto old_state = Contexts[tid].state;
     if (old_state == ThreadState::RUNNING) {
       UnblockOne((int)ThreadState::WAIT);
     }
-    REAL(pthread_mutex_unlock)(&my::SCHED_LOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
-    //PrintStates();
     while (Contexts[tid].state == ThreadState::WAIT) {
       internal_sched_yield();
     }
   }
 
   int SynchronizationPoint_MutexLock(void* mtx) override {
-    LockGuard lg(&my::BIGLOCK);
+    LockGuard lg(&impl::BIGLOCK);
 
     if (!Mutexes.count(mtx)) {
       Mutexes.insert(mtx, {});
@@ -489,7 +472,7 @@ private:
     return 0;
   }
   int SynchronizationPoint_MutexTryLock(void* mtx) override {
-    LockGuard lg(&my::BIGLOCK);
+    LockGuard lg(&impl::BIGLOCK);
 
     if (!Mutexes.count(mtx)) {
       Mutexes.insert(mtx, {});
@@ -500,7 +483,7 @@ private:
     return m.try_lock();
   }
   int SynchronizationPoint_MutexUnlock(void* mtx) override {
-    LockGuard lg(&my::BIGLOCK);
+    LockGuard lg(&impl::BIGLOCK);
 
     assert(Mutexes.count((void*)mtx));
     auto& m = Mutexes.find((void*)mtx)->value;
@@ -509,11 +492,11 @@ private:
   }
   int SynchronizationPoint_CondWait(void* cv, void* mtx) override {
     // No sync event here.
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     if (!CVs.count(cv)) {
       CVs.insert(cv, {});
     }
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     assert(Mutexes.count((void*)mtx));
     auto& m = Mutexes.find((void*)mtx)->value;
@@ -523,11 +506,11 @@ private:
     return 0;
   }
   int SynchronizationPoint_CondNotifyOne(void* cv) override {
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     if (!CVs.count(cv)) {
       CVs.insert(cv, {});
     }
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     assert(CVs.count((void*)cv));
     auto& c = CVs.find((void*)cv)->value;
@@ -535,11 +518,11 @@ private:
     return 0;
   }
   int SynchronizationPoint_CondNotifyAll(void* cv) override {
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     if (!CVs.count(cv)) {
       CVs.insert(cv, {});
     }
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     assert(CVs.count((void*)cv));
     auto& c = CVs.find((void*)cv)->value;
@@ -547,24 +530,24 @@ private:
     return 0;
   }
   void SynchronizationPoint_MutexInit(void* m, bool recursive) override {
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     // TODO: detect collisions
     auto itr = Mutexes.find(m);
     if (itr != Mutexes.end()) {
       Mutexes.erase(itr);
     }
-    Mutexes.insert(m, my::mutex{recursive});
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    Mutexes.insert(m, impl::mutex{recursive});
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
   void SynchronizationPoint_CondInit(void* c) override {
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     // TODO: detect collisions
     auto itr = CVs.find(c);
     if (itr != CVs.end()) {
       CVs.erase(itr);
     }
     CVs.insert(c, {});
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
 
 
@@ -595,7 +578,7 @@ private:
     }
 
     {
-      REAL(pthread_mutex_lock)(&my::BIGLOCK);
+      REAL(pthread_mutex_lock)(&impl::BIGLOCK);
 
       u64 join_tid = FindTidFor(th);
       if (join_tid != (u64)-1) {
@@ -618,7 +601,7 @@ private:
       auto state = Contexts[s_tid].state;
       DEBUG(fprintf(stderr, "[%ld] JoinThread will do sync with state %d\n", s_tid, state));
 
-      REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+      REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
     }
 
     SynchronizationPoint();
@@ -627,11 +610,11 @@ private:
   }
 
   int SynchronizationPoint_DetachThread(void* th) override {
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     u64 detach_tid = FindTidFor(th);
     DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts[detach_tid].exit_count));
     DecrementExitCount(detach_tid);
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     return REAL(pthread_detach)(th);
   }
@@ -642,14 +625,14 @@ private:
       DEADLOCK("OOPS: th null");
       while(1);
     }
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     auto tid = AllocateTid();
     Contexts[tid].thread_handle = th;
     Contexts[tid].exited = false;
     Contexts[tid].exit_count = 2;
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
     Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
 
   // Called by newly spawned thread, before the callback has started and before the
@@ -659,8 +642,7 @@ private:
       DEADLOCK("OOPS: th null");
       while(1);
     }
-    REAL(pthread_mutex_lock)(&my::BIGLOCK);
-    REAL(pthread_mutex_lock)(&my::SCHED_LOCK);
+    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
 
     // Assign s_tid from the allocated tid init InitThread.
     s_tid = -1;
@@ -675,22 +657,19 @@ private:
       Die();
     }
 
-    REAL(pthread_mutex_unlock)(&my::SCHED_LOCK);
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
   // Called by thread that is about to exit
   void SynchronizationPoint_ExitThread() override {
-    CHECK_RC(REAL(pthread_mutex_lock)(&my::BIGLOCK));
-    CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
-    auto tid = GetTid();
+    CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
+    auto tid = s_tid;
     DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, Contexts[tid].state, Contexts[tid].exited));
     Contexts[tid].state = ThreadState::UNKNOWN;
     Contexts[tid].exited = true;
     Contexts[tid].ws.notify_one_impl();
     DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
     DecrementExitCount(tid);
-    CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
-    REAL(pthread_mutex_unlock)(&my::BIGLOCK);
+    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     // To wake up any WAIT-ing threads.
     WakeOneIfNeeded();
@@ -709,7 +688,7 @@ private:
     }
 
     if (c == 0) {
-      DEADLOCK("OOPS: th null");
+      DEADLOCK("OOPS: no ready threads");
       while (1);
     }
 
@@ -734,7 +713,7 @@ private:
   }
 
   void WakeOneIfNeeded() {
-    LockGuard lg(&my::SCHED_LOCK);
+    LockGuard lg(&impl::BIGLOCK);
 
     for (u64 i = 1; i <= s_max_tid; i++) {
       ThreadState state = Contexts[i].state;
@@ -753,7 +732,7 @@ private:
     while (true) {
       usleep(20 * 1000);
       internal_sched_yield();
-      CHECK_RC(REAL(pthread_mutex_lock)(&my::SCHED_LOCK));
+      CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
       for (u64 i = 1; i <= s_max_tid; i++) {
         if (Contexts[i].state == ThreadState::RUNNING && Contexts[i].start_time + 20 * 1000ULL <= NanoTime()) {
           DEBUG(fprintf(stderr, "[-1] WatchDog timing out %ld\n", i));
@@ -767,9 +746,9 @@ private:
         }
       }
       if (!exists_running) {
-        WakeOne();
+        //WakeOne();
       }
-      CHECK_RC(REAL(pthread_mutex_unlock)(&my::SCHED_LOCK));
+      CHECK_RC(REAL(pthread_mutex_unlock)(&impl::BIGLOCK));
     }
     return nullptr;
   }
