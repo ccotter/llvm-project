@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #endif
+#include <stdio.h>
 
 namespace ping_pong {
 
@@ -18,6 +19,7 @@ pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 
 void *Thread1(void*) {
   for (int i = 0; i != 1000; ++i) {
+    fprintf(stderr, "T1 %d\n", i);
     pthread_mutex_lock(&mtx);
     var = 1;
     pthread_cond_signal(&cv);
@@ -28,6 +30,7 @@ void *Thread1(void*) {
 void *Thread2(void*) {
   for (int i = 0; i != 1000; ++i) {
     pthread_mutex_lock(&mtx);
+    fprintf(stderr, "T1 %d\n", i);
     while (!var) {
       pthread_cond_wait(&cv, &mtx);
     }
