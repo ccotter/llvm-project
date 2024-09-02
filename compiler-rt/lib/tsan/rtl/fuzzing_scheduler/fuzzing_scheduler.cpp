@@ -595,15 +595,15 @@ private:
         // started by the app. TODO: We should handle those as well, so we can
         // have a proper assertion that join_tid is never -1.
 
-        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].is_free()));
+        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].exit_count));
+        DecrementExitCount(join_tid);
         while (!Contexts[join_tid].is_free()) {
           DEBUG(fprintf(stderr, "[%ld] JoinThread waiting on %ld\n", s_tid, join_tid));
           Contexts[join_tid].ws.wait();
         }
         DEBUG(fprintf(stderr, "[%ld] JoinThread finished waiting on %ld\n", s_tid, join_tid));
-        DecrementExitCount(join_tid);
       } else {
-        DEBUG(fprintf(stderr, "[%ld] JoinThread NO WAIT\n", s_tid));
+        DEBUG(fprintf(stderr, "[%ld] JoinThread joining a thread not managed by us\n", s_tid));
       }
 
       // To wake up any WAIT-ing threads.
@@ -669,14 +669,14 @@ private:
   }
   // Called by thread that is about to exit
   void SynchronizationPoint_ExitThread() override {
-    CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
+    LockGuard lg(&impl::BIGLOCK);
+
     auto tid = s_tid;
-    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exited=%d\n", tid, Contexts[tid].state, Contexts[tid].is_free()));
+    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exit_count=%d\n", tid, Contexts[tid].state, Contexts[tid].exit_count));
     Contexts[tid].state = ThreadState::UNKNOWN;
     Contexts[tid].ws.notify_one_impl();
     DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
     DecrementExitCount(tid);
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
     // To wake up any WAIT-ing threads.
     WakeOneIfNeeded();
@@ -720,8 +720,6 @@ private:
   }
 
   void WakeOneIfNeeded() {
-    LockGuard lg(&impl::BIGLOCK);
-
     for (u64 i = 1; i <= s_max_tid; i++) {
       ThreadState state = Contexts[i].state;
       if (state == ThreadState::RUNNING) {
