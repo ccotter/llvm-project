@@ -1280,7 +1280,9 @@ INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
   GetFuzzingScheduler().SynchronizationPoint();
   return cond_wait(
       thr, pc, &si,
-      [=]() { return REAL(pthread_cond_timedwait)(cond, m, abstime); }, cond,
+      [=]() { return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m); }, cond,
+      //TODO: support time events in the fuzz scheduler
+      //[=]() { return REAL(pthread_cond_timedwait)(cond, m, abstime); }, cond,
       m);
 }
 
@@ -1292,7 +1294,9 @@ INTERCEPTOR(int, pthread_cond_clockwait, void *c, void *m,
   GetFuzzingScheduler().SynchronizationPoint();
   return cond_wait(
       thr, pc, &si,
-      [=]() { return REAL(pthread_cond_clockwait)(cond, m, clock, abstime); },
+      [=]() { return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m); },
+      //TODO: support time events in the fuzz scheduler
+      //[=]() { return REAL(pthread_cond_clockwait)(cond, m, clock, abstime); },
       cond, m);
 }
 #define TSAN_MAYBE_PTHREAD_COND_CLOCKWAIT TSAN_INTERCEPT(pthread_cond_clockwait)
@@ -1309,7 +1313,9 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
   return cond_wait(
       thr, pc, &si,
       [=]() {
-        return REAL(pthread_cond_timedwait_relative_np)(cond, m, reltime);
+        return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m);
+        //TODO: support time events in the fuzz scheduler
+        //return REAL(pthread_cond_timedwait_relative_np)(cond, m, reltime);
       },
       cond, m);
 }
