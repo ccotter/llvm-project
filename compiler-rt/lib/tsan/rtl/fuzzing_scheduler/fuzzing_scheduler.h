@@ -9,6 +9,7 @@ struct IFuzzingScheduler
     virtual int GetCurrentState() = 0;
     virtual void SetCurrentState(int new_state) = 0;
     virtual void SetState(unsigned long long tid, int new_state) = 0;
+    virtual void SetBlocking(bool IsBlocking) = 0;
 
     virtual int SynchronizationPoint_MutexLock(void* m) = 0;
     virtual int SynchronizationPoint_MutexTryLock(void* m) = 0;
@@ -27,5 +28,14 @@ struct IFuzzingScheduler
 };
 
 IFuzzingScheduler& GetFuzzingScheduler();
+
+struct ScopedFuzzingSchedulerBlocked {
+  ScopedFuzzingSchedulerBlocked() {
+    GetFuzzingScheduler().SetBlocking(true);
+  }
+  ~ScopedFuzzingSchedulerBlocked() {
+    GetFuzzingScheduler().SetBlocking(false);
+  }
+};
 
 }  // namespace __tsan
