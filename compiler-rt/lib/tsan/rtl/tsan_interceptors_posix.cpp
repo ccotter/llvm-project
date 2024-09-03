@@ -371,9 +371,11 @@ struct BlockingCall {
     // this is not true is: pthread_join -> munmap(stack). It's fine
     // to ignore munmap in this case -- we handle stack shadow separately.
     thr->ignore_interceptors++;
+    GetFuzzingScheduler().SetBlocking(true);
   }
 
   ~BlockingCall() {
+    GetFuzzingScheduler().SetBlocking(false);
     thr->ignore_interceptors--;
     atomic_store(&thr->in_blocking_func, 0, memory_order_relaxed);
   }
@@ -1090,7 +1092,6 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
   int res = GetFuzzingScheduler().SynchronizationPoint_JoinThread(th, ret);
-  //int res = BLOCK_REAL(pthread_join)(th, ret);
   ThreadIgnoreEnd(thr);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);
@@ -1383,7 +1384,6 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_lock, m);
   MutexPreLock(thr, pc, (uptr)m);
   int res = GetFuzzingScheduler().SynchronizationPoint_MutexLock(m);
-  //int res = BLOCK_REAL(pthread_mutex_lock)(m);
   if (res == errno_EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
   if (res == 0 || res == errno_EOWNERDEAD)
