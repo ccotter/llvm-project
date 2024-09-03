@@ -47,6 +47,42 @@ void run() {
 
 } // namespace ping_pong
 
+namespace ping_pong_broadcast {
+
+int var;
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
+
+void *Thread1(void*) {
+  for (int i = 0; i != 1000; ++i) {
+    pthread_mutex_lock(&mtx);
+    var = 1;
+    pthread_cond_broadcast(&cv);
+    pthread_mutex_unlock(&mtx);
+  }
+  return NULL;
+}
+void *Thread2(void*) {
+  for (int i = 0; i != 1000; ++i) {
+    pthread_mutex_lock(&mtx);
+    while (!var) {
+      pthread_cond_wait(&cv, &mtx);
+    }
+    pthread_mutex_unlock(&mtx);
+  }
+  return NULL;
+}
+
+void run() {
+  pthread_t t1 ,t2;
+  pthread_create(&t1, 0, Thread1, 0);
+  pthread_create(&t2, 0, Thread2, 0);
+  pthread_join(t1, NULL);
+  pthread_join(t2, NULL);
+}
+
+} // namespace ping_pong
+
 namespace recursive_mutex {
 
 void run() {
@@ -119,6 +155,7 @@ void run() {
 
 int main() {
   ping_pong::run();
+  ping_pong_broadcast::run();
   recursive_mutex::run();
   create_1000_therads::run();
   try_lock::run();

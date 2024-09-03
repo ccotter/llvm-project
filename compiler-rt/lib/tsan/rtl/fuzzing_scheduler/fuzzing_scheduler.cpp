@@ -86,7 +86,6 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
   void UnblockOne(int) override {}
   int GetCurrentState() override { return 0; }
   void SetCurrentState(int new_state) override {}
-  void SetState(u64 tid, int new_state) override {}
   void SetBlocking(bool IsBlocking) override {}
   int SynchronizationPoint_MutexLock(void* m) override {
     return REAL(pthread_mutex_lock)(m);
@@ -131,6 +130,8 @@ static int x = [] {
   return 0;
 }();
 
+// dumb_map has map-like interfaces, but it's implemented as if it
+// were a hashmap with a hash function equal to a constant function.
 template <class K, class V, size_t Size>
 struct dumb_map {
   struct data_t {
@@ -180,29 +181,12 @@ struct dumb_map {
   }
 };
 
-#if 0
- = truetemplate <class T>
-struct malloc_allocator {
-  using value_type = T;
-
-  T* allocate(size_t n) {
-    return (T*)REAL(malloc)(sizeof(T) * n);
-  }
-  void deallocate(T* ptr, size_t n) {
-    return (T*)REAL(free)(ptr);
-  }
-};
-#endif
-
 struct monostate{};
 
 struct waitset {
   dumb_map<u64, monostate, 100> waiters;
-  //pthread_cond_t cv;
 
-  waitset() {
-    //CHECK_RC(REAL(pthread_cond_init)(&cv, nullptr));
-  }
+  waitset() = default;
   waitset(const waitset&) = delete;
   waitset& operator=(const waitset&) = delete;
   waitset(waitset&&) = default;
@@ -216,13 +200,15 @@ struct waitset {
       int old_state = GetFuzzingScheduler().GetCurrentState();
       GetFuzzingScheduler().UnblockOne((int)ThreadState::BLOCKED);
 
+      DEBUG(fprintf(stderr, "[%ld] Waitset::wait sleeping state=%d new state=%d\n", s_tid, GetFuzzingScheduler().GetCurrentState(), old_state));
       CHECK_RC(REAL(pthread_cond_wait)(&CV, &BIGLOCK));
+      DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, GetFuzzingScheduler().GetCurrentState(), old_state));
 
       GetFuzzingScheduler().SetCurrentState(old_state);
     }
   }
 
-  void notify_one_impl() {
+  void notify_one() {
     // Lock held by the caller
 
     auto itr = waiters.begin();
@@ -230,31 +216,21 @@ struct waitset {
       waiters.erase(itr);
       // TODO - should this be the old_state from the wait() call above?
       DEBUG(fprintf(stderr, "[%ld] Waitset::notify_one setting state of %ld to WAIT\n", s_tid, itr->key));
-      GetFuzzingScheduler().SetState(itr->key, (int)ThreadState::WAIT);
 
       CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
     }
   }
 
-  void notify_one() {
-    notify_one_impl();
-  }
-
-  void notify_all_impl() {
+  void notify_all() {
     if (waiters.begin() == waiters.end()) return;
 
     while (waiters.begin() != waiters.end()) {
       auto itr = waiters.begin();
       if (itr != waiters.end()) {
         waiters.erase(itr);
-        GetFuzzingScheduler().SetState(itr->key, (int)ThreadState::WAIT);
       }
     }
     CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
-  }
-
-  void notify_all() {
-    notify_all_impl();
   }
 
 };
@@ -377,6 +353,24 @@ struct condition_variable {
   static constexpr size_t FREE = (size_t)-1;
 };
 
+struct ThreadContext {
+  ThreadState state = ThreadState::UNKNOWN;
+  void* thread_handle = nullptr; // pointer to pthread_thread_t object
+
+  // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
+  // starts out as 2 upon thread creation. It is decremented once
+  // when the user supplied callback completes. It is also decremented
+  // in the pthread_join, or pthread_detect (calling both is undefined
+  // behavior per the pthread spec). Whenever exit_count hits zero, the
+  // corresponding ThreadContext object can be recycled to a newly
+  // spawned thread.
+  int exit_count = 2;
+  impl::waitset ws;
+  u64 start_time = 0;
+
+  bool is_free() const { return exit_count == 0; }
+};
+
 } // namespace impl
 
 struct RandomFuzzingScheduler : IFuzzingScheduler {
@@ -401,25 +395,7 @@ struct RandomFuzzingScheduler : IFuzzingScheduler {
 
 private:
 
-  struct ThreadContext {
-    ThreadState state = ThreadState::UNKNOWN;
-    void* thread_handle = nullptr; // pointer to pthread_thread_t object
-
-    // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
-    // starts out as 2 upon thread creation. It is decremented once
-    // when the user supplied callback completes. It is also decremented
-    // in the pthread_join, or pthread_detect (calling both is undefined
-    // behavior per the pthread spec). Whenever exit_count hits zero, the
-    // corresponding ThreadContext object can be recycled to a newly
-    // spawned thread.
-    int exit_count = 2;
-    impl::waitset ws;
-    u64 start_time = 0;
-
-    bool is_free() const { return exit_count == 0; }
-  };
-
-  ThreadContext Contexts[65536] = {};
+  impl::ThreadContext Contexts[65536] = {};
   int blocked_calls = 0;
   impl::dumb_map<void*, impl::mutex, 1000> Mutexes;
   impl::dumb_map<void*, impl::condition_variable, 1000> CVs;
@@ -453,10 +429,6 @@ private:
   void SetCurrentState(int new_state) override {
     Contexts[s_tid].state = (ThreadState)new_state;
   }
-  // ASSUME: BIGLOCK held
-  void SetState(u64 tid, int new_state) override {
-    Contexts[tid].state = (ThreadState)new_state;
-  }
 
   // No lock held upon entry
   void SetBlocking(bool IsBlocking) override {
@@ -465,7 +437,7 @@ private:
 
     DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
     if (IsBlocking) {
-      if (Contexts[s_tid].state != ThreadState::RUNNING) {
+      if (Contexts[s_tid].state != ThreadState::RUNNING && Contexts[s_tid].state != ThreadState::OUT_TIME) {
         DEADLOCK("Unexpected state for SetBlocking(true)");
       }
       Contexts[s_tid].state = ThreadState::BLOCKED;
@@ -696,7 +668,7 @@ private:
     auto tid = s_tid;
     DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exit_count=%d\n", tid, Contexts[tid].state, Contexts[tid].exit_count));
     Contexts[tid].state = ThreadState::UNKNOWN;
-    Contexts[tid].ws.notify_one_impl();
+    Contexts[tid].ws.notify_one();
     DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
     DecrementExitCount(tid);
 
@@ -715,11 +687,15 @@ private:
       }
     }
 
-    if (c == 0)
+    if (c == 0) {
+      return NO_TID;
+    }
+#if 0
       if (blocked_calls == 0)
         DEADLOCK("OOPS: no ready threads");
       else
         return NO_TID;
+#endif
 
     auto choice = ready_tids[rand() % c];
 #ifdef PRINT_DEBUG

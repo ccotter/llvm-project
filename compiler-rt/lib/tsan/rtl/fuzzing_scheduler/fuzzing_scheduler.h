@@ -8,7 +8,6 @@ struct IFuzzingScheduler
     virtual void UnblockOne(int new_state) = 0;
     virtual int GetCurrentState() = 0;
     virtual void SetCurrentState(int new_state) = 0;
-    virtual void SetState(unsigned long long tid, int new_state) = 0;
     virtual void SetBlocking(bool IsBlocking) = 0;
 
     virtual int SynchronizationPoint_MutexLock(void* m) = 0;
