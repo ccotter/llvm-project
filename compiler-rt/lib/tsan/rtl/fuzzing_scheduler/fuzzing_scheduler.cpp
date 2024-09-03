@@ -53,6 +53,8 @@ namespace {
     }
   };
 
+  constexpr u64 NO_TID = (u64)-1;
+
   enum class ThreadState {
     UNKNOWN = 0,
     RUNNING = 1,
@@ -418,6 +420,7 @@ private:
   };
 
   ThreadContext Contexts[65536] = {};
+  int blocked_calls = 0;
   impl::dumb_map<void*, impl::mutex, 1000> Mutexes;
   impl::dumb_map<void*, impl::condition_variable, 1000> CVs;
 
@@ -457,12 +460,20 @@ private:
 
   // No lock held upon entry
   void SetBlocking(bool IsBlocking) override {
+    DEBUG(fprintf(stderr, "[%ld] SetBlocking Before Lock IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
     LockGuard lg(&impl::BIGLOCK);
 
+    DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
     if (IsBlocking) {
+      if (Contexts[s_tid].state != ThreadState::RUNNING) {
+        DEADLOCK("Unexpected state for SetBlocking(true)");
+      }
       Contexts[s_tid].state = ThreadState::BLOCKED;
+      ++blocked_calls;
+      WakeOneIfNeeded();
     } else {
-      Contexts[s_tid].state = ThreadState::WAIT;
+      --blocked_calls;
+      Contexts[s_tid].state = ThreadState::RUNNING;
     }
   }
 
@@ -704,9 +715,11 @@ private:
       }
     }
 
-    if (c == 0) {
-      DEADLOCK("OOPS: no ready threads");
-    }
+    if (c == 0)
+      if (blocked_calls == 0)
+        DEADLOCK("OOPS: no ready threads");
+      else
+        return NO_TID;
 
     auto choice = ready_tids[rand() % c];
 #ifdef PRINT_DEBUG
@@ -722,6 +735,10 @@ private:
   // ASSUME: Lock held
   void WakeOne() {
     u64 next_tid = GetNextTid();
+    if (next_tid == NO_TID) {
+      return;
+    }
+
     DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
     Contexts[next_tid].state = ThreadState::RUNNING;
     Contexts[next_tid].start_time = NanoTime();
@@ -737,6 +754,9 @@ private:
     }
 
     u64 next_tid = GetNextTid();
+    if (next_tid == NO_TID) {
+      return;
+    }
     DEBUG(fprintf(stderr, "[%ld] WakeOneIfNeeded waking %ld\n", s_tid, next_tid));
     Contexts[next_tid].state = ThreadState::RUNNING;
     Contexts[next_tid].start_time = NanoTime();
