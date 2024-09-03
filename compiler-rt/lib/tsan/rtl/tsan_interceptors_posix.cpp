@@ -371,11 +371,14 @@ struct BlockingCall {
     // this is not true is: pthread_join -> munmap(stack). It's fine
     // to ignore munmap in this case -- we handle stack shadow separately.
     thr->ignore_interceptors++;
+    GetFuzzingScheduler().SetBlocking(true);
   }
 
   ~BlockingCall() {
+    GetFuzzingScheduler().SetBlocking(false);
     thr->ignore_interceptors--;
     atomic_store(&thr->in_blocking_func, 0, memory_order_relaxed);
+    GetFuzzingScheduler().SynchronizationPoint();
   }
 
   ThreadState *thr;
@@ -1089,8 +1092,8 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   SCOPED_INTERCEPTOR_RAW(pthread_join, th, ret);
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
-  int res = GetFuzzingScheduler().SynchronizationPoint_JoinThread(th, ret);
-  //int res = BLOCK_REAL(pthread_join)(th, ret);
+  GetFuzzingScheduler().SynchronizationPoint_JoinThread(th, ret);
+  int res = BLOCK_REAL(pthread_join)(th, ret);
   ThreadIgnoreEnd(thr);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);
@@ -1114,8 +1117,8 @@ int internal_pthread_join(void *th, void **ret) {
 TSAN_INTERCEPTOR(int, pthread_detach, void *th) {
   SCOPED_INTERCEPTOR_RAW(pthread_detach, th);
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
-  int res = GetFuzzingScheduler().SynchronizationPoint_DetachThread(th);
-  //int res = REAL(pthread_detach)(th);
+  GetFuzzingScheduler().SynchronizationPoint();
+  int res = REAL(pthread_detach)(th);
   if (res == 0) {
     ThreadDetach(thr, pc, tid);
   }
@@ -1237,7 +1240,7 @@ INTERCEPTOR(int, pthread_cond_init, void *c, void *a) {
   void *cond = init_cond(c, true);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_init, cond, a);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), true);
-  GetFuzzingScheduler().SynchronizationPoint_CondInit(c);
+  GetFuzzingScheduler().SynchronizationPoint();
   return REAL(pthread_cond_init)(cond, a);
 }
 
@@ -1268,9 +1271,8 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
 INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
-  //GetFuzzingScheduler().SynchronizationPoint(m);
   return cond_wait(
-      thr, pc, &si, [=]() { /*return REAL(pthread_cond_wait)(cond, m);*/ return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m); }, cond,
+      thr, pc, &si, [=]() { return REAL(pthread_cond_wait)(cond, m); }, cond,
       m);
 }
 
@@ -1280,9 +1282,7 @@ INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
   GetFuzzingScheduler().SynchronizationPoint();
   return cond_wait(
       thr, pc, &si,
-      [=]() { return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m); }, cond,
-      //TODO: support time events in the fuzz scheduler
-      //[=]() { return REAL(pthread_cond_timedwait)(cond, m, abstime); }, cond,
+      [=]() { return REAL(pthread_cond_timedwait)(cond, m, abstime); }, cond,
       m);
 }
 
@@ -1294,9 +1294,7 @@ INTERCEPTOR(int, pthread_cond_clockwait, void *c, void *m,
   GetFuzzingScheduler().SynchronizationPoint();
   return cond_wait(
       thr, pc, &si,
-      [=]() { return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m); },
-      //TODO: support time events in the fuzz scheduler
-      //[=]() { return REAL(pthread_cond_clockwait)(cond, m, clock, abstime); },
+      [=]() { return REAL(pthread_cond_clockwait)(cond, m, clock, abstime); },
       cond, m);
 }
 #define TSAN_MAYBE_PTHREAD_COND_CLOCKWAIT TSAN_INTERCEPT(pthread_cond_clockwait)
@@ -1313,9 +1311,7 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
   return cond_wait(
       thr, pc, &si,
       [=]() {
-        return GetFuzzingScheduler().SynchronizationPoint_CondWait(c, m);
-        //TODO: support time events in the fuzz scheduler
-        //return REAL(pthread_cond_timedwait_relative_np)(cond, m, reltime);
+        return REAL(pthread_cond_timedwait_relative_np)(cond, m, reltime);
       },
       cond, m);
 }
@@ -1325,16 +1321,16 @@ INTERCEPTOR(int, pthread_cond_signal, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
-  return GetFuzzingScheduler().SynchronizationPoint_CondNotifyOne(c);
-  //return REAL(pthread_cond_signal)(cond);
+  GetFuzzingScheduler().SynchronizationPoint();
+  return REAL(pthread_cond_signal)(cond);
 }
 
 INTERCEPTOR(int, pthread_cond_broadcast, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
-  return GetFuzzingScheduler().SynchronizationPoint_CondNotifyAll(c);
-  //return REAL(pthread_cond_broadcast)(cond);
+  GetFuzzingScheduler().SynchronizationPoint();
+  return REAL(pthread_cond_broadcast)(cond);
 }
 
 INTERCEPTOR(int, pthread_cond_destroy, void *c) {
@@ -1363,7 +1359,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_init, void *m, void *a) {
             type == PTHREAD_MUTEX_RECURSIVE_NP)
           flagz |= MutexFlagWriteReentrant;
     }
-    GetFuzzingScheduler().SynchronizationPoint_MutexInit(m, flagz & MutexFlagWriteReentrant);
+    GetFuzzingScheduler().SynchronizationPoint();
     MutexCreate(thr, pc, (uptr)m, flagz);
   }
   return res;
@@ -1382,8 +1378,8 @@ TSAN_INTERCEPTOR(int, pthread_mutex_destroy, void *m) {
 TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_lock, m);
   MutexPreLock(thr, pc, (uptr)m);
-  int res = GetFuzzingScheduler().SynchronizationPoint_MutexLock(m);
-  //int res = BLOCK_REAL(pthread_mutex_lock)(m);
+  GetFuzzingScheduler().SynchronizationPoint();
+  int res = BLOCK_REAL(pthread_mutex_lock)(m);
   if (res == errno_EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
   if (res == 0 || res == errno_EOWNERDEAD)
@@ -1396,8 +1392,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
 TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_trylock, m);
   GetFuzzingScheduler().SynchronizationPoint();
-  int res = GetFuzzingScheduler().SynchronizationPoint_MutexTryLock(m);
-  //int res = REAL(pthread_mutex_trylock)(m);
+  int res = REAL(pthread_mutex_trylock)(m);
   if (res == errno_EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
   if (res == 0 || res == errno_EOWNERDEAD)
@@ -1420,8 +1415,8 @@ TSAN_INTERCEPTOR(int, pthread_mutex_timedlock, void *m, void *abstime) {
 TSAN_INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_unlock, m);
   MutexUnlock(thr, pc, (uptr)m);
-  int res = GetFuzzingScheduler().SynchronizationPoint_MutexUnlock(m);
-  //int res = REAL(pthread_mutex_unlock)(m);
+  GetFuzzingScheduler().SynchronizationPoint();
+  int res = REAL(pthread_mutex_unlock)(m);
   if (res == errno_EINVAL)
     MutexInvalidAccess(thr, pc, (uptr)m);
   return res;

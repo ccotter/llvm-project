@@ -71,7 +71,7 @@ namespace {
     } \
   } while (0)
 
-//#define PRINT_DEBUG
+#define PRINT_DEBUG
 #ifdef PRINT_DEBUG
 #define DEBUG(x) x
 #else
@@ -459,10 +459,15 @@ private:
   void SetBlocking(bool IsBlocking) override {
     LockGuard lg(&impl::BIGLOCK);
 
+    DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
     if (IsBlocking) {
+      if (Contexts[s_tid].state != ThreadState::RUNNING) {
+        DEADLOCK("Unexpected state for SetBlocking(true)");
+      }
       Contexts[s_tid].state = ThreadState::BLOCKED;
+      WakeOneIfNeeded();
     } else {
-      Contexts[s_tid].state = ThreadState::WAIT;
+      Contexts[s_tid].state = ThreadState::RUNNING;
     }
   }
 
@@ -476,6 +481,7 @@ private:
     }
     REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
+    // TODO: Needs unlock/lock here
     while (Contexts[tid].state == ThreadState::WAIT) {
       internal_sched_yield();
     }
@@ -628,7 +634,8 @@ private:
 
     SynchronizationPoint();
 
-    return REAL(pthread_join)(th, ret);
+    return 0;
+    //return REAL(pthread_join)(th, ret);
   }
 
   int SynchronizationPoint_DetachThread(void* th) override {
