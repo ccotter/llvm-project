@@ -99,11 +99,30 @@ void run() {
 
 } // namespace try_lock
 
+namespace sleep_test {
+
+void *Thread(void*) {
+  usleep(1000);
+  return NULL;
+}
+
+void run() {
+  const int N = 4;
+  pthread_t t[N];
+  for (int i = 0; i != N; ++i)
+    pthread_create(&t[i], 0, Thread, 0);
+  for (int i = 0; i != N; ++i)
+    pthread_join(t[i], NULL);
+}
+
+} // namespace sleep_test
+
 int main() {
   ping_pong::run();
   recursive_mutex::run();
   create_1000_therads::run();
   try_lock::run();
+  sleep_test::run();
   fprintf(stderr, "PASS\n");
   return 0;
 }

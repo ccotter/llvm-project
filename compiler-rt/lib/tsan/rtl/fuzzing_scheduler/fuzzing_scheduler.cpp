@@ -71,10 +71,11 @@ namespace {
     } \
   } while (0)
 
-#if 1
-#define DEBUG(x)
-#else
+//#define PRINT_DEBUG
+#ifdef PRINT_DEBUG
 #define DEBUG(x) x
+#else
+#define DEBUG(x)
 #endif
 
 struct NullFuzzingScheduler : IFuzzingScheduler {
@@ -84,6 +85,7 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
   int GetCurrentState() override { return 0; }
   void SetCurrentState(int new_state) override {}
   void SetState(u64 tid, int new_state) override {}
+  void SetBlocking(bool IsBlocking) override {}
   int SynchronizationPoint_MutexLock(void* m) override {
     return REAL(pthread_mutex_lock)(m);
   }
@@ -453,6 +455,17 @@ private:
     Contexts[tid].state = (ThreadState)new_state;
   }
 
+  // No lock held upon entry
+  void SetBlocking(bool IsBlocking) override {
+    LockGuard lg(&impl::BIGLOCK);
+
+    if (IsBlocking) {
+      Contexts[s_tid].state = ThreadState::BLOCKED;
+    } else {
+      Contexts[s_tid].state = ThreadState::WAIT;
+    }
+  }
+
   // No lock held upon call
   void SynchronizationPoint() override {
     auto tid = s_tid;
@@ -501,6 +514,7 @@ private:
   }
   int SynchronizationPoint_CondWait(void* cv, void* mtx) override {
     // No sync event here.
+
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     if (!CVs.count(cv)) {
       CVs.insert(cv, {});
@@ -583,7 +597,6 @@ private:
   int SynchronizationPoint_JoinThread(void* th, void** ret) override {
     if (!th) {
       DEADLOCK("OOPS: th null");
-      while(1);
     }
 
     {
@@ -632,7 +645,6 @@ private:
   void SynchronizationPoint_InitThread(void* th) override {
     if (!th) {
       DEADLOCK("OOPS: th null");
-      while(1);
     }
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     auto tid = AllocateTid();
@@ -648,7 +660,6 @@ private:
   void SynchronizationPoint_CreateThread(void* th) override {
     if (!th) {
       DEADLOCK("OOPS: th null");
-      while(1);
     }
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
 
@@ -683,7 +694,6 @@ private:
   }
 
   u64 GetNextTid() {
-
     u64 ready_tids[100] = {};
     int c = 0;
 
@@ -696,11 +706,10 @@ private:
 
     if (c == 0) {
       DEADLOCK("OOPS: no ready threads");
-      while (1);
     }
 
     auto choice = ready_tids[rand() % c];
-#if 1
+#ifdef PRINT_DEBUG
     DEBUG(fprintf(stderr, "[%ld] GetNextTid there were %d chose %ld [ ", s_tid, c, choice));
     for (int i = 0; i != c; ++i) {
       DEBUG(fprintf(stderr, "%ld ", ready_tids[i]));
