@@ -39,6 +39,8 @@ namespace __tsan {
 
 namespace {
 
+  constexpr size_t MAX_THREADS = 65536;
+
   struct LockGuard {
     pthread_mutex_t* mut_;
 
@@ -83,9 +85,6 @@ namespace {
 struct NullFuzzingScheduler : IFuzzingScheduler {
   void SynchronizationPoint() override {
   }
-  void UnblockOne(int) override {}
-  int GetCurrentState() override { return 0; }
-  void SetCurrentState(int new_state) override {}
   void SetBlocking(bool IsBlocking) override {}
   int SynchronizationPoint_MutexLock(void* m) override {
     return REAL(pthread_mutex_lock)(m);
@@ -181,6 +180,87 @@ struct dumb_map {
   }
 };
 
+struct ThreadContext {
+  ThreadState state = ThreadState::UNKNOWN;
+  void* thread_handle = nullptr; // pointer to pthread_thread_t object
+
+  // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
+  // starts out as 2 upon thread creation. It is decremented once
+  // when the user supplied callback completes. It is also decremented
+  // in the pthread_join, or pthread_detect (calling both is undefined
+  // behavior per the pthread spec). Whenever exit_count hits zero, the
+  // corresponding ThreadContext object can be recycled to a newly
+  // spawned thread.
+  int exit_count = 2;
+  u64 start_time = 0;
+
+  bool is_free() const { return exit_count == 0; }
+};
+
+// ASSUME: BIGLOCK held while accessing ThreadContexts
+struct ThreadContexts {
+  ThreadContext Contexts[MAX_THREADS] = {};
+  int blocked_calls = 0;
+
+  void SetState(u64 tid, ThreadState NewState) {
+    Contexts[tid].state = NewState;
+  }
+  ThreadState GetCurrentState() {
+    return Contexts[s_tid].state;
+  }
+
+  void SetCurrentState(ThreadState NewState) {
+    Contexts[s_tid].state = NewState;
+  }
+
+  u64 GetNextTid() {
+    u64 ready_tids[100] = {};
+    int c = 0;
+
+    for (u64 i = 1; i <= s_max_tid; i++) {
+      ThreadState state = Contexts[i].state;
+      if (state != ThreadState::BLOCKED && state != ThreadState::UNKNOWN) {
+        ready_tids[c++] = i;
+      }
+    }
+
+    if (c == 0)
+      if (blocked_calls == 0)
+        DEADLOCK("OOPS: no ready threads");
+      else
+        return NO_TID;
+
+    auto choice = ready_tids[rand() % c];
+#ifdef PRINT_DEBUG
+    DEBUG(fprintf(stderr, "[%ld] GetNextTid there were %d chose %ld [ ", s_tid, c, choice));
+    for (int i = 0; i != c; ++i) {
+      DEBUG(fprintf(stderr, "%ld ", ready_tids[i]));
+    }
+    DEBUG(fprintf(stderr, "]\n"));
+#endif
+    return choice;
+  }
+
+
+  void WakeOne() {
+    u64 next_tid = GetNextTid();
+    if (next_tid == NO_TID) {
+      return;
+    }
+
+    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts.Contexts[next_tid].state));
+    Contexts[next_tid].state = ThreadState::RUNNING;
+    Contexts[next_tid].start_time = NanoTime();
+    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, Contexts.Contexts[next_tid].state));
+  }
+  void UnblockOne(ThreadState NewState) {
+    auto tid = s_tid;
+    Contexts[tid].state = NewState;
+
+    WakeOne();
+  }
+};
+
 struct monostate{};
 
 struct waitset {
@@ -192,23 +272,22 @@ struct waitset {
   waitset(waitset&&) = default;
   waitset& operator=(waitset&&) = default;
 
-  void wait() {
+  void wait(ThreadContexts& Contexts) {
     assert(!waiters.count(s_tid));
     waiters.insert(s_tid, {});
 
     while (waiters.count(s_tid)) {
-      int old_state = GetFuzzingScheduler().GetCurrentState();
-      GetFuzzingScheduler().UnblockOne((int)ThreadState::BLOCKED);
+      ThreadState OldState = Contexts.GetCurrentState();
+      Contexts.UnblockOne(ThreadState::BLOCKED);
 
-      DEBUG(fprintf(stderr, "[%ld] Waitset::wait sleeping state=%d new state=%d\n", s_tid, GetFuzzingScheduler().GetCurrentState(), old_state));
       CHECK_RC(REAL(pthread_cond_wait)(&CV, &BIGLOCK));
-      DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, GetFuzzingScheduler().GetCurrentState(), old_state));
+      DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, Contexts[s_tid].state, OldState));
 
-      GetFuzzingScheduler().SetCurrentState(old_state);
+      Contexts.SetCurrentState(OldState);
     }
   }
 
-  void notify_one() {
+  void notify_one(ThreadContexts& Contexts) {
     // Lock held by the caller
 
     auto itr = waiters.begin();
@@ -216,23 +295,24 @@ struct waitset {
       waiters.erase(itr);
       // TODO - should this be the old_state from the wait() call above?
       DEBUG(fprintf(stderr, "[%ld] Waitset::notify_one setting state of %ld to WAIT\n", s_tid, itr->key));
+      Contexts.SetState(itr->key, ThreadState::WAIT);
 
       CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
     }
   }
 
-  void notify_all() {
+  void notify_all(ThreadContexts& Contexts) {
     if (waiters.begin() == waiters.end()) return;
 
     while (waiters.begin() != waiters.end()) {
       auto itr = waiters.begin();
       if (itr != waiters.end()) {
         waiters.erase(itr);
+        Contexts.SetState(itr->key, ThreadState::WAIT);
       }
     }
     CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
   }
-
 };
 
 struct mutex {
@@ -244,14 +324,14 @@ struct mutex {
   mutex(bool is_recursive = false) : is_recursive(is_recursive) {
   }
 
-  void lock() {
+  void lock(ThreadContexts& Contexts) {
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
     GetFuzzingScheduler().SynchronizationPoint();
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
 
     if (owner != s_tid) {
       while (owner != FREE) {
-        ws.wait();
+        ws.wait(Contexts);
       }
     }
 
@@ -300,7 +380,7 @@ struct mutex {
     return 0;
   }
 
-  void unlock() {
+  void unlock(ThreadContexts& Contexts) {
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
     GetFuzzingScheduler().SynchronizationPoint();
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
@@ -317,7 +397,7 @@ struct mutex {
     }
 
     owner = FREE;
-    ws.notify_one();
+    ws.notify_one(Contexts);
   }
 
   static constexpr size_t FREE = (size_t)-1;
@@ -326,49 +406,31 @@ struct mutex {
 struct condition_variable {
   waitset ws;
 
-  void wait(mutex* m) {
+  void wait(mutex* m, ThreadContexts& Contexts) {
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-    m->unlock();
-    ws.wait();
-    m->lock();
+    m->unlock(Contexts);
+    ws.wait(Contexts);
+    m->lock(Contexts);
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
-  void notify_one() {
+  void notify_one(ThreadContexts& Contexts) {
     GetFuzzingScheduler().SynchronizationPoint();
 
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-    ws.notify_one();
+    ws.notify_one(Contexts);
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
-  void notify_all() {
+  void notify_all(ThreadContexts& Contexts) {
     GetFuzzingScheduler().SynchronizationPoint();
 
     CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
-    ws.notify_all();
+    ws.notify_all(Contexts);
     CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
   static constexpr size_t FREE = (size_t)-1;
-};
-
-struct ThreadContext {
-  ThreadState state = ThreadState::UNKNOWN;
-  void* thread_handle = nullptr; // pointer to pthread_thread_t object
-
-  // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
-  // starts out as 2 upon thread creation. It is decremented once
-  // when the user supplied callback completes. It is also decremented
-  // in the pthread_join, or pthread_detect (calling both is undefined
-  // behavior per the pthread spec). Whenever exit_count hits zero, the
-  // corresponding ThreadContext object can be recycled to a newly
-  // spawned thread.
-  int exit_count = 2;
-  impl::waitset ws;
-  u64 start_time = 0;
-
-  bool is_free() const { return exit_count == 0; }
 };
 
 } // namespace impl
@@ -387,23 +449,23 @@ struct RandomFuzzingScheduler : IFuzzingScheduler {
     srand(seed);
     pthread_t t;
     REAL(pthread_create)(&t, NULL, reinterpret_cast<void*(*)(void*)>(&RandomFuzzingScheduler::WatchDog), this);
-    Contexts[1].state = ThreadState::RUNNING;
-    Contexts[1].exit_count = 2;
+    Contexts.Contexts[1].state = ThreadState::RUNNING;
+    Contexts.Contexts[1].exit_count = 2;
     //REAL(pthread_detach)(&t);
   }
 
 
 private:
 
-  impl::ThreadContext Contexts[65536] = {};
-  int blocked_calls = 0;
+  impl::ThreadContexts Contexts;
+  impl::waitset ws[MAX_THREADS];
   impl::dumb_map<void*, impl::mutex, 1000> Mutexes;
   impl::dumb_map<void*, impl::condition_variable, 1000> CVs;
 
   // ASSUME: BIGLOCK held
   u64 AllocateTid() {
     for (int i = 1; i <= s_max_tid; ++i) {
-      if (Contexts[i].exit_count == 0) {
+      if (Contexts.Contexts[i].exit_count == 0) {
         return i;
       }
     }
@@ -415,37 +477,39 @@ private:
     return new_tid;
   }
 
-  void UnblockOne(int new_state) override {
-    auto tid = s_tid;
-    Contexts[tid].state = (ThreadState)new_state;
+  void WakeOneIfNeeded() {
+    for (u64 i = 1; i <= s_max_tid; i++) {
+      ThreadState state = Contexts.Contexts[i].state;
+      if (state == ThreadState::RUNNING) {
+        return;
+      }
+    }
 
-    WakeOne();
-  }
-  int GetCurrentState() override { 
-    return (int)Contexts[s_tid].state;
-  }
-
-  // ASSUME: BIGLOCK held
-  void SetCurrentState(int new_state) override {
-    Contexts[s_tid].state = (ThreadState)new_state;
+    u64 next_tid = Contexts.GetNextTid();
+    if (next_tid == NO_TID) {
+      return;
+    }
+    DEBUG(fprintf(stderr, "[%ld] WakeOneIfNeeded waking %ld\n", s_tid, next_tid));
+    Contexts.Contexts[next_tid].state = ThreadState::RUNNING;
+    Contexts.Contexts[next_tid].start_time = NanoTime();
   }
 
   // No lock held upon entry
   void SetBlocking(bool IsBlocking) override {
-    DEBUG(fprintf(stderr, "[%ld] SetBlocking Before Lock IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
+    DEBUG(fprintf(stderr, "[%ld] SetBlocking Before Lock IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts.Contexts[s_tid].state));
     LockGuard lg(&impl::BIGLOCK);
 
-    DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts[s_tid].state));
+    DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts.Contexts[s_tid].state));
     if (IsBlocking) {
-      if (Contexts[s_tid].state != ThreadState::RUNNING && Contexts[s_tid].state != ThreadState::OUT_TIME) {
+      if (Contexts.Contexts[s_tid].state != ThreadState::RUNNING && Contexts.Contexts[s_tid].state != ThreadState::OUT_TIME) {
         DEADLOCK("Unexpected state for SetBlocking(true)");
       }
-      Contexts[s_tid].state = ThreadState::BLOCKED;
-      ++blocked_calls;
+      Contexts.Contexts[s_tid].state = ThreadState::BLOCKED;
+      ++Contexts.blocked_calls;
       WakeOneIfNeeded();
     } else {
-      --blocked_calls;
-      Contexts[s_tid].state = ThreadState::RUNNING;
+      --Contexts.blocked_calls;
+      Contexts.Contexts[s_tid].state = ThreadState::RUNNING;
     }
   }
 
@@ -453,13 +517,13 @@ private:
   void SynchronizationPoint() override {
     auto tid = s_tid;
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    auto old_state = Contexts[tid].state;
+    auto old_state = Contexts.Contexts[tid].state;
     if (old_state == ThreadState::RUNNING) {
-      UnblockOne((int)ThreadState::WAIT);
+      Contexts.UnblockOne(ThreadState::WAIT);
     }
     REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
-    while (Contexts[tid].state == ThreadState::WAIT) {
+    while (Contexts.Contexts[tid].state == ThreadState::WAIT) {
       internal_sched_yield();
     }
   }
@@ -473,7 +537,7 @@ private:
 
     assert(Mutexes.count((void*)mtx));
     auto& m = Mutexes.find((void*)mtx)->value;
-    m.lock();
+    m.lock(Contexts);
     return 0;
   }
   int SynchronizationPoint_MutexTryLock(void* mtx) override {
@@ -492,7 +556,7 @@ private:
 
     assert(Mutexes.count((void*)mtx));
     auto& m = Mutexes.find((void*)mtx)->value;
-    m.unlock();
+    m.unlock(Contexts);
     return 0;
   }
   int SynchronizationPoint_CondWait(void* cv, void* mtx) override {
@@ -508,7 +572,7 @@ private:
     auto& m = Mutexes.find((void*)mtx)->value;
     assert(CVs.count((void*)cv));
     auto& c = CVs.find((void*)cv)->value;
-    c.wait(&m);
+    c.wait(&m, Contexts);
     return 0;
   }
   int SynchronizationPoint_CondNotifyOne(void* cv) override {
@@ -520,7 +584,7 @@ private:
 
     assert(CVs.count((void*)cv));
     auto& c = CVs.find((void*)cv)->value;
-    c.notify_one();
+    c.notify_one(Contexts);
     return 0;
   }
   int SynchronizationPoint_CondNotifyAll(void* cv) override {
@@ -532,7 +596,7 @@ private:
 
     assert(CVs.count((void*)cv));
     auto& c = CVs.find((void*)cv)->value;
-    c.notify_all();
+    c.notify_all(Contexts);
     return 0;
   }
   void SynchronizationPoint_MutexInit(void* m, bool recursive) override {
@@ -558,9 +622,9 @@ private:
 
 
   void DecrementExitCount(u64 tid) {
-    DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, Contexts[tid].exit_count));
-    --Contexts[tid].exit_count;
-    if (Contexts[tid].exit_count < 0) {
+    DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, Contexts.Contexts[tid].exit_count));
+    --Contexts.Contexts[tid].exit_count;
+    if (Contexts.Contexts[tid].exit_count < 0) {
       Printf("FATAL: ThreadSanitizer exit_count < 0 for tid %llu\n", tid);
       Die();
     }
@@ -570,7 +634,7 @@ private:
   u64 FindTidFor(void* th) {
     for (u64 i = 1; i <= s_max_tid; i++) {
       // TODO: clear out old thread_handles
-      if (Contexts[i].thread_handle == th && Contexts[i].exit_count != 0) {
+      if (Contexts.Contexts[i].thread_handle == th && Contexts.Contexts[i].exit_count != 0) {
         return i;
       }
     }
@@ -591,11 +655,11 @@ private:
         // started by the app. TODO: We should handle those as well, so we can
         // have a proper assertion that join_tid is never -1.
 
-        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts[join_tid].state, Contexts[join_tid].exit_count));
+        DEBUG(fprintf(stderr, "[%ld] JoinThread will enter loop waiting on %ld, state=%d exited=%d\n", s_tid, join_tid, Contexts.Contexts[join_tid].state, Contexts.Contexts[join_tid].exit_count));
         DecrementExitCount(join_tid);
-        while (!Contexts[join_tid].is_free()) {
+        while (!Contexts.Contexts[join_tid].is_free()) {
           DEBUG(fprintf(stderr, "[%ld] JoinThread waiting on %ld\n", s_tid, join_tid));
-          Contexts[join_tid].ws.wait();
+          ws[join_tid].wait(Contexts);
         }
         DEBUG(fprintf(stderr, "[%ld] JoinThread finished waiting on %ld\n", s_tid, join_tid));
       } else {
@@ -603,7 +667,7 @@ private:
       }
 
       // To wake up any WAIT-ing threads.
-      auto state = Contexts[s_tid].state;
+      auto state = Contexts.Contexts[s_tid].state;
       DEBUG(fprintf(stderr, "[%ld] JoinThread will do sync with state %d\n", s_tid, state));
 
       REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
@@ -617,7 +681,7 @@ private:
   int SynchronizationPoint_DetachThread(void* th) override {
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     u64 detach_tid = FindTidFor(th);
-    DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts[detach_tid].exit_count));
+    DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts.Contexts[detach_tid].exit_count));
     DecrementExitCount(detach_tid);
     REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
@@ -631,10 +695,10 @@ private:
     }
     REAL(pthread_mutex_lock)(&impl::BIGLOCK);
     auto tid = AllocateTid();
-    Contexts[tid].thread_handle = th;
-    Contexts[tid].exit_count = 2;
+    Contexts.Contexts[tid].thread_handle = th;
+    Contexts.Contexts[tid].exit_count = 2;
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
-    Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
+    Contexts.Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
     REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
 
@@ -649,7 +713,7 @@ private:
     // Assign s_tid from the allocated tid init InitThread.
     s_tid = -1;
     for (int i = 1; i <= s_max_tid; ++i) {
-      if (Contexts[i].thread_handle == th && !Contexts[i].is_free()) {
+      if (Contexts.Contexts[i].thread_handle == th && !Contexts.Contexts[i].is_free()) {
         s_tid = i;
         break;
       }
@@ -666,76 +730,14 @@ private:
     LockGuard lg(&impl::BIGLOCK);
 
     auto tid = s_tid;
-    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exit_count=%d\n", tid, Contexts[tid].state, Contexts[tid].exit_count));
-    Contexts[tid].state = ThreadState::UNKNOWN;
-    Contexts[tid].ws.notify_one();
-    DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts[tid].state));
+    DEBUG(fprintf(stderr, "[%ld] ExitThread state=%d exit_count=%d\n", tid, Contexts.Contexts[tid].state, Contexts.Contexts[tid].exit_count));
+    Contexts.Contexts[tid].state = ThreadState::UNKNOWN;
+    ws[tid].notify_one(Contexts);
+    DEBUG(fprintf(stderr, "[%ld] ExitThread notified state=%d\n", tid, Contexts.Contexts[tid].state));
     DecrementExitCount(tid);
 
     // To wake up any WAIT-ing threads.
     WakeOneIfNeeded();
-  }
-
-  u64 GetNextTid() {
-    u64 ready_tids[100] = {};
-    int c = 0;
-
-    for (u64 i = 1; i <= s_max_tid; i++) {
-      ThreadState state = Contexts[i].state;
-      if (state != ThreadState::BLOCKED && state != ThreadState::UNKNOWN) {
-        ready_tids[c++] = i;
-      }
-    }
-
-    if (c == 0) {
-      return NO_TID;
-    }
-#if 0
-      if (blocked_calls == 0)
-        DEADLOCK("OOPS: no ready threads");
-      else
-        return NO_TID;
-#endif
-
-    auto choice = ready_tids[rand() % c];
-#ifdef PRINT_DEBUG
-    DEBUG(fprintf(stderr, "[%ld] GetNextTid there were %d chose %ld [ ", s_tid, c, choice));
-    for (int i = 0; i != c; ++i) {
-      DEBUG(fprintf(stderr, "%ld ", ready_tids[i]));
-    }
-    DEBUG(fprintf(stderr, "]\n"));
-#endif
-    return choice;
-  }
-
-  // ASSUME: Lock held
-  void WakeOne() {
-    u64 next_tid = GetNextTid();
-    if (next_tid == NO_TID) {
-      return;
-    }
-
-    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
-    Contexts[next_tid].state = ThreadState::RUNNING;
-    Contexts[next_tid].start_time = NanoTime();
-    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
-  }
-
-  void WakeOneIfNeeded() {
-    for (u64 i = 1; i <= s_max_tid; i++) {
-      ThreadState state = Contexts[i].state;
-      if (state == ThreadState::RUNNING) {
-        return;
-      }
-    }
-
-    u64 next_tid = GetNextTid();
-    if (next_tid == NO_TID) {
-      return;
-    }
-    DEBUG(fprintf(stderr, "[%ld] WakeOneIfNeeded waking %ld\n", s_tid, next_tid));
-    Contexts[next_tid].state = ThreadState::RUNNING;
-    Contexts[next_tid].start_time = NanoTime();
   }
 
   void* WatchDog() {
@@ -744,14 +746,14 @@ private:
       internal_sched_yield();
       CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
       for (u64 i = 1; i <= s_max_tid; i++) {
-        if (Contexts[i].state == ThreadState::RUNNING && Contexts[i].start_time + 20 * 1000ULL <= NanoTime()) {
+        if (Contexts.Contexts[i].state == ThreadState::RUNNING && Contexts.Contexts[i].start_time + 20 * 1000ULL <= NanoTime()) {
           DEBUG(fprintf(stderr, "[-1] WatchDog timing out %ld\n", i));
-          Contexts[i].state = ThreadState::OUT_TIME;
+          Contexts.Contexts[i].state = ThreadState::OUT_TIME;
         }
       }
       bool exists_running = false;
       for (u64 i = 1; i <= s_max_tid; i++) {
-        if (Contexts[i].state == ThreadState::RUNNING) {
+        if (Contexts.Contexts[i].state == ThreadState::RUNNING) {
           exists_running = true;
         }
       }
