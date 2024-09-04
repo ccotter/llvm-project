@@ -5,6 +5,7 @@ namespace __tsan {
 struct IFuzzingScheduler
 {
     virtual void SynchronizationPoint() = 0;
+
     virtual void SetBlocking(bool IsBlocking) = 0;
 
     virtual int SynchronizationPoint_MutexLock(void* m) = 0;

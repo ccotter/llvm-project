@@ -932,8 +932,11 @@ static int guard_acquire(ThreadState *thr, uptr pc, atomic_uint32_t *g,
                          bool blocking_hooks = true) {
   bool in_potentially_blocking_region = false;
   auto on_exit = at_scope_exit([&] {
-    if (in_potentially_blocking_region)
+    if (in_potentially_blocking_region) {
       OnPotentiallyBlockingRegionEnd();
+      GetFuzzingScheduler().SetBlocking(false);
+    }
+    GetFuzzingScheduler().SetBlocking(false);
   });
 
   for (;;) {
@@ -952,6 +955,7 @@ static int guard_acquire(ThreadState *thr, uptr pc, atomic_uint32_t *g,
                                          memory_order_relaxed)) {
         if (blocking_hooks && !in_potentially_blocking_region) {
           in_potentially_blocking_region = true;
+          GetFuzzingScheduler().SetBlocking(true);
           OnPotentiallyBlockingRegionBegin();
         }
         FutexWait(g, cmp | kGuardWaiter);
