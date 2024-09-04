@@ -877,13 +877,13 @@ constexpr u32 kGuardWaiter = 1 << 17;
 
 static int guard_acquire(ThreadState *thr, uptr pc, atomic_uint32_t *g,
                          bool blocking_hooks = true) {
-  GetFuzzingScheduler().SetBlocking(true);
+  //GetFuzzingScheduler().SetBlocking(true);
   if (blocking_hooks)
     OnPotentiallyBlockingRegionBegin();
   auto on_exit = at_scope_exit([blocking_hooks] {
     if (blocking_hooks)
       OnPotentiallyBlockingRegionEnd();
-    GetFuzzingScheduler().SetBlocking(false);
+    //GetFuzzingScheduler().SetBlocking(false);
   });
 
   for (;;) {

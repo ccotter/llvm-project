@@ -24,6 +24,7 @@ namespace __interception {
   extern int (*real_pthread_cond_broadcast)(void*);
   extern int (*real_pthread_mutex_init)(void*, void*);
   extern int (*real_pthread_cond_init)(void*, void*);
+  extern int (*real_usleep)(long);
 }
 
 namespace __tsan {
@@ -75,7 +76,6 @@ namespace {
     int res = e; \
     if (res) { \
       fprintf(stderr, "Failed with res %d\n", res); \
-      while(true); \
     } \
   } while (0)
 
@@ -117,6 +117,12 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
   void SynchronizationPoint_ExitThread() override { }
 };
 
+struct DelayFuzzingScheduler : NullFuzzingScheduler {
+  void SynchronizationPoint() override {
+    REAL(usleep)(rand() % 1000);
+  }
+};
+
 static void DEADLOCK(const char* msg)
 {
   fprintf(stderr, "DEADLOCK %s\n", msg);
@@ -139,6 +145,7 @@ static int x = [] {
     bool e = (c); \
     if (!e) { \
       Report("Assertion '" #c "' Failed: " fmt); \
+      while(1); \
       Die(); \
     } \
   } while(0)
@@ -269,10 +276,10 @@ struct ThreadContexts {
       return;
     }
 
-    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts.Contexts[next_tid].state));
+    DEBUG(fprintf(stderr, "[%ld] WakeOne waking %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
     Contexts[next_tid].state = ThreadState::RUNNING;
     Contexts[next_tid].start_time = NanoTime();
-    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, Contexts.Contexts[next_tid].state));
+    DEBUG(fprintf(stderr, "[%ld] WakeOne done storing %ld (whose state is %d)\n", s_tid, next_tid, Contexts[next_tid].state));
   }
   void UnblockOne(ThreadState NewState) {
     auto tid = s_tid;
@@ -302,7 +309,7 @@ struct waitset {
       Contexts.UnblockOne(ThreadState::BLOCKED);
 
       CHECK_RC(REAL(pthread_cond_wait)(&BIGCV, &BIGLOCK));
-      DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, Contexts[s_tid].state, OldState));
+      DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, Contexts.Contexts[s_tid].state, OldState));
 
       Contexts.SetCurrentState(OldState);
     }
@@ -548,8 +555,8 @@ private:
   void SynchronizationPoint() override {
     {
       LockGuard lg(&impl::BIGLOCK);
-      auto old_state = Contexts.Contexts[s_tid].state;
-      if (old_state == ThreadState::RUNNING) {
+      auto OldState = Contexts.Contexts[s_tid].state;
+      if (OldState == ThreadState::RUNNING || OldState == ThreadState::OUT_TIME) {
         Contexts.UnblockOne(ThreadState::WAIT);
       }
     }
@@ -795,6 +802,11 @@ IFuzzingScheduler& FuzzingSchedulerDispatcher() {
     auto* scheduler = static_cast<RandomFuzzingScheduler *>(InternalCalloc(1, sizeof(RandomFuzzingScheduler)));
     new (scheduler) RandomFuzzingScheduler;
     Printf("WARNING! ThreadSanitizer launched under the management of a random fuzzing scheduler new\n");
+    return *scheduler;
+  } else if (!internal_strcmp(flags()->fuzzing_scheduler, "delay")) {
+    auto* scheduler = static_cast<DelayFuzzingScheduler *>(InternalCalloc(1, sizeof(DelayFuzzingScheduler)));
+    new (scheduler) DelayFuzzingScheduler;
+    Printf("WARNING! ThreadSanitizer launched under the management of a random delay fuzzing scheduler new\n");
     return *scheduler;
   } else {
     Printf("FATAL: ThreadSanitizer invalid fuzzing scheduler. Please check TSAN_OPTIONS!\n");
