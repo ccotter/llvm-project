@@ -1,22 +1,13 @@
 #include "fuzzing_scheduler.h"
 #include <tsan_rtl.h>
 #include <sanitizer_common/sanitizer_allocator_internal.h>
-#include <tsan_dense_alloc.h>
 #include <sanitizer_common/sanitizer_placement_new.h>
 #include <interception/interception.h>
-#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <assert.h>
-#include <syscall.h>
-#include <errno.h>
-#include <signal.h>
 
-__tsan::u64 TID() {
-  static thread_local auto tid = syscall(SYS_gettid);
-  return tid;
-}
+#include "sanitizer_common/sanitizer_errno_codes.h"
 
 thread_local __tsan::u64 s_tid = 0;
 __tsan::u64 s_max_tid = 0;
@@ -42,16 +33,30 @@ namespace {
   constexpr size_t MAX_THREADS = 65536;
 
   struct LockGuard {
-    pthread_mutex_t* mut_;
+    pthread_mutex_t* Mtx;
 
     LockGuard(LockGuard&&);
     LockGuard& operator=(LockGuard&&);
 
-    LockGuard(pthread_mutex_t* mut) : mut_(mut) {
-      REAL(pthread_mutex_lock)(mut_);
+    LockGuard(pthread_mutex_t* Mtx) : Mtx(Mtx) {
+      REAL(pthread_mutex_lock)(Mtx);
     }
     ~LockGuard() {
-      REAL(pthread_mutex_unlock)(mut_);
+      REAL(pthread_mutex_unlock)(Mtx);
+    }
+  };
+
+  struct UnlockGuard {
+    pthread_mutex_t* Mtx;
+
+    UnlockGuard(UnlockGuard&&);
+    UnlockGuard& operator=(UnlockGuard&&);
+
+    UnlockGuard(pthread_mutex_t* Mtx) : Mtx(Mtx) {
+      REAL(pthread_mutex_unlock)(Mtx);
+    }
+    ~UnlockGuard() {
+      REAL(pthread_mutex_lock)(Mtx);
     }
   };
 
@@ -69,8 +74,7 @@ namespace {
   do { \
     int res = e; \
     if (res) { \
-      fprintf(stderr, "Failed with res %d errno %d\n", res, errno); \
-      perror("oops"); \
+      fprintf(stderr, "Failed with res %d\n", res); \
       while(true); \
     } \
   } while (0)
@@ -122,12 +126,30 @@ static void DEADLOCK(const char* msg)
 namespace impl {
 
 static pthread_mutex_t BIGLOCK;
-static pthread_cond_t CV;
+static pthread_cond_t BIGCV;
 static int x = [] {
   CHECK_RC(REAL(pthread_mutex_init)(&BIGLOCK, nullptr));
-  CHECK_RC(REAL(pthread_cond_init)(&CV, nullptr));
+  CHECK_RC(REAL(pthread_cond_init)(&BIGCV, nullptr));
   return 0;
 }();
+
+#define Assert0(c) Assert(c, "")
+#define Assert(c, fmt) \
+  do { \
+    bool e = (c); \
+    if (!e) { \
+      Report("Assertion '" #c "' Failed: " fmt); \
+      Die(); \
+    } \
+  } while(0)
+#define AssertN(c, fmt, ...) \
+  do { \
+    bool e = (c); \
+    if (!e) { \
+      Report("Assertion '" #c "' Failed: " fmt, __VA_ARGS__); \
+      Die(); \
+    } \
+  } while(0)
 
 // dumb_map has map-like interfaces, but it's implemented as if it
 // were a hashmap with a hash function equal to a constant function.
@@ -149,7 +171,7 @@ struct dumb_map {
         return;
       }
     }
-    assert(false && "No more space");
+    Assert(false, "No more space in dumb_map");
   }
 
   data_t* find(K key) {
@@ -182,7 +204,7 @@ struct dumb_map {
 
 struct ThreadContext {
   ThreadState state = ThreadState::UNKNOWN;
-  void* thread_handle = nullptr; // pointer to pthread_thread_t object
+  void* thread_handle = nullptr; // pointer to pthread_t object
 
   // 'exit_count' tracks each spawned thread's lifetime. 'exit_count'
   // starts out as 2 upon thread creation. It is decremented once
@@ -241,7 +263,6 @@ struct ThreadContexts {
     return choice;
   }
 
-
   void WakeOne() {
     u64 next_tid = GetNextTid();
     if (next_tid == NO_TID) {
@@ -273,14 +294,14 @@ struct waitset {
   waitset& operator=(waitset&&) = default;
 
   void wait(ThreadContexts& Contexts) {
-    assert(!waiters.count(s_tid));
+    Assert0(!waiters.count(s_tid));
     waiters.insert(s_tid, {});
 
     while (waiters.count(s_tid)) {
       ThreadState OldState = Contexts.GetCurrentState();
       Contexts.UnblockOne(ThreadState::BLOCKED);
 
-      CHECK_RC(REAL(pthread_cond_wait)(&CV, &BIGLOCK));
+      CHECK_RC(REAL(pthread_cond_wait)(&BIGCV, &BIGLOCK));
       DEBUG(fprintf(stderr, "[%ld] Waitset::wait waking up with current state=%d new state=%d\n", s_tid, Contexts[s_tid].state, OldState));
 
       Contexts.SetCurrentState(OldState);
@@ -297,7 +318,7 @@ struct waitset {
       DEBUG(fprintf(stderr, "[%ld] Waitset::notify_one setting state of %ld to WAIT\n", s_tid, itr->key));
       Contexts.SetState(itr->key, ThreadState::WAIT);
 
-      CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
+      CHECK_RC(REAL(pthread_cond_broadcast)(&BIGCV));
     }
   }
 
@@ -311,7 +332,7 @@ struct waitset {
         Contexts.SetState(itr->key, ThreadState::WAIT);
       }
     }
-    CHECK_RC(REAL(pthread_cond_broadcast)(&CV));
+    CHECK_RC(REAL(pthread_cond_broadcast)(&BIGCV));
   }
 };
 
@@ -325,9 +346,11 @@ struct mutex {
   }
 
   void lock(ThreadContexts& Contexts) {
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
-    GetFuzzingScheduler().SynchronizationPoint();
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
+    // TODO: assert mutex locked
+    {
+      UnlockGuard unlockGuard(&BIGLOCK);
+      GetFuzzingScheduler().SynchronizationPoint();
+    }
 
     if (owner != s_tid) {
       while (owner != FREE) {
@@ -354,21 +377,23 @@ struct mutex {
   }
 
   int try_lock() {
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
-    GetFuzzingScheduler().SynchronizationPoint();
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
+    // TODO: assert mutex locked
+    {
+      UnlockGuard unlockGuard(&BIGLOCK);
+      GetFuzzingScheduler().SynchronizationPoint();
+    }
 
     if (owner == s_tid) {
       if (is_recursive) {
         ++recurse_count;
         return 0;
       } else {
-        return EBUSY;
+        return errno_EBUSY;
       }
     }
 
     if (owner != FREE) {
-      return EBUSY;
+      return errno_EBUSY;
     }
 
     if (owner == FREE && recurse_count != 0) {
@@ -381,9 +406,11 @@ struct mutex {
   }
 
   void unlock(ThreadContexts& Contexts) {
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
-    GetFuzzingScheduler().SynchronizationPoint();
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
+    // TODO: assert mutex locked
+    {
+      UnlockGuard unlockGuard(&BIGLOCK);
+      GetFuzzingScheduler().SynchronizationPoint();
+    }
 
     if (recurse_count == 0) {
       DEADLOCK("recurse_count is 0 in unlock");
@@ -407,27 +434,31 @@ struct condition_variable {
   waitset ws;
 
   void wait(mutex* m, ThreadContexts& Contexts) {
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
+    // ASSERT: mutex locked
+
     m->unlock(Contexts);
     ws.wait(Contexts);
     m->lock(Contexts);
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
   void notify_one(ThreadContexts& Contexts) {
-    GetFuzzingScheduler().SynchronizationPoint();
+    // TODO: assert mutex locked
+    {
+      UnlockGuard unlockGuard(&BIGLOCK);
+      GetFuzzingScheduler().SynchronizationPoint();
+    }
 
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
     ws.notify_one(Contexts);
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
   void notify_all(ThreadContexts& Contexts) {
-    GetFuzzingScheduler().SynchronizationPoint();
+    // TODO: assert mutex locked
+    {
+      UnlockGuard unlockGuard(&BIGLOCK);
+      GetFuzzingScheduler().SynchronizationPoint();
+    }
 
-    CHECK_RC(REAL(pthread_mutex_lock)(&BIGLOCK));
     ws.notify_all(Contexts);
-    CHECK_RC(REAL(pthread_mutex_unlock)(&BIGLOCK));
   }
 
   static constexpr size_t FREE = (size_t)-1;
@@ -470,8 +501,8 @@ private:
       }
     }
     u64 new_tid = ++s_max_tid;
-    if (new_tid > 65535) {
-      Printf("FATAL: ThreadSanitizer The maximum number of threads created during the program should not exceed 65535");
+    if (new_tid >= MAX_THREADS) {
+      Printf("FATAL: ThreadSanitizer The maximum number of threads created during the program should not exceed %lu", MAX_THREADS - 1);
       Die();
     }
     return new_tid;
@@ -515,111 +546,100 @@ private:
 
   // No lock held upon call
   void SynchronizationPoint() override {
-    auto tid = s_tid;
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    auto old_state = Contexts.Contexts[tid].state;
-    if (old_state == ThreadState::RUNNING) {
-      Contexts.UnblockOne(ThreadState::WAIT);
+    {
+      LockGuard lg(&impl::BIGLOCK);
+      auto old_state = Contexts.Contexts[s_tid].state;
+      if (old_state == ThreadState::RUNNING) {
+        Contexts.UnblockOne(ThreadState::WAIT);
+      }
     }
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
 
-    while (Contexts.Contexts[tid].state == ThreadState::WAIT) {
+    while (Contexts.Contexts[s_tid].state == ThreadState::WAIT) {
       internal_sched_yield();
     }
   }
 
-  int SynchronizationPoint_MutexLock(void* mtx) override {
-    LockGuard lg(&impl::BIGLOCK);
-
-    if (!Mutexes.count(mtx)) {
-      Mutexes.insert(mtx, {});
+  void EnsureMutex(void* Mtx) {
+    if (!Mutexes.count(Mtx)) {
+      Mutexes.insert(Mtx, {});
     }
+  }
+  void EnsureCV(void* CV) {
+    if (!CVs.count(CV)) {
+      CVs.insert(CV, {});
+    }
+  }
 
-    assert(Mutexes.count((void*)mtx));
-    auto& m = Mutexes.find((void*)mtx)->value;
+  int SynchronizationPoint_MutexLock(void* Mtx) override {
+    LockGuard lg(&impl::BIGLOCK);
+    EnsureMutex(Mtx);
+
+    auto& m = Mutexes.find(Mtx)->value;
     m.lock(Contexts);
     return 0;
   }
-  int SynchronizationPoint_MutexTryLock(void* mtx) override {
+  int SynchronizationPoint_MutexTryLock(void* Mtx) override {
     LockGuard lg(&impl::BIGLOCK);
+    EnsureMutex(Mtx);
 
-    if (!Mutexes.count(mtx)) {
-      Mutexes.insert(mtx, {});
-    }
-
-    assert(Mutexes.count((void*)mtx));
-    auto& m = Mutexes.find((void*)mtx)->value;
+    auto& m = Mutexes.find(Mtx)->value;
     return m.try_lock();
   }
-  int SynchronizationPoint_MutexUnlock(void* mtx) override {
+  int SynchronizationPoint_MutexUnlock(void* Mtx) override {
     LockGuard lg(&impl::BIGLOCK);
+    Assert0(Mutexes.count(Mtx));
 
-    assert(Mutexes.count((void*)mtx));
-    auto& m = Mutexes.find((void*)mtx)->value;
+    auto& m = Mutexes.find(Mtx)->value;
     m.unlock(Contexts);
     return 0;
   }
-  int SynchronizationPoint_CondWait(void* cv, void* mtx) override {
+  int SynchronizationPoint_CondWait(void* CV, void *Mtx) override {
     // No sync event here.
+    LockGuard lg(&impl::BIGLOCK);
+    EnsureCV(CV);
+    Assert0(Mutexes.count(Mtx));
 
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    if (!CVs.count(cv)) {
-      CVs.insert(cv, {});
-    }
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
-
-    assert(Mutexes.count((void*)mtx));
-    auto& m = Mutexes.find((void*)mtx)->value;
-    assert(CVs.count((void*)cv));
-    auto& c = CVs.find((void*)cv)->value;
-    c.wait(&m, Contexts);
+    auto& M = Mutexes.find(Mtx)->value;
+    auto& C = CVs.find(CV)->value;
+    C.wait(&M, Contexts);
     return 0;
   }
-  int SynchronizationPoint_CondNotifyOne(void* cv) override {
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    if (!CVs.count(cv)) {
-      CVs.insert(cv, {});
-    }
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
+  int SynchronizationPoint_CondNotifyOne(void* CV) override {
+    LockGuard lg(&impl::BIGLOCK);
+    EnsureCV(CV);
 
-    assert(CVs.count((void*)cv));
-    auto& c = CVs.find((void*)cv)->value;
-    c.notify_one(Contexts);
+    auto& C = CVs.find(CV)->value;
+    C.notify_one(Contexts);
     return 0;
   }
-  int SynchronizationPoint_CondNotifyAll(void* cv) override {
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    if (!CVs.count(cv)) {
-      CVs.insert(cv, {});
-    }
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
+  int SynchronizationPoint_CondNotifyAll(void* CV) override {
+    LockGuard lg(&impl::BIGLOCK);
+    EnsureCV(CV);
 
-    assert(CVs.count((void*)cv));
-    auto& c = CVs.find((void*)cv)->value;
-    c.notify_all(Contexts);
+    auto& C = CVs.find(CV)->value;
+    C.notify_all(Contexts);
     return 0;
   }
   void SynchronizationPoint_MutexInit(void* m, bool recursive) override {
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
+    LockGuard lg(&impl::BIGLOCK);
+
     // TODO: detect collisions
     auto itr = Mutexes.find(m);
     if (itr != Mutexes.end()) {
       Mutexes.erase(itr);
     }
     Mutexes.insert(m, impl::mutex{recursive});
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
   void SynchronizationPoint_CondInit(void* c) override {
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
+    LockGuard lg(&impl::BIGLOCK);
+
     // TODO: detect collisions
     auto itr = CVs.find(c);
     if (itr != CVs.end()) {
       CVs.erase(itr);
     }
     CVs.insert(c, {});
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
-
 
   void DecrementExitCount(u64 tid) {
     DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, Contexts.Contexts[tid].exit_count));
@@ -647,7 +667,7 @@ private:
     }
 
     {
-      REAL(pthread_mutex_lock)(&impl::BIGLOCK);
+      LockGuard lg(&impl::BIGLOCK);
 
       u64 join_tid = FindTidFor(th);
       if (join_tid != (u64)-1) {
@@ -670,7 +690,6 @@ private:
       auto state = Contexts.Contexts[s_tid].state;
       DEBUG(fprintf(stderr, "[%ld] JoinThread will do sync with state %d\n", s_tid, state));
 
-      REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
     }
 
     SynchronizationPoint();
@@ -679,11 +698,12 @@ private:
   }
 
   int SynchronizationPoint_DetachThread(void* th) override {
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
-    u64 detach_tid = FindTidFor(th);
-    DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts.Contexts[detach_tid].exit_count));
-    DecrementExitCount(detach_tid);
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
+    {
+      LockGuard lg(&impl::BIGLOCK);
+      u64 detach_tid = FindTidFor(th);
+      DEBUG(fprintf(stderr, "[%ld] DetachThread on %ld\n", s_tid, detach_tid, Contexts.Contexts[detach_tid].exit_count));
+      DecrementExitCount(detach_tid);
+    }
 
     return REAL(pthread_detach)(th);
   }
@@ -693,13 +713,13 @@ private:
     if (!th) {
       DEADLOCK("OOPS: th null");
     }
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
+
+    LockGuard lg(&impl::BIGLOCK);
     auto tid = AllocateTid();
     Contexts.Contexts[tid].thread_handle = th;
     Contexts.Contexts[tid].exit_count = 2;
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
     Contexts.Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
 
   // Called by newly spawned thread, before the callback has started and before the
@@ -708,7 +728,8 @@ private:
     if (!th) {
       DEADLOCK("OOPS: th null");
     }
-    REAL(pthread_mutex_lock)(&impl::BIGLOCK);
+
+    LockGuard lg(&impl::BIGLOCK);
 
     // Assign s_tid from the allocated tid init InitThread.
     s_tid = -1;
@@ -722,8 +743,6 @@ private:
       Printf("FATAL! ThreadSanitizer could not find allocated TID in InitThread\n");
       Die();
     }
-
-    REAL(pthread_mutex_unlock)(&impl::BIGLOCK);
   }
   // Called by thread that is about to exit
   void SynchronizationPoint_ExitThread() override {
@@ -744,7 +763,8 @@ private:
     while (true) {
       usleep(20 * 1000);
       internal_sched_yield();
-      CHECK_RC(REAL(pthread_mutex_lock)(&impl::BIGLOCK));
+
+      LockGuard lg(&impl::BIGLOCK);
       for (u64 i = 1; i <= s_max_tid; i++) {
         if (Contexts.Contexts[i].state == ThreadState::RUNNING && Contexts.Contexts[i].start_time + 20 * 1000ULL <= NanoTime()) {
           DEBUG(fprintf(stderr, "[-1] WatchDog timing out %ld\n", i));
@@ -760,7 +780,6 @@ private:
       if (!exists_running) {
         //WakeOne();
       }
-      CHECK_RC(REAL(pthread_mutex_unlock)(&impl::BIGLOCK));
     }
     return nullptr;
   }
@@ -768,11 +787,11 @@ private:
 };
 
 IFuzzingScheduler& FuzzingSchedulerDispatcher() {
-  if (!strcmp(flags()->fuzzing_scheduler, "")) {
+  if (!internal_strcmp(flags()->fuzzing_scheduler, "")) {
     auto* scheduler = static_cast<NullFuzzingScheduler *>(InternalCalloc(1, sizeof(NullFuzzingScheduler)));
     new (scheduler) NullFuzzingScheduler;
     return *scheduler;
-  } else if (!strcmp(flags()->fuzzing_scheduler, "random")) {
+  } else if (!internal_strcmp(flags()->fuzzing_scheduler, "random")) {
     auto* scheduler = static_cast<RandomFuzzingScheduler *>(InternalCalloc(1, sizeof(RandomFuzzingScheduler)));
     new (scheduler) RandomFuzzingScheduler;
     Printf("WARNING! ThreadSanitizer launched under the management of a random fuzzing scheduler new\n");

@@ -153,6 +153,22 @@ void run() {
 
 } // namespace sleep_test
 
+namespace once_test {
+
+static pthread_once_t once = PTHREAD_ONCE_INIT;
+static int i;
+static void init(void) {
+  ++i;
+}
+void run() {
+  pthread_once(&once, init);
+  pthread_once(&once, init);
+  pthread_once(&once, init);
+  assert(i == 1);
+}
+
+} // namespace once_test
+
 int main() {
   ping_pong::run();
   ping_pong_broadcast::run();
@@ -160,6 +176,7 @@ int main() {
   create_1000_therads::run();
   try_lock::run();
   sleep_test::run();
+  once_test::run();
   fprintf(stderr, "PASS\n");
   return 0;
 }
