@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <syscall.h>
 
 #include "sanitizer_common/sanitizer_errno_codes.h"
 
@@ -119,7 +120,8 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
 
 struct DelayFuzzingScheduler : NullFuzzingScheduler {
   void SynchronizationPoint() override {
-    REAL(usleep)(rand() % 1000);
+    static int delay_microseconds = getenv("TSAN_SCHEDULE_DELAY") ? strtol(getenv("TSAN_SCHEDULE_DELAY"), nullptr, 10) : 1000;
+    REAL(usleep)(rand() % delay_microseconds);
   }
 };
 
@@ -222,6 +224,7 @@ struct ThreadContext {
   // spawned thread.
   int exit_count = 2;
   u64 start_time = 0;
+  u64 real_tid = 0;
 
   bool is_free() const { return exit_count == 0; }
 };
@@ -534,7 +537,6 @@ private:
 
   // No lock held upon entry
   void SetBlocking(bool IsBlocking) override {
-    DEBUG(fprintf(stderr, "[%ld] SetBlocking Before Lock IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts.Contexts[s_tid].state));
     LockGuard lg(&impl::BIGLOCK);
 
     DEBUG(fprintf(stderr, "[%ld] SetBlocking IsBlocking=%d current %d\n", s_tid, IsBlocking, Contexts.Contexts[s_tid].state));
@@ -650,10 +652,12 @@ private:
 
   void DecrementExitCount(u64 tid) {
     DEBUG(fprintf(stderr, "[%ld] DecrementExitCount on %ld exit_count=%d\n", s_tid, tid, Contexts.Contexts[tid].exit_count));
-    --Contexts.Contexts[tid].exit_count;
-    if (Contexts.Contexts[tid].exit_count < 0) {
+    int NewCount = --Contexts.Contexts[tid].exit_count;
+    if (NewCount < 0) {
       Printf("FATAL: ThreadSanitizer exit_count < 0 for tid %llu\n", tid);
       Die();
+    } else if (NewCount == 0) {
+      Contexts.Contexts[tid].real_tid = 0;
     }
   }
 
@@ -725,6 +729,7 @@ private:
     auto tid = AllocateTid();
     Contexts.Contexts[tid].thread_handle = th;
     Contexts.Contexts[tid].exit_count = 2;
+    Contexts.Contexts[tid].real_tid = syscall(SYS_gettid);
     DEBUG(fprintf(stderr, "[%ld] InitThread new_tid %ld to running\n", s_tid, tid));
     Contexts.Contexts[tid].state = ThreadState::RUNNING; // TODO - is this right?
   }
@@ -785,7 +790,7 @@ private:
         }
       }
       if (!exists_running) {
-        //WakeOne();
+        Contexts.WakeOne();
       }
     }
     return nullptr;

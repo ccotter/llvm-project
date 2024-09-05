@@ -169,6 +169,25 @@ void run() {
 
 } // namespace once_test
 
+namespace join_order {
+
+void *Thread(void*) {
+  return NULL;
+}
+
+void run() {
+  const int N = 4;
+  pthread_t t[4];
+  for (int i = 0; i != N; ++i)
+    pthread_create(&t[i], 0, Thread, 0);
+  // Try to ensure the threads have already exited
+  usleep(1000);
+  for (int i = 0; i != N; ++i)
+    pthread_join(t[i], NULL);
+}
+
+} // namespace join_order
+
 int main() {
   ping_pong::run();
   ping_pong_broadcast::run();
@@ -177,6 +196,7 @@ int main() {
   try_lock::run();
   sleep_test::run();
   once_test::run();
+  join_order::run();
   fprintf(stderr, "PASS\n");
   return 0;
 }
