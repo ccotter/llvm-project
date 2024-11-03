@@ -146,6 +146,13 @@ infrastructure are described first, followed by tool-specific sections.
   Finds calls to `value_or` (and alternative spellings `valueOr`,
   `ValueOr`) on optional types where the return type is expensive to copy.
 
+- New {doc}`performance-unnecessary-copy-on-last-use
+  <clang-tidy/checks/performance/unnecessary-copy-on-last-use>` check.
+
+  Finds copies of a variable, made via copy-construction or copy-assignment,
+  at a point that is provably the variable's last use, and suggests moving
+  it instead.
+
 - New {doc}`portability-avoid-pragma-comment
   <clang-tidy/checks/portability/avoid-pragma-comment>` check.
 

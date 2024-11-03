@@ -28,6 +28,7 @@
 #include "TriviallyDestructibleCheck.h"
 #include "TypePromotionInMathFnCheck.h"
 #include "UnnecessaryCopyInitializationCheck.h"
+#include "UnnecessaryCopyOnLastUseCheck.h"
 #include "UnnecessaryValueParamCheck.h"
 #include "UseStdMoveCheck.h"
 
@@ -77,6 +78,8 @@ public:
         "performance-type-promotion-in-math-fn");
     CheckFactories.registerCheck<UnnecessaryCopyInitializationCheck>(
         "performance-unnecessary-copy-initialization");
+    CheckFactories.registerCheck<UnnecessaryCopyOnLastUseCheck>(
+        "performance-unnecessary-copy-on-last-use");
     CheckFactories.registerCheck<UnnecessaryValueParamCheck>(
         "performance-unnecessary-value-param");
     CheckFactories.registerCheck<UseStdMoveCheck>("performance-use-std-move");

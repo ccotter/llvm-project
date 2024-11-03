@@ -376,6 +376,7 @@ readability/*
 | {doc}`performance-trivially-destructible <performance/trivially-destructible>` | Yes |
 | {doc}`performance-type-promotion-in-math-fn <performance/type-promotion-in-math-fn>` | Yes |
 | {doc}`performance-unnecessary-copy-initialization <performance/unnecessary-copy-initialization>` | Yes |
+| {doc}`performance-unnecessary-copy-on-last-use <performance/unnecessary-copy-on-last-use>` | Yes |
 | {doc}`performance-unnecessary-value-param <performance/unnecessary-value-param>` | Yes |
 | {doc}`performance-use-std-move <performance/use-std-move>` | Yes |
 | {doc}`portability-avoid-pragma-comment <portability/avoid-pragma-comment>` |  |
