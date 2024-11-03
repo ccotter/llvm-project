@@ -27,6 +27,7 @@
 #include "TriviallyDestructibleCheck.h"
 #include "TypePromotionInMathFnCheck.h"
 #include "UnnecessaryCopyInitialization.h"
+#include "UnnecessaryCopyOnLastUseCheck.h"
 #include "UnnecessaryValueParamCheck.h"
 
 namespace clang::tidy {
@@ -68,6 +69,8 @@ public:
         "performance-type-promotion-in-math-fn");
     CheckFactories.registerCheck<UnnecessaryCopyInitialization>(
         "performance-unnecessary-copy-initialization");
+    CheckFactories.registerCheck<UnnecessaryCopyOnLastUseCheck>(
+        "performance-unnecessary-copy-on-last-use");
     CheckFactories.registerCheck<UnnecessaryValueParamCheck>(
         "performance-unnecessary-value-param");
   }

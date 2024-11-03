@@ -163,6 +163,11 @@ New checks
   Replace comparisons between signed and unsigned integers with their safe
   C++20 ``std::cmp_*`` alternative, if available.
 
+- New :doc:`performance-unnecessary-copy-on-last-use
+  <clang-tidy/checks/performance/unnecessary-copy-on-last-use>` check.
+
+  FIXME: Write a short description.
+
 - New :doc:`portability-template-virtual-member-function
   <clang-tidy/checks/portability/template-virtual-member-function>` check.
 
