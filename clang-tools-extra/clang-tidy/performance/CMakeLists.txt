@@ -24,6 +24,7 @@ add_clang_library(clangTidyPerformanceModule STATIC
   TriviallyDestructibleCheck.cpp
   TypePromotionInMathFnCheck.cpp
   UnnecessaryCopyInitialization.cpp
+  UnnecessaryCopyOnLastUseCheck.cpp
   UnnecessaryValueParamCheck.cpp
 
   LINK_LIBS
@@ -43,3 +44,4 @@ clang_target_link_libraries(clangTidyPerformanceModule
   clangBasic
   clangLex
   )
+set_source_files_properties(UnnecessaryCopyOnLastUseCheck.cpp PROPERTIES COMPILE_FLAGS "-O0 -g")

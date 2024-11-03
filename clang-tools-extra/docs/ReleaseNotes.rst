@@ -131,6 +131,11 @@ New checks
   Gives warnings for tagged unions, where the number of tags is
   different from the number of data members inside the union.
 
+- New :doc:`performance-unnecessary-copy-on-last-use
+  <clang-tidy/checks/performance/unnecessary-copy-on-last-use>` check.
+
+  FIXME: Write a short description.
+
 - New :doc:`portability-template-virtual-member-function
   <clang-tidy/checks/portability/template-virtual-member-function>` check.
 
