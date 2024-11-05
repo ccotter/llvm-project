@@ -17,8 +17,8 @@ using namespace clang::ast_matchers;
 
 namespace clang {
 
-static constexpr const char* BlockedTypesOption = "BlockedTypes";
-static constexpr const char* BlockedFunctionsOption = "BlockedFunctions";
+static constexpr const char *BlockedTypesOption = "BlockedTypes";
+static constexpr const char *BlockedFunctionsOption = "BlockedFunctions";
 
 namespace {
 struct FindDeclRefBlockReturn {
@@ -27,96 +27,11 @@ struct FindDeclRefBlockReturn {
 };
 
 enum class Usage {
-  Error = -1,
   Usage = 0,
   DefiniteLastUse,
 };
 
 } // namespace
-
-static FindDeclRefBlockReturn findDeclRefBlock(CFG const *TheCFG,
-                                               const DeclRefExpr *DeclRef) {
-  for (CFGBlock *Block : *TheCFG) {
-    auto Iter =
-        llvm::find_if(Block->Elements, [&, DeclRef](const CFGElement &Element) {
-          if (Element.getKind() == CFGElement::Statement) {
-            return Element.template castAs<CFGStmt>().getStmt() == DeclRef;
-          }
-          return false;
-        });
-    if (Iter != Block->Elements.end()) {
-      return {Block, ++Iter};
-    }
-  }
-  return {nullptr, {}};
-}
-
-static std::vector<const Stmt*>
-findStmtsTo(const FindDeclRefBlockReturn &StartBlockElement, const DeclRefExpr* To) {
-  std::vector<const Stmt*> Ss;
-  auto Begi = StartBlockElement.DeclRefBlock->Elements.begin();
-  auto Endi = StartBlockElement.DeclRefBlock->Elements.end();
-  for (auto Iter = Begi; Iter != Endi; ++Iter) {
-    const CFGElement &Element = *Iter;
-    if (Element.getKind() == CFGElement::Statement) {
-      if (auto *Stmt = Element.template castAs<CFGStmt>().getStmt()) {
-        if (auto *DRE = dyn_cast<DeclRefExpr>(Stmt)) {
-          if (DRE->getDecl() == To->getDecl())
-            Ss.push_back(DRE);
-        }
-      }
-    }
-  }
-  return Ss;
-}
-
-static const clang::CFGElement *
-nextUsageInCurrentBlock(const FindDeclRefBlockReturn &StartBlockElement,
-                        const DeclRefExpr *DeclRef) {
-  // Search for uses in the current block
-  auto Begi = StartBlockElement.StartElement;
-  auto Endi = StartBlockElement.DeclRefBlock->Elements.end();
-  auto Iter = std::find_if(Begi, Endi, [&](const CFGElement &Element) {
-    if (Element.getKind() == CFGElement::Statement) {
-      if (auto *Stmt = Element.template castAs<CFGStmt>().getStmt()) {
-        if (auto *DRE = dyn_cast<DeclRefExpr>(Stmt)) {
-          if (DRE->getDecl() == DeclRef->getDecl()) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  });
-  return Iter != Endi ? &*Iter : nullptr;
-}
-
-static bool isLHSOfAssignment(const DeclRefExpr *DeclRef, ASTContext &Context) {
-  const TraversalKindScope RAII(Context, TK_IgnoreUnlessSpelledInSource);
-  // Todo (performance): While this is faster than a match expression,
-  //      it would be faster to start from the DeclRefExpr directly
-  struct IsLHSOfAssignment : RecursiveASTVisitor<IsLHSOfAssignment> {
-    const DeclRefExpr *Ref{};
-
-    IsLHSOfAssignment(const DeclRefExpr *Ref, ASTContext &Context) : Ref(Ref) {}
-
-    bool shouldWalkTypesOfTypeLocs() const { return false; }
-    bool shouldVisitTemplateInstantiations() const { return true; }
-
-    bool VisitCXXOperatorCallExpr(CXXOperatorCallExpr *BO) {
-      if (BO->isAssignmentOp()) {
-        if (auto *DRE =
-                dyn_cast<DeclRefExpr>(BO->getArg(0)->IgnoreParenImpCasts())) {
-          if (DRE && DRE == Ref) {
-            return false;
-          }
-        }
-      }
-      return true;
-    }
-  };
-  return !IsLHSOfAssignment{DeclRef, Context}.TraverseAST(Context);
-}
 
 static bool isInLambdaCapture(const DeclRefExpr *MyDeclRef,
                               ASTContext &Context) {
@@ -155,14 +70,15 @@ namespace {
 
 class UnnecessaryCopyOnLastUseFinder {
 public:
-  UnnecessaryCopyOnLastUseFinder(ASTContext *TheContext) : Context(TheContext) {}
+  UnnecessaryCopyOnLastUseFinder(ASTContext *TheContext)
+      : Context(TheContext) {}
 
-  Usage find(Stmt *CodeBlock, const Expr *CopyCall, const ValueDecl* CopiedVariable);
+  std::optional<Usage> find(Stmt *CodeBlock, const Expr *CopyCall,
+                            const ValueDecl *CopiedVariable);
 
 private:
-  std::optional<Usage> findInternal(const CFGBlock *Block,
-      const Expr *CopyCall,
-      const ValueDecl *CopiedVariable);
+  std::optional<Usage> findInternal(const CFGBlock *Block, const Expr *CopyCall,
+                                    const ValueDecl *CopiedVariable);
   void getUsesAndReinits(const CFGBlock *Block, const ValueDecl *From,
                          llvm::SmallVectorImpl<const DeclRefExpr *> *Uses,
                          llvm::SmallPtrSetImpl<const Stmt *> *Reinits);
@@ -201,31 +117,31 @@ void UnnecessaryCopyOnLastUseFinder::getUsesAndReinits(
   });
 }
 
-Usage UnnecessaryCopyOnLastUseFinder::find(Stmt* CodeBlock, const Expr* CopyCall, const ValueDecl* CopiedVariable) {
+std::optional<Usage>
+UnnecessaryCopyOnLastUseFinder::find(Stmt *CodeBlock, const Expr *CopyCall,
+                                     const ValueDecl *CopiedVariable) {
   CFG::BuildOptions Options;
   Options.AddImplicitDtors = true;
   Options.AddTemporaryDtors = true;
   std::unique_ptr<CFG> TheCFG =
       CFG::buildCFG(nullptr, CodeBlock, Context, Options);
-  if (!TheCFG) {
-    llvm::errs() << "Failed to build CFG\n";
-    return Usage::Usage;
-  }
+  if (!TheCFG)
+    return std::nullopt;
 
-  Sequence = std::make_unique<tidy::utils::ExprSequence>(TheCFG.get(), CodeBlock, Context);
-  BlockMap = std::make_unique<tidy::utils::StmtToBlockMap>(TheCFG.get(), Context);
+  Sequence = std::make_unique<tidy::utils::ExprSequence>(TheCFG.get(),
+                                                         CodeBlock, Context);
+  BlockMap =
+      std::make_unique<tidy::utils::StmtToBlockMap>(TheCFG.get(), Context);
   Visited.clear();
 
   const CFGBlock *MoveBlock = BlockMap->blockContainingStmt(CopyCall);
-  if (!MoveBlock) {
+  if (!MoveBlock)
     // This can happen if MovingCall is in a constructor initializer, which is
     // not included in the CFG because the CFG is built only from the function
     // body.
     MoveBlock = &TheCFG->getEntry();
-  }
 
-  std::optional<Usage> Result = findInternal(MoveBlock, CopyCall, CopiedVariable);
-  return Result.value_or(Usage::Usage);
+  return findInternal(MoveBlock, CopyCall, CopiedVariable);
 }
 
 static bool isStandardSmartPointer(const ValueDecl *VD) {
@@ -279,9 +195,8 @@ void UnnecessaryCopyOnLastUseFinder::getDeclRefs(
         if (DeclRef && BlockMap->blockContainingStmt(DeclRef) == Block) {
           // Ignore uses of a standard smart pointer that don't dereference the
           // pointer.
-          if (Operator || !isStandardSmartPointer(DeclRef->getDecl())) {
+          if (Operator || !isStandardSmartPointer(DeclRef->getDecl()))
             DeclRefs->insert(DeclRef);
-          }
         }
       }
     };
@@ -387,8 +302,10 @@ void UnnecessaryCopyOnLastUseFinder::getReinits(
   }
 }
 
-std::optional<Usage> UnnecessaryCopyOnLastUseFinder::findInternal(const CFGBlock *Block, const Expr *CopyCall,
-                                 const ValueDecl *CopiedVariable) {
+std::optional<Usage>
+UnnecessaryCopyOnLastUseFinder::findInternal(const CFGBlock *Block,
+                                             const Expr *CopyCall,
+                                             const ValueDecl *CopiedVariable) {
   if (Visited.count(Block))
     return std::nullopt;
 
@@ -428,9 +345,8 @@ std::optional<Usage> UnnecessaryCopyOnLastUseFinder::findInternal(const CFGBlock
           HaveSavingReinit = true;
       }
 
-      if (!HaveSavingReinit) {
+      if (!HaveSavingReinit)
         return Usage::Usage;
-      }
     }
   }
 
@@ -439,10 +355,10 @@ std::optional<Usage> UnnecessaryCopyOnLastUseFinder::findInternal(const CFGBlock
   if (Reinits.empty()) {
     for (const auto &Succ : Block->succs()) {
       if (Succ) {
-        std::optional<Usage> Result = findInternal(Succ, nullptr, CopiedVariable);
-        if (Result.value_or(Usage::DefiniteLastUse) != Usage::DefiniteLastUse) {
+        std::optional<Usage> Result =
+            findInternal(Succ, nullptr, CopiedVariable);
+        if (Result.has_value() && Result.value() == Usage::Usage)
           return Usage::Usage;
-        }
       }
     }
   }
@@ -450,304 +366,19 @@ std::optional<Usage> UnnecessaryCopyOnLastUseFinder::findInternal(const CFGBlock
   return Usage::DefiniteLastUse;
 }
 
-}
+} // namespace
 
-static Usage definiteLastUse(ASTContext *Context,
-                             Stmt* CodeBlock,
-                             const Expr *CopyCall,
-                             const ValueDecl* CopiedVariable) {
+static std::optional<Usage> definiteLastUse(ASTContext *Context,
+                                            Stmt *CodeBlock,
+                                            const Expr *CopyCall,
+                                            const ValueDecl *CopiedVariable) {
   UnnecessaryCopyOnLastUseFinder finder(Context);
   return finder.find(CodeBlock, CopyCall, CopiedVariable);
-}
-
-static Usage definiteLastUse2(ASTContext *Context, CFG *const TheCFG,
-                             const DeclRefExpr *DeclRef) {
-  if (TheCFG == nullptr) {
-    return Usage::Error;
-  }
-
-  // Find the CFGBlock containing the DeclRefExpr
-  FindDeclRefBlockReturn StartBlockElement = findDeclRefBlock(TheCFG, DeclRef);
-  if (StartBlockElement.DeclRefBlock == nullptr) {
-    return Usage::Error;
-  }
-
-  llvm::errs() << "DUMP\n";
-  DeclRef->dump();
-  StartBlockElement.DeclRefBlock->dump();
-
-  // Find next uses of the DeclRefExpr
-
-  auto TraverseCFGForUsage = [&]() -> Usage {
-    llvm::SmallPtrSet<CFGBlock const *, 8> VisitedBlocks;
-    llvm::SmallVector<CFGBlock const *, 8> Worklist;
-
-    auto HandleInternal = [&](const FindDeclRefBlockReturn &BlockElement) -> Usage {
-      CFGElement const *NextUsageE =
-          nextUsageInCurrentBlock(BlockElement, DeclRef);
-      if (NextUsageE) {
-        llvm::errs() << "NextUsageE non null\n";
-          llvm::cast<DeclRefExpr>(
-                                      NextUsageE->castAs<CFGStmt>().getStmt())->dump();
-        if (bool const IsLastUsage =
-                isLHSOfAssignment(llvm::cast<DeclRefExpr>(
-                                      NextUsageE->castAs<CFGStmt>().getStmt()),
-                                  *Context);
-            !IsLastUsage) {
-          return Usage::Usage;
-        }
-
-        llvm::errs() << __LINE__ << " return DefiniteLastUse\n";
-        return Usage::DefiniteLastUse;
-      }
-      llvm::errs() << "NextUsageE null\n";
-      assert(BlockElement.DeclRefBlock);
-      // No successing DeclRefExpr found, appending successors
-      for (CFGBlock const *Succ : BlockElement.DeclRefBlock->succs()) {
-        if (Succ) { // Succ can be nullptr, if a block is unreachable
-          Worklist.push_back(Succ);
-        }
-      }
-
-      auto Sequence = std::make_unique<tidy::utils::ExprSequence>(TheCFG, DeclRef, Context);
-
-      llvm::errs() << "DUMP SS\n";
-      std::vector<const Stmt*> Ss = findStmtsTo(StartBlockElement, DeclRef);
-      for (const auto*S:Ss) {
-        if (S == DeclRef) continue;
-        if (!Sequence->inSequence(S, DeclRef) & !Sequence->inSequence(DeclRef, S)) {
-          llvm::errs() << "Neither inSequence S <=> DeclRef\n";
-          S->dump();
-          DeclRef->dump();
-          return Usage::Usage;
-        }
-        if (Sequence->inSequence(S, DeclRef)) {
-          llvm::errs() << "inSequence S DeclRef\n";
-        }
-        if (Sequence->inSequence(DeclRef, S)) {
-          llvm::errs() << "inSequence DeclRef S\n";
-        }
-        if (Sequence->inSequence(S, DeclRef)) {
-          llvm::errs() << "inSequence!!!\n";
-          S->dump();
-          DeclRef->dump();
-          return Usage::Usage;
-        }
-        S->dump();
-      }
-      llvm::errs() << "DONE DUMP SS\n";
-      llvm::errs() << __LINE__ << " return DefiniteLastUse\n";
-      return Usage::DefiniteLastUse; // No usage found, assume last use
-    };
-
-    if (Usage FoundUsage = HandleInternal(StartBlockElement);
-        FoundUsage == Usage::Usage) { // Usage found
-      return FoundUsage;
-    }
-    while (!Worklist.empty()) {
-      CFGBlock const *Block = Worklist.pop_back_val();
-      if (!VisitedBlocks.insert(Block).second) {
-        continue;
-      }
-      if (Usage FoundUsage = HandleInternal({Block, Block->Elements.begin()});
-          FoundUsage == Usage::Usage) {
-        return FoundUsage;
-      }
-    }
-    return Usage::DefiniteLastUse;
-  };
-
-  return TraverseCFGForUsage();
 }
 
 } // namespace clang
 
 namespace clang::tidy::performance {
-
-#if 0
-clang::SmallVector<const clang::Stmt *, 1>
-static getParentStmts(const clang::Stmt *S) const {
-	using namespace clang;
-	auto *Context = &d_ctx;
-	SmallVector<const Stmt *, 1> Result;
-
-	TraversalKindScope RAII(*Context, TK_AsIs);
-	DynTypedNodeList Parents = Context->getParents(*S);
-
-	SmallVector<DynTypedNode, 1> NodesToProcess(Parents.begin(), Parents.end());
-
-	while (!NodesToProcess.empty()) {
-		DynTypedNode Node = NodesToProcess.back();
-		NodesToProcess.pop_back();
-
-		if (const auto *S = Node.get<Stmt>()) {
-			Result.push_back(S);
-		} else {
-			Parents = Context->getParents(Node);
-			NodesToProcess.append(Parents.begin(), Parents.end());
-		}
-	}
-
-	return Result;
-}
-
-static const clang::Stmt *getOuterStmt(const clang::Stmt *stmt) const {
-    // OuterStmt is a bespoke concept that defines the smallest
-    // clang::Stmt in an AST that can be considered safe to apply
-    // the move optimization. The simplest example where this comes
-    // in handy is to detect code like `consumes_strings(a,a`) where
-    // the function call accepts both parameters as `std::string`,
-    // and we do not want to consider this as a candidate for move
-    // since there is no sequencing in argument evaluation order.
-    // The OuterStmt would be the outer most clang::CallExpr.
-    // If two DeclRefExpr (`a` in this case) map to the same OuterStmt
-    // as would happen here, then neither are not candidates for move.
-
-    for (const clang::Stmt *parent : getParentStmts(stmt)) {
-      if (llvm::dyn_cast<clang::CompoundStmt>(parent)) {
-        return stmt;
-      }
-      const clang::Stmt *FullExpr = getOuterStmt(parent);
-      if (FullExpr) {
-        return FullExpr;
-      }
-    }
-    return nullptr;
-  }
-
-AST_MATCHER_P(Stmt, sharesFullExpr) {
-  clang::Stmt* Outer = getOuterStmt(&Node);
-  if (Outer) {
-  }
-}
-#endif
-
-void UnnecessaryCopyOnLastUseCheck::registerMatchers(MatchFinder *Finder) {
-  const auto ValueParameter =
-      declRefExpr(
-          to(valueDecl(
-              unless(varDecl(unless(hasAutomaticStorageDuration()))),
-              hasType(qualType(
-                  hasCanonicalType(qualType(
-                      matchers::isExpensiveToCopy(),
-                      unless(anyOf(isConstQualified(), lValueReferenceType(),
-                                   pointerType())))),
-                  unless(hasDeclaration(namedDecl(
-                      matchers::matchesAnyListedName(BlockedTypes))) //
-                         )))).bind("paramDecl")))
-          .bind("param");
-
-#if 0
-  const auto AnotherRef = declRefExpr(unless(equalsBoundNode("param")), to(valueDecl(equalsBoundNode("paramDecl")))).bind("other");
-  const auto UniqueValueParameter = declRefExpr(ValueParameter,
-      hasAncestor(stmt(hasParent(stmt(anyOf(lambdaExpr(), compoundStmt()))))));
-      //hasAncestor(stmt(hasParent(stmt(anyOf(lambdaExpr(), compoundStmt()))), unless(hasDescendant(AnotherRef)))));
-#endif
-  const auto UniqueValueParameter = ValueParameter;
-
-  const auto IsMoveAssignable = cxxOperatorCallExpr(
-      hasDeclaration(cxxMethodDecl(
-          isCopyAssignmentOperator(),
-          ofClass(hasMethod(cxxMethodDecl(isMoveAssignmentOperator(),
-                                          unless(isDeleted())))))),
-      hasRHS(ignoringParenImpCasts(UniqueValueParameter))).bind("");
-
-  const auto IsMoveConstructible =
-      ignoringElidableConstructorCall(ignoringParenImpCasts(
-          cxxConstructExpr(
-              unless(hasParent(callExpr(hasDeclaration(namedDecl(
-                  matchers::matchesAnyListedName(BlockedFunctions)))))),
-              hasDeclaration(cxxConstructorDecl(
-                  isCopyConstructor(),
-                  ofClass(hasMethod(cxxConstructorDecl(isMoveConstructor(),
-                                                       unless(isDeleted())))))),
-              hasArgument(0, UniqueValueParameter))
-              .bind("constructExpr")));
-
-  Finder->addMatcher(stmt(anyOf(IsMoveAssignable, expr(IsMoveConstructible)),
-        anyOf(hasAncestor(compoundStmt(
-              hasParent(lambdaExpr().bind("containing-lambda")))),
-          hasAncestor(functionDecl(anyOf(
-                cxxConstructorDecl(
-                  hasAnyConstructorInitializer(withInitializer(
-                      expr(anyOf(equalsBoundNode("call-move"),
-                          hasDescendant(expr(
-                              equalsBoundNode("call-move")))))
-                      .bind("containing-ctor-init"))))
-                .bind("containing-ctor"),
-                functionDecl().bind("containing-func")))))).bind("copyExpr"),
-
-                     this);
-  Finder->addMatcher(functionDecl().bind("FN"), this);
-}
-
-void UnnecessaryCopyOnLastUseCheck::check(
-    const MatchFinder::MatchResult &Result) {
-  if (const auto* FN = Result.Nodes.getNodeAs<FunctionDecl>("FN")) {
-    FN->dump();
-    return;
-  }
-  const auto *Param = Result.Nodes.getNodeAs<DeclRefExpr>("param");
-  const ValueDecl *const DeclOfParam = Param->getDecl();
-  const DeclContext *const FunctionOfDeclContext =
-      DeclOfParam->getParentFunctionOrMethod();
-  const auto *CopyExpr = Result.Nodes.getNodeAs<Expr>("copyExpr");
-
-  if (!FunctionOfDeclContext) {
-    // The parameter is not defined in a function, therefore it is not
-    // possible to check if it is the last use via CFG analysis
-    // Todo (improvement): Add a flag to show unanalyzable cases
-    return;
-  }
-
-  const auto *const FunctionOfDecl =
-      llvm::cast<FunctionDecl>(FunctionOfDeclContext);
-
-  const auto *const VarDeclVal = llvm::dyn_cast<VarDecl>(DeclOfParam);
-  if (!VarDeclVal) {
-    return;
-  }
-
-  const auto *ContainingFunc =
-      Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
-
-  Usage DefiniteLastUse = definiteLastUse(
-      Result.Context, ContainingFunc->getBody(), CopyExpr, Param->getDecl());
-  //Usage DefiniteLastUse = definiteLastUse(
-  //    Result.Context, getOrCreateCFG(FunctionOfDecl, Result.Context), Param);
-
-  if (DefiniteLastUse == Usage::Usage || DefiniteLastUse == Usage::Error) {
-    return;
-  }
-
-  // Template code cant be fixed currently
-  if (!FunctionOfDecl->isTemplateInstantiation()) {
-    clang::SourceManager &SM = *Result.SourceManager;
-    auto Diag =
-        diag(Param->getExprLoc(),
-             "parameter '%0' is copied on last use, consider moving it instead")
-        << Param->getDecl()->getNameAsString();
-
-    if (auto *CExpr = Result.Nodes.getNodeAs<CXXConstructExpr>("constructExpr");
-        isInLambdaCapture(Param, *Result.Context) ||
-        (CExpr && CExpr->getExprLoc().isMacroID())) {
-      // Lambda captures should not be fixed.
-      // They also require at least c++14
-      return;
-    }
-    auto MVStmt = "std::move(" + Param->getDecl()->getNameAsString() + ")";
-    Diag << FixItHint::CreateReplacement(Param->getSourceRange(), MVStmt)
-         << Param->getDecl()->getNameAsString()
-         << Inserter.createIncludeInsertion(SM.getFileID(Param->getBeginLoc()),
-                                            "<utility>");
-  } else { // Template code can't be fixed currently, also a std::forward may be
-           // more appropriate
-    auto Diag =
-        diag(Param->getExprLoc(), "parameter '%0' may be copied on last use, "
-                                  "consider forwarding it instead")
-        << Param->getDecl()->getNameAsString();
-  }
-}
 
 UnnecessaryCopyOnLastUseCheck::UnnecessaryCopyOnLastUseCheck(
     StringRef Name, ClangTidyContext *Context)
@@ -784,6 +415,114 @@ CFG *UnnecessaryCopyOnLastUseCheck::getOrCreateCFG(const FunctionDecl *FD,
 void UnnecessaryCopyOnLastUseCheck::registerPPCallbacks(
     const SourceManager &SM, Preprocessor *PP, Preprocessor *ModuleExpanderPP) {
   Inserter.registerPreprocessor(PP);
+}
+
+void UnnecessaryCopyOnLastUseCheck::registerMatchers(MatchFinder *Finder) {
+  const auto ValueParameter = declRefExpr(
+      declRefExpr().bind("param"),
+      to(valueDecl(
+             unless(varDecl(unless(hasAutomaticStorageDuration()))),
+             hasType(qualType(
+                 hasCanonicalType(qualType(
+                     matchers::isExpensiveToCopy(),
+                     unless(anyOf(isConstQualified(), lValueReferenceType(),
+                                  pointerType())))),
+                 unless(hasDeclaration(
+                     namedDecl(matchers::matchesAnyListedName(BlockedTypes))) //
+                        ))))
+             .bind("paramDecl")),
+      unless(hasAncestor(lambdaExpr(hasAnyCapture(lambdaCapture(
+          capturesVar(valueDecl(equalsBoundNode("paramDecl")))))))),
+      // Ignore DeclRefExprs in ctor initializers for now. Can be implemented
+      // later.
+      unless(hasAncestor(functionDecl(
+          cxxConstructorDecl(hasAnyConstructorInitializer(withInitializer(
+              expr(anyOf(equalsBoundNode("param"),
+                         hasDescendant(expr(equalsBoundNode("param"))))))))))));
+
+  const auto IsMoveAssignable =
+      cxxOperatorCallExpr(
+          hasDeclaration(cxxMethodDecl(
+              isCopyAssignmentOperator(),
+              ofClass(hasMethod(cxxMethodDecl(isMoveAssignmentOperator(),
+                                              unless(isDeleted())))))),
+          hasRHS(ignoringParenImpCasts(ValueParameter)))
+          .bind("");
+
+  const auto IsMoveConstructible =
+      ignoringElidableConstructorCall(ignoringParenImpCasts(
+          cxxConstructExpr(
+              unless(hasParent(callExpr(hasDeclaration(namedDecl(
+                  matchers::matchesAnyListedName(BlockedFunctions)))))),
+              hasDeclaration(cxxConstructorDecl(
+                  isCopyConstructor(),
+                  ofClass(hasMethod(cxxConstructorDecl(isMoveConstructor(),
+                                                       unless(isDeleted())))))),
+              hasArgument(0, ValueParameter))
+              .bind("constructExpr")));
+
+  Finder->addMatcher(stmt(anyOf(IsMoveAssignable, expr(IsMoveConstructible)),
+                          hasAncestor(functionDecl().bind("containing-func")))
+                         .bind("copyExpr"),
+
+                     this);
+}
+
+void UnnecessaryCopyOnLastUseCheck::check(
+    const MatchFinder::MatchResult &Result) {
+  const auto *Param = Result.Nodes.getNodeAs<DeclRefExpr>("param");
+  const ValueDecl *const DeclOfParam = Param->getDecl();
+  const DeclContext *const FunctionOfDeclContext =
+      DeclOfParam->getParentFunctionOrMethod();
+  const auto *CopyExpr = Result.Nodes.getNodeAs<Expr>("copyExpr");
+
+  if (!FunctionOfDeclContext)
+    return;
+
+  const auto *const FunctionOfDecl =
+      llvm::cast<FunctionDecl>(FunctionOfDeclContext);
+
+  const auto *const VarDeclVal = llvm::dyn_cast<VarDecl>(DeclOfParam);
+  if (!VarDeclVal)
+    return;
+
+  const auto *ContainingFunc =
+      Result.Nodes.getNodeAs<FunctionDecl>("containing-func");
+
+  std::optional<Usage> DefiniteLastUse = definiteLastUse(
+      Result.Context, ContainingFunc->getBody(), CopyExpr, Param->getDecl());
+
+  if (!DefiniteLastUse.has_value() || DefiniteLastUse == Usage::Usage)
+    return;
+
+  // Template code cant be fixed currently
+  if (!FunctionOfDecl->isTemplateInstantiation()) {
+    clang::SourceManager &SM = *Result.SourceManager;
+    auto Diag =
+        diag(Param->getExprLoc(),
+             "parameter '%0' is copied on last use, consider moving it instead")
+        << Param->getDecl()->getNameAsString();
+
+    if (auto *CExpr =
+            Result.Nodes.getNodeAs<CXXConstructExpr>("constructExpr")) {
+      if (isInLambdaCapture(Param, *Result.Context) &&
+          !getLangOpts().CPlusPlus14)
+        return;
+      if (CExpr && CExpr->getExprLoc().isMacroID())
+        return;
+    }
+    auto MVStmt = "std::move(" + Param->getDecl()->getNameAsString() + ")";
+    Diag << FixItHint::CreateReplacement(Param->getSourceRange(), MVStmt)
+         << Param->getDecl()->getNameAsString()
+         << Inserter.createIncludeInsertion(SM.getFileID(Param->getBeginLoc()),
+                                            "<utility>");
+  } else { // Template code can't be fixed currently, also a std::forward may be
+           // more appropriate
+    auto Diag =
+        diag(Param->getExprLoc(), "parameter '%0' may be copied on last use, "
+                                  "consider forwarding it instead")
+        << Param->getDecl()->getNameAsString();
+  }
 }
 
 } // namespace clang::tidy::performance

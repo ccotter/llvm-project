@@ -135,8 +135,8 @@ void lambdaCaptureRefTester() {
 void lambdaCaptureValueTester() {
   Movable Mov{};
   auto Lambda = [Mov]() mutable {
-    // xCHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'Mov' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
-    // xCHECK-FIXES: auto Lambda = [Mov]() mutable {
+    // CHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'Mov' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+    // CHECK-FIXES: auto Lambda = [Mov]() mutable {
     // Note: No fix, because a fix requires c++14.
     Mov.memberUse();
     };
