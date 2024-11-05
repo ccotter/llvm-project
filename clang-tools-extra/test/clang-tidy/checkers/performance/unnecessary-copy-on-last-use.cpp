@@ -1,4 +1,5 @@
 // RUN: %check_clang_tidy -std=c++11-or-later %s performance-unnecessary-copy-on-last-use %t
+// CHECK-FIXES: #include <utility>
 
 namespace std {
 
@@ -41,6 +42,11 @@ template <typename T> struct vector { // NOLINT
 
 } // namespace std
 
+template <class... Ts>
+bool value_receiver(Ts... ts);
+template <class T>
+void constRefReceiver(const T& Mov);
+
 struct HasMove {
   HasMove();
   HasMove(const HasMove&);
@@ -57,22 +63,39 @@ struct NoMove {
 
 struct DerivedHasMove : HasMove {
   DerivedHasMove();
-  // Move ctor is implicitly defaulted
+  // Move constructor is implicitly defaulted
 };
 
 struct DerivedHasNoMove : HasMove {
   DerivedHasNoMove();
   DerivedHasNoMove(const DerivedHasNoMove&);
   DerivedHasNoMove& operator=(const DerivedHasNoMove&);
-  // Move ctor is not available
+  // Move constructor is not available
 };
 
 void last_use_suggests() {
   {
     HasMove Val;
     HasMove Val2{Val};
+    HasMove Val3{Val};
     // CHECK-MESSAGES: :[[@LINE-1]]:18: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
-    // CHECK-FIXES: HasMove Val2{std::move(Val)};
+    // CHECK-FIXES: HasMove Val3{std::move(Val)};
+    Val = HasMove{};
+    HasMove Val4{Val};
+    // CHECK-MESSAGES: :[[@LINE-1]]:18: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+    // CHECK-FIXES: HasMove Val4{std::move(Val)};
+  }
+
+  {
+    HasMove Val;
+    value_receiver(Val);
+    // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+    // CHECK-FIXES: value_receiver(std::move(Val));
+  }
+
+  {
+    HasMove Val;
+    value_receiver(Val, Val);
   }
 
   {
@@ -81,6 +104,18 @@ void last_use_suggests() {
     Val2 = Val;
     // CHECK-MESSAGES: :[[@LINE-1]]:12: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
     // CHECK-FIXES: Val2 = std::move(Val);
+  }
+
+  {
+    HasMove Val;
+    constRefReceiver(Val);
+  }
+
+  {
+    HasMove Val;
+    constRefReceiver(HasMove{Val});
+    // CHECK-MESSAGES: :[[@LINE-1]]:30: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+    // CHECK-FIXES: constRefReceiver(HasMove{std::move(Val)});
   }
 
   {
@@ -98,7 +133,66 @@ void last_use_suggests() {
     // CHECK-MESSAGES: :[[@LINE-1]]:25: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
     // CHECK-FIXES: DerivedHasMove Val2{std::move(Val)};
   }
+
+  {
+    HasMove Val;
+    if (value_receiver(Val))
+      HasMove Val2{Val};
+    // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+    // CHECK-FIXES: HasMove Val2{std::move(Val)};
+  }
+
+  {
+    HasMove Val;
+    for (int i = 0; i != 10; ++i)
+      value_receiver(Val);
+  }
 }
+
+HasMove test_return() {
+  HasMove Val;
+  return Val; // no warning, copy elision
+}
+
+HasMove test_return_ternary(HasMove&& Val, bool F) {
+  return F ? Val : HasMove{}; 
+  // CHECK-MESSAGES: [[@LINE-1]]:14: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
+  // CHECK-FIXES: return F ? std::move(Val) : HasMove{};
+}
+
+#define FUN(Val) value_receiver((Val))
+void macros_warned_bug_not_Fixed() {
+  HasMove Val;
+  FUN(Val);
+  // CHECK-MESSAGES: [[@LINE-1]]:7: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
+  // CHECK-FIXES: FUN(Val);
+}
+
+void rValReference_tester(HasMove&& Val) {
+  value_receiver(Val);
+  value_receiver(Val);
+  // CHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+  // CHECK-FIXES: value_receiver(std::move(Val));
+  Val = HasMove{};
+  value_receiver(Val);
+  // CHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+  // CHECK-FIXES: value_receiver(std::move(Val));
+}
+
+void reference_tester(HasMove& Val) {
+  value_receiver(Val);
+  value_receiver(Val);
+  Val = HasMove{};
+  value_receiver(Val);
+}
+
+void pointer_tester(HasMove* Val) {
+  value_receiver(*Val);
+  value_receiver(*Val);
+  *Val = HasMove{};
+  value_receiver(*Val);
+}
+
 
 void const_value_doesnt_suggest() {
   const HasMove Val;
@@ -150,6 +244,26 @@ void trivially_movable_doesnt_suggest() {
   }
 }
 
+void implicit_move_ctor_with_triival() {
+  struct ImplicitMoveCtor {
+    TrivialA A;
+    NoMove B;
+
+    // The check triggers below since the implicitly generated move constructor
+    // is not trivial. It's non-trivially movable since NoMove is not trivally
+    // copyable/movable.
+    //
+    // Suggesting std::move doesn't really improve the performance of the code.
+    // Perhaps in this situation, ImplicitMoveCtor should delete its move 
+    // constructor if it's just going to be the same as the copy constructor.
+  };
+
+  ImplicitMoveCtor Val;
+  ImplicitMoveCtor Val2{Val};
+  // CHECK-MESSAGES: :[[@LINE-1]]:25: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+  // CHECK-FIXES: ImplicitMoveCtor Val2{std::move(Val)};
+}
+
 void containers_are_movable() {
   {
     std::vector<int> Vs;
@@ -184,4 +298,20 @@ void containers_are_movable() {
     // CHECK-MESSAGES: :[[@LINE-1]]:11: warning: parameter 'Vs' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
     // CHECK-FIXES: Vs2 = std::move(Vs);
   }
+}
+
+static HasMove FileStatic;
+HasMove FileGlobal;
+void non_atomic_not_matched() {
+  static HasMove Static;
+  value_receiver(Static);
+
+  thread_local HasMove ThreadLocal;
+  value_receiver(ThreadLocal);
+
+  extern HasMove Extern;
+  value_receiver(Extern);
+
+  value_receiver(FileStatic);
+  value_receiver(FileGlobal);
 }
