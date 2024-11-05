@@ -1,4 +1,5 @@
-// RUN: %check_clang_tidy -std=c++11-or-later %s performance-unnecessary-copy-on-last-use %t
+// RUN: %check_clang_tidy -std=c++11 %s performance-unnecessary-copy-on-last-use %t -- -- -fno-delayed-template-parsing
+// RUN: %check_clang_tidy -check-suffix=,CXX14 -std=c++14 %s performance-unnecessary-copy-on-last-use %t -- -- -fno-delayed-template-parsing
 // CHECK-FIXES: #include <utility>
 
 namespace std {
@@ -24,6 +25,18 @@ struct remove_reference<_Tp &&> {
 template <typename _Tp>
 constexpr typename std::remove_reference<_Tp>::type &&move(_Tp &&__t) noexcept {
   return static_cast<typename remove_reference<_Tp>::type &&>(__t);
+}
+
+template <class _Tp>
+constexpr _Tp&&
+forward(typename std::remove_reference<_Tp>::type& __t) noexcept {
+  return static_cast<_Tp&&>(__t);
+}
+
+template <class _Tp>
+constexpr _Tp&&
+forward(typename std::remove_reference<_Tp>::type&& __t) noexcept {
+  return static_cast<_Tp&&>(__t);
 }
 
 }
@@ -53,6 +66,8 @@ struct HasMove {
   HasMove(HasMove&&);
   HasMove& operator=(const HasMove&);
   HasMove& operator=(HasMove&&);
+
+  bool use();
 };
 
 struct NoMove {
@@ -141,12 +156,118 @@ void last_use_suggests() {
     // CHECK-MESSAGES: :[[@LINE-1]]:20: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
     // CHECK-FIXES: HasMove Val2{std::move(Val)};
   }
+}
 
+template <class T>
+void templated_function_param(T Val) {
+  T Val2{Val};
+}
+
+template <class T>
+void templated_function_param(T Val, HasMove PVal) {
+  T Val2{PVal};
+}
+
+template <class T>
+void templated_function_param2(T Val, HasMove PVal) {
+  HasMove Val2{PVal};
+  // CHECK-MESSAGES: :[[@LINE-1]]:16: warning: parameter 'PVal' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+  // CHECK-FIXES: HasMove Val2{std::move(PVal)};
+}
+
+template <class T>
+void templated_function(T Val) {
+  HasMove TVal;
+  HasMove TVal2{TVal};
+  // CHECK-MESSAGES: :[[@LINE-1]]:17: warning: parameter 'TVal' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
+  // CHECK-FIXES: HasMove TVal2{std::move(TVal)};
+}
+
+struct SomeStruct {
+  void test_data_members_not_warned() {
+    HasMove Val2{Val};
+  }
+  static void test_static_members_not_warned() {
+    HasMove Val2{StaticVal};
+  }
+  HasMove Val;
+  static HasMove StaticVal;
+};
+
+template <int I> struct Tag{};
+
+struct StructWithInits {
+  StructWithInits(HasMove Val, Tag<0>) : Val1(Val), Val2(Val), B(Val.use()) {
+  }
+  StructWithInits(HasMove Val, Tag<1>) : B(value_receiver(Val, Val)) {
+  }
+  StructWithInits(HasMove Val, Tag<2>) : Val1(Val), B(Val.use()) {
+  }
+  HasMove Val1;
+  HasMove Val2;
+  bool B;
+};
+
+void test_loops() {
   {
     HasMove Val;
     for (int i = 0; i != 10; ++i)
       value_receiver(Val);
   }
+
+  {
+    int i = 0;
+    HasMove Val;
+    while (++i < 10)
+      value_receiver(Val);
+  }
+}
+
+void test_lambdas() {
+  {
+    HasMove Val;
+    [Val] {
+    };
+  }
+  {
+    HasMove Val;
+    [&Val] {
+    };
+  }
+  {
+    HasMove Val;
+    [Val] {
+      HasMove Val2{Val};
+    };
+  }
+  [] {
+    HasMove LamVal;
+    HasMove LamVal2{LamVal};
+    // CHECK-MESSAGES: [[@LINE-1]]:21: warning: parameter 'LamVal' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
+    // CHECK-FIXES LamVal2{std::move(LamVal)};
+  };
+
+  [](HasMove LPVal) {
+    HasMove Val2{LPVal};
+    // CHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'LPVal' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
+    // CHECK-FIXES Val2{std::move(LPVal)};
+  };
+
+#if __cplusplus >= 201402L
+  {
+    HasMove Val;
+    [Val2 = Val] {
+      HasMove Val3{Val2};
+    };
+    [Val2 = Val] {
+      // CHECK-MESSAGES-CXX14: [[@LINE-1]]:13: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
+      // CHECK-FIXES [Val2 = std::move(Val)]
+      HasMove Val3{Val2};
+    };
+  }
+  {
+  }
+#endif
 }
 
 HasMove test_return() {
@@ -161,14 +282,14 @@ HasMove test_return_ternary(HasMove&& Val, bool F) {
 }
 
 #define FUN(Val) value_receiver((Val))
-void macros_warned_bug_not_Fixed() {
+void macros_warned_bug_not_fixed() {
   HasMove Val;
   FUN(Val);
   // CHECK-MESSAGES: [[@LINE-1]]:7: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use] 
   // CHECK-FIXES: FUN(Val);
 }
 
-void rValReference_tester(HasMove&& Val) {
+void rval_ref_tester(HasMove&& Val) {
   value_receiver(Val);
   value_receiver(Val);
   // CHECK-MESSAGES: [[@LINE-1]]:18: warning: parameter 'Val' is copied on last use, consider moving it instead [performance-unnecessary-copy-on-last-use]
@@ -302,7 +423,7 @@ void containers_are_movable() {
 
 static HasMove FileStatic;
 HasMove FileGlobal;
-void non_atomic_not_matched() {
+void non_automatic_not_matched() {
   static HasMove Static;
   value_receiver(Static);
 
