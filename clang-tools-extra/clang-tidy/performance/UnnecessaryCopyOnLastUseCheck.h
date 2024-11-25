@@ -11,8 +11,6 @@
 
 #include "../ClangTidyCheck.h"
 #include "../utils/IncludeInserter.h"
-#include "clang/Analysis/CFG.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace clang::tidy::performance {
 
@@ -32,13 +30,9 @@ public:
                            Preprocessor *ModuleExpanderPP) override;
 
 private:
-  CFG *getOrCreateCFG(const FunctionDecl *FD, ASTContext *C);
-
   utils::IncludeInserter Inserter;
   const std::vector<StringRef> BlockedTypes;
   const std::vector<StringRef> BlockedFunctions;
-
-  llvm::DenseMap<const FunctionDecl *, std::unique_ptr<CFG>> CFGs;
 };
 
 } // namespace clang::tidy::performance
