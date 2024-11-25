@@ -25,6 +25,7 @@ add_clang_library(clangTidyUtils STATIC
   RenamerClangTidyCheck.cpp
   TransformerClangTidyCheck.cpp
   TypeTraits.cpp
+  UseAfterMoveFinder.cpp
   UseRangesCheck.cpp
   UsingInserter.cpp
 
@@ -40,6 +41,7 @@ clang_target_link_libraries(clangTidyUtils
   PRIVATE
   clangAST
   clangASTMatchers
+  clangAnalysis
   clangBasic
   clangLex
   clangSema

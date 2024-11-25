@@ -189,6 +189,21 @@ matchesAnyListedTypeName(llvm::ArrayRef<StringRef> NameList) {
       new MatchesAnyListedTypeNameMatcher(NameList));
 }
 
+// Matches nodes that are
+// - Part of a decltype argument or class template argument (we check this by
+//   seeing if they are children of a TypeLoc), or
+// - Part of a function template argument (we check this by seeing if they are
+//   children of a DeclRefExpr that references a function template).
+// DeclRefExprs that fulfill these conditions should not be counted as a use or
+// move.
+inline ast_matchers::StatementMatcher inDecltypeOrTemplateArg() {
+  using namespace ast_matchers;
+  return anyOf(hasAncestor(typeLoc()),
+               hasAncestor(declRefExpr(
+                   to(functionDecl(ast_matchers::isTemplateInstantiation())))),
+               hasAncestor(expr(hasUnevaluatedContext())));
+}
+
 } // namespace clang::tidy::matchers
 
 #endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_UTILS_MATCHERS_H
