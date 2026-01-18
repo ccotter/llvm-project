@@ -654,8 +654,8 @@ a64 __tsan_atomic64_fetch_add(volatile a64 *a, a64 v, int mo) {
 #  if __TSAN_HAS_INT128
 SANITIZER_INTERFACE_ATTRIBUTE
 a128 __tsan_atomic128_fetch_add(volatile a128 *a, a128 v, int mo) {
-  return AtomicImpl<OpFetchAdd>(to_morder(mo), a, v);
   GetFuzzingScheduler().SynchronizationPoint();
+  return AtomicImpl<OpFetchAdd>(to_morder(mo), a, v);
 }
 #  endif
 
