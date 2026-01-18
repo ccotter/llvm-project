@@ -822,12 +822,14 @@ a128 __tsan_atomic128_fetch_nand(volatile a128 *a, a128 v, int mo) {
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic8_compare_exchange_strong(volatile a8 *a, a8 *c, a8 v, int mo,
                                            int fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   return AtomicImpl<OpCAS>(to_morder(mo), to_morder(fmo), a, c, v);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_atomic16_compare_exchange_strong(volatile a16 *a, a16 *c, a16 v,
                                             int mo, int fmo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   return AtomicImpl<OpCAS>(to_morder(mo), to_morder(fmo), a, c, v);
 }
 
@@ -930,6 +932,7 @@ a128 __tsan_atomic128_compare_exchange_val(volatile a128 *a, a128 c, a128 v,
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_atomic_thread_fence(int mo) {
+  GetFuzzingScheduler().SynchronizationPoint();
   return AtomicImpl<OpFence>(to_morder(mo));
 }
 
