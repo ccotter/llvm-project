@@ -107,7 +107,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       return Percent::FromRatio(delay, elapsed);
     }
 
-    bool ShouldDelay(unsigned int* seed) {
+    bool ShouldDelay() {
       Percent ratio = GetOverheadPercent();
 
       if (ratio < target_low_)
@@ -117,38 +117,8 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
       // Linear interpolation: at target_low -> 100%, at target_high -> 0%
       Percent prob = (target_high_ - ratio) / (target_high_ - target_low_);
-      return prob.RandomCheck(seed);
+      return prob.RandomCheck(GetRandomSeed());
     }
-  };
-
-  struct ThreadDelayState {
-    u64 window_start_ns_;
-    u32 delays_this_window_;
-    u32 max_delays_per_window_;
-    u64 window_duration_ns_;
-
-    void Init(u64 window_ms) {
-      window_start_ns_ = NanoTime();
-      delays_this_window_ = 0;
-      static constexpr int max_delays_per_window_default = 500;
-      max_delays_per_window_ = max_delays_per_window_default;
-      window_duration_ns_ = window_ms * microseconds_per_second;
-    }
-
-    bool CanDelay() {
-      u64 now = NanoTime();
-      bool needs_reset = now - window_start_ns_ > window_duration_ns_;
-      if (needs_reset) {
-        window_start_ns_ = now;
-        delays_this_window_ = 0;
-      }
-
-      if (delays_this_window_ >= max_delays_per_window_)
-        return false;
-      return true;
-    }
-
-    void RecordOneDelay() { ++delays_this_window_; }
   };
 
   // Address Sampler with Exponential Backoff
@@ -211,20 +181,48 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
   int max_sync_delay_us_;
   u64 window_ms_;
 
-  static thread_local unsigned int tls_random_seed_;
+  ALWAYS_INLINE static FuzzingSchedulerTlsData* TLS() {
+    return &cur_thread()->fuzzingSchedulerTlsData;
+  }
+  ALWAYS_INLINE static unsigned int* GetRandomSeed() {
+    return &cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_;
+  }
+  ALWAYS_INLINE static void SetRandomSeed(unsigned int seed) {
+    cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_ = seed;
+  }
 
-  static thread_local ThreadDelayState tls_state_;
-  static thread_local bool tls_initialized_;
+  bool CanDelayThread() {
+    u64 now = NanoTime();
+    bool needs_reset =
+        now - TLS()->window_start_ns_ > TLS()->window_duration_ns_;
+    if (needs_reset) {
+      TLS()->window_start_ns_ = now;
+      TLS()->delays_this_window_ = 0;
+    }
+
+    if (TLS()->delays_this_window_ >= TLS()->max_delays_per_window_)
+      return false;
+    return true;
+  }
+
+  void RecordOneDelayThisThread() { ++TLS()->delays_this_window_; }
 
   void Init() override { InitTls(); }
 
   void InitTls() {
-    tls_state_.Init(window_ms_);
-    tls_random_seed_ = flags()->adaptive_delay_random_seed;
-    if (tls_random_seed_ == 0)
-      tls_random_seed_ = NanoTime();
-    tls_initialized_ = true;
+    TLS()->window_start_ns_ = NanoTime();
+    TLS()->delays_this_window_ = 0;
+    static constexpr int max_delays_per_window_default = 500;
+    TLS()->max_delays_per_window_ = max_delays_per_window_default;
+    TLS()->window_duration_ns_ = window_ms_ * microseconds_per_second;
+
+    SetRandomSeed(flags()->adaptive_delay_random_seed);
+    if (*GetRandomSeed() == 0)
+      SetRandomSeed(NanoTime());
+    TLS()->tls_initialized_ = true;
   }
+
+  bool IsTlsInitialized() const { return TLS()->tls_initialized_; }
 
   AdaptiveDelayScheduler() {
     relaxed_sample_rate_ = flags()->adaptive_delay_relaxed_sample_rate;
@@ -243,7 +241,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
     Printf("INFO: ThreadSanitizer AdaptiveDelayScheduler initialized\n");
     Printf("  Target overhead: %d%%\n", target_pct);
-    Printf("  Random seed: %u\n", tls_random_seed_);
+    Printf("  Random seed: %u\n", *GetRandomSeed());
     Printf("  Relaxed atomic sample rate: 1/%d\n", relaxed_sample_rate_);
     Printf("  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
     Printf("  Mutex sample rate: 1/%d\n", mutex_sample_rate_);
@@ -260,32 +258,32 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
   void DoYieldDelay() { internal_sched_yield(); }
 
-  void UsleepDelay(int max_us, unsigned int* seed) {
-    int delay_us = 1 + (Rand(seed) % max_us);
+  void UsleepDelay(int max_us) {
+    int delay_us = 1 + (Rand(GetRandomSeed()) % max_us);
     internal_usleep(delay_us);
     budget_.RecordDelay(delay_us * 1000ULL);
   }
 
   void AtomicRelaxedOpDelay() {
-    if ((Rand(&tls_random_seed_) % relaxed_sample_rate_) != 0)
+    if ((Rand(GetRandomSeed()) % relaxed_sample_rate_) != 0)
       return;
-    if (!budget_.ShouldDelay(&tls_random_seed_))
+    if (!budget_.ShouldDelay())
       return;
-    if (!tls_state_.CanDelay())
+    if (!CanDelayThread())
       return;
 
-    DoSpinDelay(10 + (Rand(&tls_random_seed_) % 10));
-    tls_state_.RecordOneDelay();
+    DoSpinDelay(10 + (Rand(GetRandomSeed()) % 10));
+    RecordOneDelayThisThread();
     static constexpr int spin_delay_estimate_ns = 50;
     budget_.RecordDelay(spin_delay_estimate_ns);
   }
 
   void AtomicSyncOpDelay(uptr* addr) {
-    if ((Rand(&tls_random_seed_) % sync_atomic_sample_rate_) != 0)
+    if ((Rand(GetRandomSeed()) % sync_atomic_sample_rate_) != 0)
       return;
-    if (!budget_.ShouldDelay(&tls_random_seed_))
+    if (!budget_.ShouldDelay())
       return;
-    if (!tls_state_.CanDelay())
+    if (!CanDelayThread())
       return;
 
     if (addr && !sampler_.ShouldDelayAddr(*addr))
@@ -296,12 +294,12 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       static constexpr int yield_delay_estimate_ns = 100;
       budget_.RecordDelay(yield_delay_estimate_ns);
     } else
-      UsleepDelay(max_atomic_delay_us_, &tls_random_seed_);
-    tls_state_.RecordOneDelay();
+      UsleepDelay(max_atomic_delay_us_);
+    RecordOneDelayThisThread();
   }
 
   void AtomicOpFence(int mo) override {
-    CHECK(tls_initialized_);
+    CHECK(IsTlsInitialized());
 
     if (mo < mo_acquire)
       AtomicRelaxedOpDelay();
@@ -310,7 +308,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
   }
 
   void AtomicOpAddr(uptr addr, int mo) override {
-    CHECK(tls_initialized_);
+    CHECK(IsTlsInitialized());
 
     if (mo < mo_acquire)
       AtomicRelaxedOpDelay();
@@ -319,29 +317,29 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
   }
 
   void UnsampledDelay() {
-    CHECK(tls_initialized_);
+    CHECK(IsTlsInitialized());
 
-    if (!budget_.ShouldDelay(&tls_random_seed_))
+    if (!budget_.ShouldDelay())
       return;
-    if (!tls_state_.CanDelay())
+    if (!CanDelayThread())
       return;
 
-    UsleepDelay(max_sync_delay_us_, &tls_random_seed_);
-    tls_state_.RecordOneDelay();
+    UsleepDelay(max_sync_delay_us_);
+    RecordOneDelayThisThread();
   }
 
   void MutexCvOp() override {
-    CHECK(tls_initialized_);
+    CHECK(IsTlsInitialized());
 
-    if ((Rand(&tls_random_seed_) % mutex_sample_rate_) != 0)
+    if ((Rand(GetRandomSeed()) % mutex_sample_rate_) != 0)
       return;
-    if (!budget_.ShouldDelay(&tls_random_seed_))
+    if (!budget_.ShouldDelay())
       return;
-    if (!tls_state_.CanDelay())
+    if (!CanDelayThread())
       return;
 
-    UsleepDelay(max_sync_delay_us_, &tls_random_seed_);
-    tls_state_.RecordOneDelay();
+    UsleepDelay(max_sync_delay_us_);
+    RecordOneDelayThisThread();
   }
 
   void JoinOp() override { UnsampledDelay(); }
@@ -359,11 +357,6 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     return res;
   }
 };
-
-thread_local unsigned int AdaptiveDelayScheduler::tls_random_seed_;
-thread_local AdaptiveDelayScheduler::ThreadDelayState
-    AdaptiveDelayScheduler::tls_state_;
-thread_local bool AdaptiveDelayScheduler::tls_initialized_ = false;
 
 IFuzzingScheduler& FuzzingSchedulerDispatcher() {
   if (!internal_strcmp(flags()->fuzzing_scheduler, "")) {

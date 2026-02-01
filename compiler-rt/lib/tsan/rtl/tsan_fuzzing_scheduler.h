@@ -9,6 +9,7 @@
 // This file is a part of ThreadSanitizer (TSan), a race detector.
 //
 //===----------------------------------------------------------------------===//
+
 #ifndef TSAN_FUZZING_SCHEDULER_H
 #define TSAN_FUZZING_SCHEDULER_H
 
