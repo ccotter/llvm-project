@@ -23,10 +23,9 @@ namespace __tsan {
 // TLS data in this type, which will be available in cur_thread().
 struct FuzzingSchedulerTlsData {
   // For the adaptive scheduler
-  u64 window_start_ns_;
-  u32 delays_this_window_;
-  u32 max_delays_per_window_;
-  u64 window_duration_ns_;
+  // Sliding window delay tracking: 2 buckets of 30 seconds each
+  u64 delay_buckets_ns_[2];  // [0] = older 30s, [1] = newer 30s
+  u64 bucket_start_ns_;      // When current bucket (index 1) started
   unsigned int tls_random_seed_;
   bool tls_initialized_;
 };
