@@ -47,7 +47,75 @@ struct NullFuzzingScheduler : IFuzzingScheduler {
   void JoinOp() override {}
 };
 
-static constexpr u64 microseconds_per_second = 1000000ULL;
+// =============================================================================
+// DelaySpec: Represents a delay configuration parsed from flag strings
+// =============================================================================
+//
+// Delay can be specified as:
+//   - "spin=N"     : Spin for up to N cycles (very short delays)
+//   - "yield"      : Call sched_yield() once
+//   - "sleep_us=N" : Sleep for up to N microseconds
+
+enum class DelayType { Spin, Yield, SleepUs };
+
+struct DelaySpec {
+  DelayType type;
+  int value;  // spin cycles or sleep_us value; ignored for yield
+
+  // Estimated nanoseconds per spin cycle (volatile loop iteration)
+  static constexpr u64 kNsPerSpinCycle = 5;
+  // Estimated nanoseconds for a yield (context switch overhead)
+  static constexpr u64 kNsPerYield = 500;
+
+  static DelaySpec Parse(const char* str) {
+    DelaySpec spec;
+    if (internal_strncmp(str, "spin=", 5) == 0) {
+      spec.type = DelayType::Spin;
+      spec.value = internal_atoll(str + 5);
+      if (spec.value <= 0)
+        spec.value = 10;
+    } else if (internal_strcmp(str, "yield") == 0) {
+      spec.type = DelayType::Yield;
+      spec.value = 0;
+    } else if (internal_strncmp(str, "sleep_us=", 9) == 0) {
+      spec.type = DelayType::SleepUs;
+      spec.value = internal_atoll(str + 9);
+      if (spec.value <= 0)
+        spec.value = 1;
+    } else {
+      // Default to yield if unrecognized
+      Printf("WARNING: Unrecognized delay spec '%s', defaulting to yield\n",
+             str);
+      spec.type = DelayType::Yield;
+      spec.value = 0;
+    }
+    return spec;
+  }
+
+  u64 EstimatedNs() const {
+    switch (type) {
+      case DelayType::Spin:
+        return value * kNsPerSpinCycle;
+      case DelayType::Yield:
+        return kNsPerYield;
+      case DelayType::SleepUs:
+        return value * 1000ULL;
+    }
+    return 0;
+  }
+
+  const char* TypeName() const {
+    switch (type) {
+      case DelayType::Spin:
+        return "spin";
+      case DelayType::Yield:
+        return "yield";
+      case DelayType::SleepUs:
+        return "sleep_us";
+    }
+    return "unknown";
+  }
+};
 
 // =============================================================================
 // AdaptiveDelayScheduler: Time-budget aware delay injection for race exposure
@@ -67,8 +135,6 @@ static constexpr u64 microseconds_per_second = 1000000ULL;
 //
 // 3. Address-based Sampling: Exponential backoff per address to avoid
 //    repeatedly delaying hot atomics.
-//
-// 4. Per-thread Quotas: Each thread has a delay budget per time window.
 
 #ifdef __clang__
 #  pragma clang diagnostic push
@@ -78,33 +144,75 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 #ifdef __clang__
 #  pragma clang diagnostic pop
 #endif
+
+  ALWAYS_INLINE static FuzzingSchedulerTlsData* TLS() {
+    return &cur_thread()->fuzzingSchedulerTlsData;
+  }
+  ALWAYS_INLINE static unsigned int* GetRandomSeed() {
+    return &cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_;
+  }
+  ALWAYS_INLINE static void SetRandomSeed(unsigned int seed) {
+    cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_ = seed;
+  }
+
+  // The public facing option is adaptive_delay_aggressiveness, which is an
+  // opaque value for the user to tune the amount of delay injected into the
+  // program. Internally, the implementation maps the aggressiveness to a target
+  // percent delay for the overall program runtime. It's not easy to implement
+  // a true wall clock delay target (e.g., 25% program wall time slowdown)
+  // because 1) spin loops and yield are hard to calculate actual wall time
+  // slowness and 2) usleep(N) is often slower than advertised. Thus, we keep
+  // the user facing parameter opaque to not under deliver on a promise of
+  // percent wall time slowdown.
   struct TimeBudget {
-    atomic_uint64_t total_delay_ns_;
-    u64 program_start_ns_;
     int target_overhead_pct_;
     Percent target_low_;
     Percent target_high_;
 
     void Init(int target_pct) {
-      atomic_store(&total_delay_ns_, 0, memory_order_relaxed);
-      program_start_ns_ = NanoTime();
       target_overhead_pct_ = target_pct;
       target_low_ = Percent::FromPct(
           target_overhead_pct_ >= 5 ? target_overhead_pct_ - 5 : 0);
       target_high_ = Percent::FromPct(target_overhead_pct_ + 5);
     }
 
+    static constexpr u64 BucketDurationNs = 30'000'000'000ULL;
+
     void RecordDelay(u64 delay_ns) {
-      atomic_fetch_add(&total_delay_ns_, delay_ns, memory_order_relaxed);
+      u64 now = NanoTime();
+      u64 elapsed_ns = now - TLS()->bucket_start_ns_;
+
+      if (elapsed_ns >= BucketDurationNs) {
+        // Shift: old bucket is discarded, new becomes old, start fresh new
+        TLS()->delay_buckets_ns_[0] = TLS()->delay_buckets_ns_[1];
+        TLS()->delay_buckets_ns_[1] = 0;
+        TLS()->bucket_start_ns_ = now;
+      }
+
+      TLS()->delay_buckets_ns_[1] += delay_ns;
     }
 
     Percent GetOverheadPercent() {
-      u64 elapsed = NanoTime() - program_start_ns_;
-      u64 one_millisecond = microseconds_per_second;
-      if (elapsed < one_millisecond)
+      u64 now = NanoTime();
+      u64 elapsed_ns = now - TLS()->bucket_start_ns_;
+
+      // Need at least 1ms to calculate
+      if (elapsed_ns < 1'000'000ULL)
         return Percent::FromPct(0);
-      u64 delay = atomic_load(&total_delay_ns_, memory_order_relaxed);
-      return Percent::FromRatio(delay, elapsed);
+
+      if (elapsed_ns > BucketDurationNs * 2) {
+        // Both buckets are stale
+        return Percent::FromPct(0);
+      } else if (elapsed_ns > BucketDurationNs) {
+        // bucket[0] is stale, use only bucket[1] (current bucket)
+        u64 total_delay_ns = TLS()->delay_buckets_ns_[1];
+        return Percent::FromRatio(total_delay_ns, elapsed_ns);
+      } else {
+        u64 total_delay_ns =
+            TLS()->delay_buckets_ns_[0] + TLS()->delay_buckets_ns_[1];
+        u64 window_ns = BucketDurationNs + elapsed_ns;
+        return Percent::FromRatio(total_delay_ns, window_ns);
+      }
     }
 
     bool ShouldDelay() {
@@ -129,7 +237,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       atomic_uint32_t count_;
     };
     Entry table_[TABLE_SIZE];
-    static constexpr u32 ExponentialBackoffCap = 128;
+    static constexpr u32 ExponentialBackoffCap = 64;
 
     void Init() {
       for (u64 i = 0; i < TABLE_SIZE; ++i) {
@@ -177,44 +285,15 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
   int relaxed_sample_rate_;
   int sync_atomic_sample_rate_;
   int mutex_sample_rate_;
-  int max_atomic_delay_us_;
-  int max_sync_delay_us_;
-  u64 window_ms_;
-
-  ALWAYS_INLINE static FuzzingSchedulerTlsData* TLS() {
-    return &cur_thread()->fuzzingSchedulerTlsData;
-  }
-  ALWAYS_INLINE static unsigned int* GetRandomSeed() {
-    return &cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_;
-  }
-  ALWAYS_INLINE static void SetRandomSeed(unsigned int seed) {
-    cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_ = seed;
-  }
-
-  bool CanDelayThread() {
-    u64 now = NanoTime();
-    bool needs_reset =
-        now - TLS()->window_start_ns_ > TLS()->window_duration_ns_;
-    if (needs_reset) {
-      TLS()->window_start_ns_ = now;
-      TLS()->delays_this_window_ = 0;
-    }
-
-    if (TLS()->delays_this_window_ >= TLS()->max_delays_per_window_)
-      return false;
-    return true;
-  }
-
-  void RecordOneDelayThisThread() { ++TLS()->delays_this_window_; }
+  DelaySpec atomic_delay_;
+  DelaySpec sync_delay_;
 
   void Init() override { InitTls(); }
 
   void InitTls() {
-    TLS()->window_start_ns_ = NanoTime();
-    TLS()->delays_this_window_ = 0;
-    static constexpr int max_delays_per_window_default = 500;
-    TLS()->max_delays_per_window_ = max_delays_per_window_default;
-    TLS()->window_duration_ns_ = window_ms_ * microseconds_per_second;
+    TLS()->bucket_start_ns_ = NanoTime();
+    TLS()->delay_buckets_ns_[0] = 0;
+    TLS()->delay_buckets_ns_[1] = 0;
 
     SetRandomSeed(flags()->adaptive_delay_random_seed);
     if (*GetRandomSeed() == 0)
@@ -228,26 +307,26 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     relaxed_sample_rate_ = flags()->adaptive_delay_relaxed_sample_rate;
     sync_atomic_sample_rate_ = flags()->adaptive_delay_sync_atomic_sample_rate;
     mutex_sample_rate_ = flags()->adaptive_delay_mutex_sample_rate;
-    max_atomic_delay_us_ = flags()->adaptive_delay_max_atomic_us;
-    max_sync_delay_us_ = flags()->adaptive_delay_max_sync_us;
-    window_ms_ = flags()->adaptive_delay_window_ms;
+    atomic_delay_ = DelaySpec::Parse(flags()->adaptive_delay_max_atomic);
+    sync_delay_ = DelaySpec::Parse(flags()->adaptive_delay_max_sync);
 
-    int target_pct = flags()->adaptive_delay_target_overhead_pct;
-    if (target_pct < 1)
-      target_pct = 1;
+    int delay_aggressiveness = flags()->adaptive_delay_aggressiveness;
+    if (delay_aggressiveness < 1)
+      delay_aggressiveness = 1;
 
-    budget_.Init(target_pct);
+    budget_.Init(delay_aggressiveness);
     sampler_.Init();
 
     Printf("INFO: ThreadSanitizer AdaptiveDelayScheduler initialized\n");
-    Printf("  Target overhead: %d%%\n", target_pct);
+    Printf("  Delay aggressiveness: %d\n", delay_aggressiveness);
     Printf("  Random seed: %u\n", *GetRandomSeed());
     Printf("  Relaxed atomic sample rate: 1/%d\n", relaxed_sample_rate_);
     Printf("  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
     Printf("  Mutex sample rate: 1/%d\n", mutex_sample_rate_);
-    Printf("  Max atomic delay: %d us\n", max_atomic_delay_us_);
-    Printf("  Max sync delay: %d us\n", max_sync_delay_us_);
-    Printf("  Delay window: %llu ms\n", window_ms_);
+    Printf("  Atomic delay: %s=%d (~%llu ns)\n", atomic_delay_.TypeName(),
+           atomic_delay_.value, atomic_delay_.EstimatedNs());
+    Printf("  Sync delay: %s=%d (~%llu ns)\n", sync_delay_.TypeName(),
+           sync_delay_.value, sync_delay_.EstimatedNs());
   }
 
   void DoSpinDelay(int cycles) {
@@ -258,10 +337,28 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
   void DoYieldDelay() { internal_sched_yield(); }
 
-  void UsleepDelay(int max_us) {
+  void DoSleepUsDelay(int max_us) {
     int delay_us = 1 + (Rand(GetRandomSeed()) % max_us);
     internal_usleep(delay_us);
     budget_.RecordDelay(delay_us * 1000ULL);
+  }
+
+  void ExecuteDelay(const DelaySpec& spec) {
+    switch (spec.type) {
+      case DelayType::Spin: {
+        int cycles = 1 + (Rand(GetRandomSeed()) % spec.value);
+        DoSpinDelay(cycles);
+        budget_.RecordDelay(cycles * DelaySpec::kNsPerSpinCycle);
+        break;
+      }
+      case DelayType::Yield:
+        DoYieldDelay();
+        budget_.RecordDelay(DelaySpec::kNsPerYield);
+        break;
+      case DelayType::SleepUs:
+        DoSleepUsDelay(spec.value);
+        break;
+    }
   }
 
   void AtomicRelaxedOpDelay() {
@@ -269,11 +366,8 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       return;
     if (!budget_.ShouldDelay())
       return;
-    if (!CanDelayThread())
-      return;
 
     DoSpinDelay(10 + (Rand(GetRandomSeed()) % 10));
-    RecordOneDelayThisThread();
     static constexpr int spin_delay_estimate_ns = 50;
     budget_.RecordDelay(spin_delay_estimate_ns);
   }
@@ -283,19 +377,11 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       return;
     if (!budget_.ShouldDelay())
       return;
-    if (!CanDelayThread())
-      return;
 
     if (addr && !sampler_.ShouldDelayAddr(*addr))
       return;
 
-    if (max_atomic_delay_us_ <= 1) {
-      DoYieldDelay();
-      static constexpr int yield_delay_estimate_ns = 100;
-      budget_.RecordDelay(yield_delay_estimate_ns);
-    } else
-      UsleepDelay(max_atomic_delay_us_);
-    RecordOneDelayThisThread();
+    ExecuteDelay(atomic_delay_);
   }
 
   void AtomicOpFence(int mo) override {
@@ -321,11 +407,8 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
     if (!budget_.ShouldDelay())
       return;
-    if (!CanDelayThread())
-      return;
 
-    UsleepDelay(max_sync_delay_us_);
-    RecordOneDelayThisThread();
+    ExecuteDelay(sync_delay_);
   }
 
   void MutexCvOp() override {
@@ -335,11 +418,8 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       return;
     if (!budget_.ShouldDelay())
       return;
-    if (!CanDelayThread())
-      return;
 
-    UsleepDelay(max_sync_delay_us_);
-    RecordOneDelayThisThread();
+    ExecuteDelay(sync_delay_);
   }
 
   void JoinOp() override { UnsampledDelay(); }
