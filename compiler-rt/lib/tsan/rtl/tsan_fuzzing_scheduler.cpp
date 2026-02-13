@@ -155,6 +155,7 @@ struct AdaptiveDelayImpl {
         TLS()->delay_buckets_ns_[0] = TLS()->delay_buckets_ns_[1];
         TLS()->delay_buckets_ns_[1] = 0;
         TLS()->bucket_start_ns_ = now;
+        TLS()->bucket0_window_ns = BucketDurationNs;
       }
 
       TLS()->delay_buckets_ns_[1] += delay_ns;
@@ -176,9 +177,8 @@ struct AdaptiveDelayImpl {
         u64 total_delay_ns = TLS()->delay_buckets_ns_[1];
         return Percent::FromRatio(total_delay_ns, elapsed_ns);
       } else {
-        u64 total_delay_ns =
-            TLS()->delay_buckets_ns_[0] + TLS()->delay_buckets_ns_[1];
-        u64 window_ns = BucketDurationNs + elapsed_ns;
+        u64 total_delay_ns = TLS()->delay_buckets_ns_[0] + TLS()->delay_buckets_ns_[1];
+        u64 window_ns = TLS()->bucket0_window_ns + elapsed_ns;
         return Percent::FromRatio(total_delay_ns, window_ns);
       }
     }
@@ -266,6 +266,7 @@ struct AdaptiveDelayImpl {
     TLS()->bucket_start_ns_ = NanoTime();
     TLS()->delay_buckets_ns_[0] = 0;
     TLS()->delay_buckets_ns_[1] = 0;
+    TLS()->bucket0_window_ns = 0;
 
     SetRandomSeed(NanoTime());
     TLS()->tls_initialized_ = true;
