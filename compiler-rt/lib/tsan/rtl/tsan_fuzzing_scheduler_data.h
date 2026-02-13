@@ -26,9 +26,11 @@ struct AdaptiveDelayTlsData {
   // Sliding window delay tracking: 2 buckets of 30 seconds each
   u64 delay_buckets_ns_[2];  // [0] = older 30s, [1] = newer 30s
   u64 bucket_start_ns_;      // When current bucket (index 1) started
-  u64 bucket0_window_ns;     // 0ns before the first bucket has rolled, and set to the bucket window time after
-                             // This handles the case where, before the program has ran one bucket window duration,
-                             // we should not include the previous bucket duration in the overhead percent calculation.
+  u64 bucket0_window_ns;  // 0ns before the first bucket has rolled, and set to
+                          // the bucket window time after This handles the case
+                          // where, before the program has ran one bucket window
+                          // duration, we should not include the previous bucket
+                          // duration in the overhead percent calculation.
   unsigned int tls_random_seed_;
   bool tls_initialized_;
 };

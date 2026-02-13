@@ -177,7 +177,8 @@ struct AdaptiveDelayImpl {
         u64 total_delay_ns = TLS()->delay_buckets_ns_[1];
         return Percent::FromRatio(total_delay_ns, elapsed_ns);
       } else {
-        u64 total_delay_ns = TLS()->delay_buckets_ns_[0] + TLS()->delay_buckets_ns_[1];
+        u64 total_delay_ns =
+            TLS()->delay_buckets_ns_[0] + TLS()->delay_buckets_ns_[1];
         u64 window_ns = TLS()->bucket0_window_ns + elapsed_ns;
         return Percent::FromRatio(total_delay_ns, window_ns);
       }
@@ -294,9 +295,9 @@ struct AdaptiveDelayImpl {
     VPrintf(1, "  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
     VPrintf(1, "  Mutex sample rate: 1/%d\n", mutex_sample_rate_);
     VPrintf(1, "  Atomic delay: %s=%d (~%llu ns)\n", atomic_delay_.TypeName(),
-           atomic_delay_.value, atomic_delay_.EstimatedNs());
+            atomic_delay_.value, atomic_delay_.EstimatedNs());
     VPrintf(1, "  Sync delay: %s=%d (~%llu ns)\n", sync_delay_.TypeName(),
-           sync_delay_.value, sync_delay_.EstimatedNs());
+            sync_delay_.value, sync_delay_.EstimatedNs());
   }
 
   void DoSpinDelay(int cycles) {
@@ -392,22 +393,16 @@ struct AdaptiveDelayImpl {
     ExecuteDelay(sync_delay_);
   }
 
-  void JoinOp() {
-    UnsampledDelay();
-  }
+  void JoinOp() { UnsampledDelay(); }
 
   void BeforeChildThreadRuns() {
     InitTls();
     UnsampledDelay();
   }
 
-  void AfterThreadCreation() {
-    UnsampledDelay();
-  }
+  void AfterThreadCreation() { UnsampledDelay(); }
 
-  void DetachThread() {
-    UnsampledDelay();
-  }
+  void DetachThread() { UnsampledDelay(); }
 };
 
 AdaptiveDelayImpl& GetImpl() {
@@ -419,30 +414,20 @@ AdaptiveDelayImpl& GetImpl() {
 
 bool is_adaptive_delay_enabled;
 
-void AdaptiveDelay::InitImpl() {
-    GetImpl().Init();
-}
+void AdaptiveDelay::InitImpl() { GetImpl().Init(); }
 
-void AdaptiveDelay::MutexCvOpImpl() {
-    GetImpl().MutexCvOp();
-}
-void AdaptiveDelay::AtomicOpFenceImpl(int mo) {
-    GetImpl().AtomicOpFence(mo);
-}
+void AdaptiveDelay::MutexCvOpImpl() { GetImpl().MutexCvOp(); }
+void AdaptiveDelay::AtomicOpFenceImpl(int mo) { GetImpl().AtomicOpFence(mo); }
 void AdaptiveDelay::AtomicOpAddrImpl(__sanitizer::uptr addr, int mo) {
-    GetImpl().AtomicOpAddr(addr, mo);
+  GetImpl().AtomicOpAddr(addr, mo);
 }
-void AdaptiveDelay::DetachThreadImpl() {
-    GetImpl().DetachThread();
-}
+void AdaptiveDelay::DetachThreadImpl() { GetImpl().DetachThread(); }
 void AdaptiveDelay::AfterThreadCreationImpl() {
-    GetImpl().AfterThreadCreation();
+  GetImpl().AfterThreadCreation();
 }
 void AdaptiveDelay::BeforeChildThreadRunsImpl() {
-    GetImpl().BeforeChildThreadRuns();
+  GetImpl().BeforeChildThreadRuns();
 }
-void AdaptiveDelay::JoinOpImpl() {
-    GetImpl().JoinOp();
-}
+void AdaptiveDelay::JoinOpImpl() { GetImpl().JoinOp(); }
 
 }  // namespace __tsan

@@ -25,47 +25,51 @@ extern bool is_adaptive_delay_enabled;
 // races. The delay injection is controlled by a time budget to maintain a
 // configurable overhead target.
 struct AdaptiveDelay {
-  ALWAYS_INLINE static void Init() {
-    InitImpl();
-  }
+  ALWAYS_INLINE static void Init() { InitImpl(); }
 
   ALWAYS_INLINE static void MutexCvOp() {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     MutexCvOpImpl();
   }
 
   ALWAYS_INLINE static void AtomicOpFence(int mo) {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     AtomicOpFenceImpl(mo);
   }
 
   ALWAYS_INLINE static void AtomicOpAddr(__sanitizer::uptr addr, int mo) {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     AtomicOpAddrImpl(addr, mo);
   }
 
   ALWAYS_INLINE static void DetachThread() {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     DetachThreadImpl();
   }
 
   ALWAYS_INLINE static void AfterThreadCreation() {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     AfterThreadCreationImpl();
   }
 
   ALWAYS_INLINE static void BeforeChildThreadRuns() {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     BeforeChildThreadRunsImpl();
   }
 
   ALWAYS_INLINE static void JoinOp() {
-    if (!is_adaptive_delay_enabled) return;
+    if (!is_adaptive_delay_enabled)
+      return;
     JoinOpImpl();
   }
 
-private:
-
+ private:
   static void InitImpl();
 
   static void MutexCvOpImpl();
