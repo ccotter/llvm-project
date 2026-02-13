@@ -295,9 +295,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     TLS()->delay_buckets_ns_[0] = 0;
     TLS()->delay_buckets_ns_[1] = 0;
 
-    SetRandomSeed(flags()->adaptive_delay_random_seed);
-    if (*GetRandomSeed() == 0)
-      SetRandomSeed(NanoTime());
+    SetRandomSeed(NanoTime());
     TLS()->tls_initialized_ = true;
   }
 
@@ -317,15 +315,14 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     budget_.Init(delay_aggressiveness);
     sampler_.Init();
 
-    Printf("INFO: ThreadSanitizer AdaptiveDelayScheduler initialized\n");
-    Printf("  Delay aggressiveness: %d\n", delay_aggressiveness);
-    Printf("  Random seed: %u\n", *GetRandomSeed());
-    Printf("  Relaxed atomic sample rate: 1/%d\n", relaxed_sample_rate_);
-    Printf("  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
-    Printf("  Mutex sample rate: 1/%d\n", mutex_sample_rate_);
-    Printf("  Atomic delay: %s=%d (~%llu ns)\n", atomic_delay_.TypeName(),
+    VPrintf(1, "INFO: ThreadSanitizer AdaptiveDelayScheduler initialized\n");
+    VPrintf(1, "  Delay aggressiveness: %d\n", delay_aggressiveness);
+    VPrintf(1, "  Relaxed atomic sample rate: 1/%d\n", relaxed_sample_rate_);
+    VPrintf(1, "  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
+    VPrintf(1, "  Mutex sample rate: 1/%d\n", mutex_sample_rate_);
+    VPrintf(1, "  Atomic delay: %s=%d (~%llu ns)\n", atomic_delay_.TypeName(),
            atomic_delay_.value, atomic_delay_.EstimatedNs());
-    Printf("  Sync delay: %s=%d (~%llu ns)\n", sync_delay_.TypeName(),
+    VPrintf(1, "  Sync delay: %s=%d (~%llu ns)\n", sync_delay_.TypeName(),
            sync_delay_.value, sync_delay_.EstimatedNs());
   }
 

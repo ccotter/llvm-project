@@ -18,6 +18,48 @@
 
 namespace __tsan {
 
+struct IFuzzingScheduler {
+  virtual void Init() = 0;
+
+  virtual void MutexCvOp() = 0;
+  virtual void AtomicOpFence(int mo) = 0;
+  virtual void AtomicOpAddr(__sanitizer::uptr addr, int mo) = 0;
+
+  virtual int DetachThread(void* th) = 0;
+  virtual void AfterThreadCreation() = 0;
+  virtual void BeforeChildThreadRuns() = 0;
+  virtual void JoinOp() = 0;
+
+ protected:
+  IFuzzingScheduler() = default;
+
+  // Derived types of IFuzzingScheduler are only constructed on the stack.
+  // No code ever deletes a base pointer, so a non-virtual destructor is OK.
+  // There is a separate clang warning, -Wdelete-non-abstract-non-virtual-dtor,
+  // that catches deleting pointers of types with virtual methods but a
+  // non-virtual destructor.
+  //
+  // The destructor cannot be virtual, otherwise it would emit references to
+  // operator delete, which the TSAN runtime cannot depend on in some
+  // environments.
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wnon-virtual-dtor"
+#endif
+  ~IFuzzingScheduler() = default;
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
+};
+
+IFuzzingScheduler& GetFuzzingScheduler();
+
+extern bool is_fuzz_scheduler_enabled;
+
+ALWAYS_INLINE bool IsFuzzSchedulerEnabled() {
+  return is_fuzz_scheduler_enabled;
+}
+
 // Fixed-point arithmetic type that mimics floating point operations
 class Percent {
   using u32 = __sanitizer::u32;
@@ -83,48 +125,6 @@ class Percent {
     return Percent{(bp_ * kBasisPointsPerUnit) / other.bp_, true};
   }
 };
-
-struct IFuzzingScheduler {
-  virtual void Init() = 0;
-
-  virtual void MutexCvOp() = 0;
-  virtual void AtomicOpFence(int mo) = 0;
-  virtual void AtomicOpAddr(__sanitizer::uptr addr, int mo) = 0;
-
-  virtual int DetachThread(void* th) = 0;
-  virtual void AfterThreadCreation() = 0;
-  virtual void BeforeChildThreadRuns() = 0;
-  virtual void JoinOp() = 0;
-
- protected:
-  IFuzzingScheduler() = default;
-
-  // Derived types of IFuzzingScheduler are only constructed on the stack.
-  // No code ever deletes a base pointer, so a non-virtual destructor is OK.
-  // There is a separate clang warning, -Wdelete-non-abstract-non-virtual-dtor,
-  // that catches deleting pointers of types with virtual methods but a
-  // non-virtual destructor.
-  //
-  // The destructor cannot be virtual, otherwise it would emit references to
-  // operator delete, which the TSAN runtime cannot depend on in some
-  // environments.
-#ifdef __clang__
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wnon-virtual-dtor"
-#endif
-  ~IFuzzingScheduler() = default;
-#ifdef __clang__
-#  pragma clang diagnostic pop
-#endif
-};
-
-IFuzzingScheduler& GetFuzzingScheduler();
-
-extern bool is_fuzz_scheduler_enabled;
-
-ALWAYS_INLINE bool IsFuzzSchedulerEnabled() {
-  return is_fuzz_scheduler_enabled;
-}
 
 }  // namespace __tsan
 

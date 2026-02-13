@@ -115,5 +115,3 @@ TSAN_FLAG(const char*, adaptive_delay_max_atomic, "sleep_us=50",
 TSAN_FLAG(const char*, adaptive_delay_max_sync, "sleep_us=500",
           "Delay for atomic operations: 'spin=N' (max N spins), 'yield', or "
           "'sleep_us=N' (max N us sleep)")
-TSAN_FLAG(int, adaptive_delay_random_seed, 0,
-          "Random seed for delay injection (0 = use time-based seed)")

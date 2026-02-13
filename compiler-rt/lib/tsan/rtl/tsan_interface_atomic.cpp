@@ -521,26 +521,26 @@ static morder to_morder(int mo) {
   return res;
 }
 
-template <class Op, class... Types>
-ALWAYS_INLINE auto AtomicImpl(morder mo, Types... args) {
+template <class... Types>
+ALWAYS_INLINE auto AtomicDelayImpl(morder mo, Types... args) {
   if (IsFuzzSchedulerEnabled())
     GetFuzzingScheduler().AtomicOpFence(mo);
+}
+
+template <class AddrType, class... Types>
+ALWAYS_INLINE auto AtomicDelayImpl(morder mo, AddrType addr, Types... args) {
+  if (IsFuzzSchedulerEnabled())
+    GetFuzzingScheduler().AtomicOpAddr((uptr)addr, (int)mo);
+}
+
+template <class Op, class... Types>
+ALWAYS_INLINE auto AtomicImpl(morder mo, Types... args) {
+  AtomicDelayImpl(mo, args...);
   ThreadState *const thr = cur_thread();
   ProcessPendingSignals(thr);
   if (UNLIKELY(thr->ignore_sync || thr->ignore_interceptors))
     return Op::NoTsanAtomic(mo, args...);
   return Op::Atomic(thr, GET_CALLER_PC(), convert_morder(mo), args...);
-}
-
-template <class Op, class AddrType, class... Types>
-ALWAYS_INLINE auto AtomicImpl(morder mo, AddrType addr, Types... args) {
-  if (IsFuzzSchedulerEnabled())
-    GetFuzzingScheduler().AtomicOpAddr((uptr)addr, (int)mo);
-  ThreadState* const thr = cur_thread();
-  ProcessPendingSignals(thr);
-  if (UNLIKELY(thr->ignore_sync || thr->ignore_interceptors))
-    return Op::NoTsanAtomic(mo, addr, args...);
-  return Op::Atomic(thr, GET_CALLER_PC(), convert_morder(mo), addr, args...);
 }
 
 extern "C" {

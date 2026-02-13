@@ -17,7 +17,7 @@
 
 namespace __tsan {
 
-// The TSAN Runtime defines cur_thread() to retrieve TLS thread state, and it
+// The runtime defines cur_thread() to retrieve TLS thread state, and it
 // takes care of platform specific implementation details. Rather than the
 // IFuzzingScheduler derived types reinventing the wheel, we define all possible
 // TLS data in this type, which will be available in cur_thread().
