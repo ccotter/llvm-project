@@ -19,12 +19,6 @@
 #include "tsan_interface.h"
 #include "tsan_rtl.h"
 
-extern "C" int pthread_detach(void*);
-
-namespace __interception {
-extern int (*real_pthread_detach)(void*);
-}  // namespace __interception
-
 namespace __tsan {
 
 namespace {
@@ -264,6 +258,8 @@ struct AdaptiveDelayImpl {
 
   void Init() {
     InitTls();
+
+    is_adaptive_delay_enabled = flags()->enable_adaptive_delay;
   }
 
   void InitTls() {
