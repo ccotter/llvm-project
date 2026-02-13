@@ -18,46 +18,69 @@
 
 namespace __tsan {
 
-struct IFuzzingScheduler {
-  virtual void Init() = 0;
+extern bool is_adaptive_delay_enabled;
 
-  virtual void MutexCvOp() = 0;
-  virtual void AtomicOpFence(int mo) = 0;
-  virtual void AtomicOpAddr(__sanitizer::uptr addr, int mo) = 0;
+// AdaptiveDelay injects delays at synchronization points, atomic operations,
+// and thread lifecycle events to increase the likelihood of exposing data
+// races. The delay injection is controlled by a time budget to maintain a
+// configurable overhead target.
+struct AdaptiveDelay {
+  ALWAYS_INLINE static void Init() {
+    InitImpl();
+  }
 
-  virtual int DetachThread(void* th) = 0;
-  virtual void AfterThreadCreation() = 0;
-  virtual void BeforeChildThreadRuns() = 0;
-  virtual void JoinOp() = 0;
+  ALWAYS_INLINE static void MutexCvOp() {
+    if (!is_adaptive_delay_enabled) return;
+    MutexCvOpImpl();
+  }
 
- protected:
-  IFuzzingScheduler() = default;
+  ALWAYS_INLINE static void AtomicOpFence(int mo) {
+    if (!is_adaptive_delay_enabled) return;
+    AtomicOpFenceImpl(mo);
+  }
 
-  // Derived types of IFuzzingScheduler are only constructed on the stack.
-  // No code ever deletes a base pointer, so a non-virtual destructor is OK.
-  // There is a separate clang warning, -Wdelete-non-abstract-non-virtual-dtor,
-  // that catches deleting pointers of types with virtual methods but a
-  // non-virtual destructor.
-  //
-  // The destructor cannot be virtual, otherwise it would emit references to
-  // operator delete, which the TSAN runtime cannot depend on in some
-  // environments.
-#ifdef __clang__
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wnon-virtual-dtor"
-#endif
-  ~IFuzzingScheduler() = default;
-#ifdef __clang__
-#  pragma clang diagnostic pop
-#endif
+  ALWAYS_INLINE static void AtomicOpAddr(__sanitizer::uptr addr, int mo) {
+    if (!is_adaptive_delay_enabled) return;
+    AtomicOpAddrImpl(addr, mo);
+  }
+
+  ALWAYS_INLINE static void DetachThread() {
+    if (!is_adaptive_delay_enabled) return;
+    DetachThreadImpl();
+  }
+
+  ALWAYS_INLINE static void AfterThreadCreation() {
+    if (!is_adaptive_delay_enabled) return;
+    AfterThreadCreationImpl();
+  }
+
+  ALWAYS_INLINE static void BeforeChildThreadRuns() {
+    if (!is_adaptive_delay_enabled) return;
+    BeforeChildThreadRunsImpl();
+  }
+
+  ALWAYS_INLINE static void JoinOp() {
+    if (!is_adaptive_delay_enabled) return;
+    JoinOpImpl();
+  }
+
+private:
+
+  static void InitImpl();
+
+  static void MutexCvOpImpl();
+  static void AtomicOpFenceImpl(int mo);
+  static void AtomicOpAddrImpl(__sanitizer::uptr addr, int mo);
+  static void DetachThreadImpl();
+  static void AfterThreadCreationImpl();
+  static void BeforeChildThreadRunsImpl();
+  static void JoinOpImpl();
 };
 
-IFuzzingScheduler& GetFuzzingScheduler();
+AdaptiveDelay& GetAdaptiveDelay();
 
-extern bool is_fuzz_scheduler_enabled;
-
-ALWAYS_INLINE bool IsFuzzSchedulerEnabled() {
-  return is_fuzz_scheduler_enabled;
+ALWAYS_INLINE bool IsAdaptiveDelayEnabled() {
+  return is_adaptive_delay_enabled;
 }
 
 // Fixed-point arithmetic type that mimics floating point operations

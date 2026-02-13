@@ -523,14 +523,14 @@ static morder to_morder(int mo) {
 
 template <class... Types>
 ALWAYS_INLINE auto AtomicDelayImpl(morder mo, Types... args) {
-  if (IsFuzzSchedulerEnabled())
-    GetFuzzingScheduler().AtomicOpFence(mo);
+  if (IsAdaptiveDelayEnabled())
+    AdaptiveDelay::AtomicOpFence(mo);
 }
 
 template <class AddrType, class... Types>
 ALWAYS_INLINE auto AtomicDelayImpl(morder mo, AddrType addr, Types... args) {
-  if (IsFuzzSchedulerEnabled())
-    GetFuzzingScheduler().AtomicOpAddr((uptr)addr, (int)mo);
+  if (IsAdaptiveDelayEnabled())
+    AdaptiveDelay::AtomicOpAddr((uptr)addr, (int)mo);
 }
 
 template <class Op, class... Types>

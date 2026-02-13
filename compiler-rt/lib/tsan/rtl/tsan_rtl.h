@@ -241,7 +241,7 @@ struct alignas(SANITIZER_CACHE_LINE_SIZE) ThreadState {
   bool in_internal_write_call;
 #endif
 
-  FuzzingSchedulerTlsData fuzzingSchedulerTlsData;
+  AdaptiveDelayTlsData adaptiveDelayTlsData;
 
   explicit ThreadState(Tid tid);
 };

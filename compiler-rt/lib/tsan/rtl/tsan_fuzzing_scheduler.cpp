@@ -29,24 +29,6 @@ namespace __tsan {
 
 namespace {
 
-#ifdef __clang__
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wnon-virtual-dtor"
-#endif
-struct NullFuzzingScheduler : IFuzzingScheduler {
-#ifdef __clang__
-#  pragma clang diagnostic pop
-#endif
-  void Init() override {}
-  void AtomicOpFence(int mo) override {}
-  void AtomicOpAddr(uptr addr, int mo) override {}
-  void MutexCvOp() override {}
-  int DetachThread(void* th) override { return REAL(pthread_detach)(th); }
-  void BeforeChildThreadRuns() override {}
-  void AfterThreadCreation() override {}
-  void JoinOp() override {}
-};
-
 // =============================================================================
 // DelaySpec: Represents a delay configuration parsed from flag strings
 // =============================================================================
@@ -118,10 +100,10 @@ struct DelaySpec {
 };
 
 // =============================================================================
-// AdaptiveDelayScheduler: Time-budget aware delay injection for race exposure
+// AdaptiveDelay: Time-budget aware delay injection for race exposure
 // =============================================================================
 //
-// This scheduler injects delays to expose data races while maintaining a
+// This implementation injects delays to expose data races while maintaining a
 // configurable overhead target. It uses several strategies:
 //
 // 1. Time-Budget Controller: Tracks cumulative delays vs wall-clock time
@@ -136,23 +118,15 @@ struct DelaySpec {
 // 3. Address-based Sampling: Exponential backoff per address to avoid
 //    repeatedly delaying hot atomics.
 
-#ifdef __clang__
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wnon-virtual-dtor"
-#endif
-struct AdaptiveDelayScheduler : NullFuzzingScheduler {
-#ifdef __clang__
-#  pragma clang diagnostic pop
-#endif
-
-  ALWAYS_INLINE static FuzzingSchedulerTlsData* TLS() {
-    return &cur_thread()->fuzzingSchedulerTlsData;
+struct AdaptiveDelayImpl {
+  ALWAYS_INLINE static AdaptiveDelayTlsData* TLS() {
+    return &cur_thread()->adaptiveDelayTlsData;
   }
   ALWAYS_INLINE static unsigned int* GetRandomSeed() {
-    return &cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_;
+    return &cur_thread()->adaptiveDelayTlsData.tls_random_seed_;
   }
   ALWAYS_INLINE static void SetRandomSeed(unsigned int seed) {
-    cur_thread()->fuzzingSchedulerTlsData.tls_random_seed_ = seed;
+    cur_thread()->adaptiveDelayTlsData.tls_random_seed_ = seed;
   }
 
   // The public facing option is adaptive_delay_aggressiveness, which is an
@@ -288,7 +262,9 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
   DelaySpec atomic_delay_;
   DelaySpec sync_delay_;
 
-  void Init() override { InitTls(); }
+  void Init() {
+    InitTls();
+  }
 
   void InitTls() {
     TLS()->bucket_start_ns_ = NanoTime();
@@ -301,7 +277,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
 
   bool IsTlsInitialized() const { return TLS()->tls_initialized_; }
 
-  AdaptiveDelayScheduler() {
+  AdaptiveDelayImpl() {
     relaxed_sample_rate_ = flags()->adaptive_delay_relaxed_sample_rate;
     sync_atomic_sample_rate_ = flags()->adaptive_delay_sync_atomic_sample_rate;
     mutex_sample_rate_ = flags()->adaptive_delay_mutex_sample_rate;
@@ -315,7 +291,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     budget_.Init(delay_aggressiveness);
     sampler_.Init();
 
-    VPrintf(1, "INFO: ThreadSanitizer AdaptiveDelayScheduler initialized\n");
+    VPrintf(1, "INFO: ThreadSanitizer AdaptiveDelay initialized\n");
     VPrintf(1, "  Delay aggressiveness: %d\n", delay_aggressiveness);
     VPrintf(1, "  Relaxed atomic sample rate: 1/%d\n", relaxed_sample_rate_);
     VPrintf(1, "  Sync atomic sample rate: 1/%d\n", sync_atomic_sample_rate_);
@@ -381,7 +357,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     ExecuteDelay(atomic_delay_);
   }
 
-  void AtomicOpFence(int mo) override {
+  void AtomicOpFence(int mo) {
     CHECK(IsTlsInitialized());
 
     if (mo < mo_acquire)
@@ -390,7 +366,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
       AtomicSyncOpDelay(nullptr);
   }
 
-  void AtomicOpAddr(uptr addr, int mo) override {
+  void AtomicOpAddr(uptr addr, int mo) {
     CHECK(IsTlsInitialized());
 
     if (mo < mo_acquire)
@@ -408,7 +384,7 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     ExecuteDelay(sync_delay_);
   }
 
-  void MutexCvOp() override {
+  void MutexCvOp() {
     CHECK(IsTlsInitialized());
 
     if ((Rand(GetRandomSeed()) % mutex_sample_rate_) != 0)
@@ -419,46 +395,57 @@ struct AdaptiveDelayScheduler : NullFuzzingScheduler {
     ExecuteDelay(sync_delay_);
   }
 
-  void JoinOp() override { UnsampledDelay(); }
+  void JoinOp() {
+    UnsampledDelay();
+  }
 
-  void BeforeChildThreadRuns() override {
+  void BeforeChildThreadRuns() {
     InitTls();
     UnsampledDelay();
   }
 
-  void AfterThreadCreation() override { UnsampledDelay(); }
-
-  int DetachThread(void* th) override {
-    int res = REAL(pthread_detach)(th);
+  void AfterThreadCreation() {
     UnsampledDelay();
-    return res;
+  }
+
+  void DetachThread() {
+    UnsampledDelay();
   }
 };
 
-IFuzzingScheduler& FuzzingSchedulerDispatcher() {
-  if (!internal_strcmp(flags()->fuzzing_scheduler, "")) {
-    is_fuzz_scheduler_enabled = false;
-    static NullFuzzingScheduler scheduler;
-    return scheduler;
-  } else if (!internal_strcmp(flags()->fuzzing_scheduler, "adaptive")) {
-    is_fuzz_scheduler_enabled = true;
-    static AdaptiveDelayScheduler scheduler;
-    return scheduler;
-  } else {
-    Printf(
-        "FATAL: ThreadSanitizer invalid fuzzing scheduler. Please check "
-        "TSAN_OPTIONS!\n");
-    Die();
-  }
+AdaptiveDelayImpl& GetImpl() {
+  static AdaptiveDelayImpl impl;
+  return impl;
 }
 
 }  // namespace
 
-bool is_fuzz_scheduler_enabled;
+bool is_adaptive_delay_enabled;
 
-IFuzzingScheduler& GetFuzzingScheduler() {
-  static IFuzzingScheduler& scheduler = FuzzingSchedulerDispatcher();
-  return scheduler;
+void AdaptiveDelay::InitImpl() {
+    GetImpl().Init();
+}
+
+void AdaptiveDelay::MutexCvOpImpl() {
+    GetImpl().MutexCvOp();
+}
+void AdaptiveDelay::AtomicOpFenceImpl(int mo) {
+    GetImpl().AtomicOpFence(mo);
+}
+void AdaptiveDelay::AtomicOpAddrImpl(__sanitizer::uptr addr, int mo) {
+    GetImpl().AtomicOpAddr(addr, mo);
+}
+void AdaptiveDelay::DetachThreadImpl() {
+    GetImpl().DetachThread();
+}
+void AdaptiveDelay::AfterThreadCreationImpl() {
+    GetImpl().AfterThreadCreation();
+}
+void AdaptiveDelay::BeforeChildThreadRunsImpl() {
+    GetImpl().BeforeChildThreadRuns();
+}
+void AdaptiveDelay::JoinOpImpl() {
+    GetImpl().JoinOp();
 }
 
 }  // namespace __tsan

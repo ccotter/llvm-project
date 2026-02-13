@@ -93,8 +93,12 @@ TSAN_FLAG(LockDuringWriteSetting, lock_during_write, kLockDuringAllWrites,
           "the current process and it's children processes.")
 #endif
 
-TSAN_FLAG(const char*, fuzzing_scheduler, "",
-          "Fuzzing scheduler: '' (default; none), 'adaptive'")
+TSAN_FLAG(bool, enable_adaptive_delay, false,
+          "Enable adaptive delay injection to expose data races. When "
+          "enabled, delays are strategically injected at synchronization "
+          "points, atomic operations, and thread lifecycle events to increase "
+          "the likelihood of exposing races while maintaining a configurable "
+          "overhead budget.")
 
 TSAN_FLAG(
     int, adaptive_delay_aggressiveness, 25,

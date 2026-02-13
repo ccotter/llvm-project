@@ -777,7 +777,7 @@ void Initialize(ThreadState *thr) {
   }
 
 #if !SANITIZER_GO
-  GetFuzzingScheduler().Init();
+  AdaptiveDelay::Init();
 #endif
 
   OnInitialize();
