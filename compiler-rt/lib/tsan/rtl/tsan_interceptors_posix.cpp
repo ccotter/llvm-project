@@ -40,6 +40,7 @@
 #include "tsan_mman.h"
 #include "tsan_platform.h"
 #include "tsan_rtl.h"
+#include "tsan_simulate.h"
 #include "tsan_suppressions.h"
 
 using namespace __tsan;
@@ -93,6 +94,7 @@ extern "C" int pthread_key_create(unsigned *key, void (*destructor)(void* v));
 extern "C" int pthread_setspecific(unsigned key, const void *v);
 DECLARE_REAL(int, pthread_mutexattr_gettype, void *, void *)
 DECLARE_REAL(int, fflush, __sanitizer_FILE *fp)
+DECLARE_REAL(int, pthread_mutex_trylock, void *m)
 DECLARE_REAL_AND_INTERCEPTOR(void *, malloc, usize size)
 DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
 extern "C" int pthread_equal(void *t1, void *t2);
@@ -1068,8 +1070,10 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   }
 
   AdaptiveDelay::BeforeChildThreadRuns();
+  SimulateThreadStart();
 
   void *res = callback(param);
+  SimulateThreadFinish();
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
   volatile int foo = 42;
@@ -1133,6 +1137,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (attr == &myattr)
     pthread_attr_destroy(&myattr);
   AdaptiveDelay::AfterThreadCreation();
+  SimulateSchedule();
   return res;
 }
 
@@ -1156,7 +1161,12 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
 #endif
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
+  // In simulation mode the target thread may be parked by the scheduler.
+  // Mark ourselves as blocked so the scheduler can run other threads while
+  // we wait for the target to exit.
+  SimulateThreadBlock();
   int res = BLOCK_REAL(pthread_join)(th, ret);
+  SimulateThreadUnblock();
   ThreadIgnoreEnd(thr);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);
@@ -1329,6 +1339,7 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
 INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
+  // TODO: simulation support for condvar (requires custom waiter tracking).
   return cond_wait(
       thr, pc, &si, [=]() { return REAL(pthread_cond_wait)(cond, m); }, cond,
       m);
@@ -1375,6 +1386,7 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
 INTERCEPTOR(int, pthread_cond_signal, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
+  // TODO: simulation support for condvar.
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   return REAL(pthread_cond_signal)(cond);
 }
@@ -1382,6 +1394,7 @@ INTERCEPTOR(int, pthread_cond_signal, void *c) {
 INTERCEPTOR(int, pthread_cond_broadcast, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
+  // TODO: simulation support for condvar.
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   return REAL(pthread_cond_broadcast)(cond);
 }
@@ -1429,7 +1442,20 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_lock, m);
   MutexPreLock(thr, pc, (uptr)m);
   AdaptiveDelay::SyncOp();
-  int res = BLOCK_REAL(pthread_mutex_lock)(m);
+  int res;
+  if (SimulateIsActive()) {
+    // In simulation mode, the mutex holder may be parked by the scheduler.
+    // Use a trylock loop with scheduling yields to avoid deadlock.
+    SimulateSchedule();
+    while (true) {
+      res = REAL(pthread_mutex_trylock)(m);
+      if (res != errno_EBUSY)
+        break;
+      SimulateSchedule();
+    }
+  } else {
+    res = BLOCK_REAL(pthread_mutex_lock)(m);
+  }
   if (res == errno_EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
   if (res == 0 || res == errno_EOWNERDEAD)
@@ -1467,6 +1493,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   MutexUnlock(thr, pc, (uptr)m);
   int res = REAL(pthread_mutex_unlock)(m);
   AdaptiveDelay::SyncOp();
+  SimulateSchedule();
   if (res == errno_EINVAL)
     MutexInvalidAccess(thr, pc, (uptr)m);
   return res;

@@ -119,3 +119,12 @@ TSAN_FLAG(const char*, adaptive_delay_max_atomic, "sleep_us=50",
 TSAN_FLAG(const char*, adaptive_delay_max_sync, "sleep_us=500",
           "Delay for sync operations: 'spin=N' (max N spins), 'yield', or "
           "'sleep_us=N' (max N>0 us sleep)")
+
+TSAN_FLAG(const char *, simulate_scheduler, "",
+          "Scheduler algorithm for __tsan_simulate. "
+          "Supported values: 'random'. Empty means simulation is disabled.")
+TSAN_FLAG(int, simulate_iterations, 1000,
+          "Number of iterations for __tsan_simulate.")
+TSAN_FLAG(int, simulate_max_depth, 10000,
+          "Maximum scheduling depth per iteration. If exceeded, the "
+          "iteration is aborted and a new one starts.")
