@@ -138,6 +138,8 @@ class SimScheduler {
     // Random scheduling: pick a random runnable thread.
     int chosen = PickRandomRunnable(runnable);
 
+    VPrintf(1, "Chose tid %d to run current %d\n", chosen, caller_idx);
+
     if (chosen == caller_idx) {
       // Random picked us — keep running.
       mtx_.Unlock();
@@ -254,7 +256,7 @@ class SimScheduler {
     threads_[chosen].sem.Post();
   }
 
-  StaticSpinMutex mtx_;
+  SpinMutex mtx_;
   RandomGenerator rng_;
   SimThread threads_[kMaxSimThreads];
   int current_;
@@ -365,7 +367,9 @@ void SimulateRun(void (*callback)(void *), void *arg) {
     sched_ptr->GetSemaphore(main_idx)->Wait();
 
     // Run the test callback for this iteration.
+    VPrintf(1, "Start callback...\n");
     callback(arg);
+    VPrintf(1, "End callback...\n");
 
     // Main thread finished; unregister from the scheduler.
     sched_ptr->ThreadFinish(main_idx);

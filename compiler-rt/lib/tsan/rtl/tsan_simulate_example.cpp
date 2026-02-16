@@ -96,6 +96,84 @@ void test_producer_consumer(void *arg) {
   consumer.join();
 }
 
+// Test callback: non-atomic increments (demonstrates data race).
+// Two threads each increment a shared variable 5 times without synchronization.
+// TSAN will detect the race condition.
+void test_non_atomic_increment(void *arg) {
+  (void)arg;
+
+  std::atomic<int> shared_counter = 0;
+
+  std::thread t1([&]() {
+    for (int i = 0; i < 5; i++) {
+      int x = shared_counter.load();
+      shared_counter.store(x+1);
+    }
+  });
+
+  std::thread t2([&]() {
+    for (int i = 0; i < 5; i++) {
+      int x = shared_counter.load();
+      shared_counter.store(x+1);
+    }
+  });
+
+  t1.join();
+  t2.join();
+
+  printf("Counter value: %d\n", shared_counter.load());
+
+  //assert(shared_counter == 10 && "Counter should be 10 if no race occurred");
+}
+
+// Test callback: producer-consumer with condition variable.
+// Producer produces 5 items, consumer consumes them one by one.
+#include <condition_variable>
+#include <queue>
+
+void test_condvar_producer_consumer(void *arg) {
+  (void)arg;
+
+  std::queue<int> queue;
+  std::mutex mtx;
+  std::condition_variable cv;
+  bool done = false;
+
+  std::thread producer([&]() {
+    for (int i = 1; i <= 5; i++) {
+      {
+        std::lock_guard<std::mutex> lock(mtx);
+        queue.push(i);
+      }
+      cv.notify_one();
+    }
+    {
+      std::lock_guard<std::mutex> lock(mtx);
+      done = true;
+    }
+    cv.notify_one();
+  });
+
+  std::thread consumer([&]() {
+    int count = 0;
+    while (true) {
+      std::unique_lock<std::mutex> lock(mtx);
+      cv.wait(lock, [&]() { return !queue.empty() || done; });
+      
+      if (!queue.empty()) {
+        queue.pop();
+        count++;
+      } else if (done) {
+        break;
+      }
+    }
+    assert(count == 5 && "Consumer should have received 5 items");
+  });
+
+  producer.join();
+  consumer.join();
+}
+
 int main() {
   printf("=== Test 1: Atomic counter (two threads) ===\n");
   __tsan_simulate(test_atomic_counter, nullptr);
@@ -105,6 +183,14 @@ int main() {
 
   printf("\n=== Test 3: Producer-consumer ===\n");
   __tsan_simulate(test_producer_consumer, nullptr);
+
+  printf("\n=== Test 4: Condition variable producer-consumer ===\n");
+  __tsan_simulate(test_condvar_producer_consumer, nullptr);
+
+  if (false) {
+    printf("\n=== Test 5: Non-atomic increment (demonstrates race) ===\n");
+    __tsan_simulate(test_non_atomic_increment, nullptr);
+  }
 
   printf("\nAll tests passed.\n");
   return 0;

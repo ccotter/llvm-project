@@ -1321,6 +1321,9 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
   // This ensures that we handle mutex lock even in case of pthread_cancel.
   // See test/tsan/cond_cancel.cpp.
   {
+    // In simulation mode, mark this thread as blocked so other threads can run
+    // while we wait on the condition variable.
+    SimulateThreadBlock();
     // Enable signal delivery while the thread is blocked.
     BlockingCall bc(thr);
     CondMutexUnlockCtx<Fn> arg = {si, thr, pc, m, c, fn};
@@ -1330,6 +1333,8 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
         },
         [](void *arg) { ((const CondMutexUnlockCtx<Fn> *)arg)->Unlock(); },
         &arg);
+    // After waking from the condition variable, re-register as runnable.
+    SimulateThreadUnblock();
   }
   if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);
   MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
@@ -1339,7 +1344,6 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
 INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_wait, cond, m);
-  // TODO: simulation support for condvar (requires custom waiter tracking).
   return cond_wait(
       thr, pc, &si, [=]() { return REAL(pthread_cond_wait)(cond, m); }, cond,
       m);
@@ -1386,17 +1390,21 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
 INTERCEPTOR(int, pthread_cond_signal, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
-  // TODO: simulation support for condvar.
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
-  return REAL(pthread_cond_signal)(cond);
+  int res = REAL(pthread_cond_signal)(cond);
+  // In simulation mode, yield to give the woken thread a chance to run.
+  SimulateSchedule();
+  return res;
 }
 
 INTERCEPTOR(int, pthread_cond_broadcast, void *c) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
-  // TODO: simulation support for condvar.
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
-  return REAL(pthread_cond_broadcast)(cond);
+  int res = REAL(pthread_cond_broadcast)(cond);
+  // In simulation mode, yield to give woken threads a chance to run.
+  SimulateSchedule();
+  return res;
 }
 
 INTERCEPTOR(int, pthread_cond_destroy, void *c) {
