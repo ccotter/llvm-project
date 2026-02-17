@@ -59,7 +59,7 @@ struct SimThread {
   enum State : u32 {
     Unused = 0,
     Running,   // Runnable — may be selected by the scheduler.
-    Blocked,   // Blocked in an OS call — scheduler must not pick this thread.
+    Blocked,   // Blocked on mutex/condvar — scheduler must not pick this thread.
     Finished,  // Thread has exited the simulation.
   };
 
@@ -68,6 +68,45 @@ struct SimThread {
 };
 
 static constexpr int kMaxSimThreads = 64;
+
+// Waitset: tracks threads blocked waiting for a resource (mutex or condvar).
+struct Waitset {
+  static constexpr int kMaxWaiters = kMaxSimThreads;
+  int waiters[kMaxWaiters];
+  int count;
+
+  Waitset() : count(0) {
+    internal_memset(waiters, 0, sizeof(waiters));
+  }
+
+  void AddWaiter(int thread_idx) {
+    CHECK_LT(count, kMaxWaiters);
+    waiters[count++] = thread_idx;
+  }
+
+  // Randomly select and remove one thread from the waitset.
+  // Matches Relacy's approach to maximize interleaving exploration.
+  int RemoveOne(RandomGenerator *rng) {
+    CHECK_GT(count, 0);
+    // Pick a random thread from the waitset.
+    int idx = rng->NextRange(count);
+    int thread_idx = waiters[idx];
+    // Remove it by shifting remaining threads.
+    for (int i = idx + 1; i < count; i++)
+      waiters[i - 1] = waiters[i];
+    count--;
+    return thread_idx;
+  }
+
+  // Remove all threads and return count.
+  int RemoveAll(int *out_threads) {
+    int n = count;
+    for (int i = 0; i < count; i++)
+      out_threads[i] = waiters[i];
+    count = 0;
+    return n;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Simulation scheduler
@@ -107,6 +146,24 @@ class SimScheduler {
     current_ = -1;
   }
 
+  void DumpStates() {
+    // Debug: print thread states before context switch.
+      if (common_flags()->verbosity >= 2) {
+        VPrintf(2, "Thread states: ");
+        for (int i = 0; i < thread_count_; i++) {
+        const char *state_str = "?";
+        switch (threads_[i].state) {
+          case SimThread::Unused: state_str = "Unused"; break;
+          case SimThread::Running: state_str = "Running"; break;
+          case SimThread::Blocked: state_str = "Blocked"; break;
+          case SimThread::Finished: state_str = "Finished"; break;
+        }
+        VPrintf(2, "[%d:%s] ", i, state_str);
+        }
+        VPrintf(2, "\n");
+      }
+    }
+
   // ------- Scheduling point (non-blocking) -------
   //
   // Called by the currently running thread. May randomly switch to another
@@ -139,6 +196,7 @@ class SimScheduler {
     int chosen = PickRandomRunnable(runnable);
 
     VPrintf(1, "Chose tid %d to run current %d\n", chosen, caller_idx);
+    DumpStates();
 
     if (chosen == caller_idx) {
       // Random picked us — keep running.
@@ -221,6 +279,156 @@ class SimScheduler {
 
   Semaphore *GetSemaphore(int idx) { return &threads_[idx].sem; }
 
+  void MutexBlock(int caller_idx, uptr mutex_addr) {
+    mtx_.Lock();
+
+    if (caller_idx != current_) {
+      // Not the current thread — shouldn't happen.
+      mtx_.Unlock();
+      return;
+    }
+
+    // Add this thread to the mutex's waitset.
+    Waitset *ws = GetOrCreateMutexWaitset(mutex_addr);
+    ws->AddWaiter(caller_idx);
+
+    // Mark thread as blocked.
+    threads_[caller_idx].state = SimThread::Blocked;
+
+    // Pick next runnable thread and wake it.
+    PickNextAndWake();
+
+    mtx_.Unlock();
+
+    // Park this thread until woken by unlock.
+    threads_[caller_idx].sem.Wait();
+  }
+
+  void MutexUnblock(uptr mutex_addr) {
+    mtx_.Lock();
+
+    // Find the waitset for this mutex.
+    Waitset *ws = nullptr;
+    for (int i = 0; i < mutex_waitset_count_; i++) {
+      if (mutex_waitset_addrs_[i] == mutex_addr) {
+        ws = &mutex_waitsets_[i];
+        break;
+      }
+    }
+
+    if (!ws || ws->count == 0) {
+      mtx_.Unlock();
+      return;
+    }
+
+    // Remove one waiter randomly and mark it as runnable.
+    int thread_idx = ws->RemoveOne(&rng_);
+    threads_[thread_idx].state = SimThread::Running;
+
+    // If no thread is current, make the unblocked thread current and wake it.
+    if (current_ == -1) {
+      current_ = thread_idx;
+      threads_[thread_idx].sem.Post();
+    }
+    // Otherwise it will be picked up by next Schedule() or when current finishes.
+
+    mtx_.Unlock();
+  }
+
+  void CondWait(int caller_idx, uptr cond_addr, uptr mutex_addr) {
+    mtx_.Lock();
+
+    if (caller_idx != current_) {
+      mtx_.Unlock();
+      return;
+    }
+
+    // Add this thread to the condvar's waitset.
+    Waitset *ws = GetOrCreateCondWaitset(cond_addr);
+    ws->AddWaiter(caller_idx);
+
+    // Mark thread as blocked.
+    threads_[caller_idx].state = SimThread::Blocked;
+
+    // Pick next runnable thread and wake it.
+    PickNextAndWake();
+
+    mtx_.Unlock();
+
+    // Park this thread until woken by signal/broadcast.
+    threads_[caller_idx].sem.Wait();
+  }
+
+  void CondSignal(uptr cond_addr) {
+    mtx_.Lock();
+
+    // Find the waitset for this condvar.
+    Waitset *ws = nullptr;
+    for (int i = 0; i < cond_waitset_count_; i++) {
+      if (cond_waitset_addrs_[i] == cond_addr) {
+        ws = &cond_waitsets_[i];
+        break;
+      }
+    }
+
+    if (!ws || ws->count == 0) {
+      mtx_.Unlock();
+      return;
+    }
+
+    // Remove one waiter randomly and mark it as runnable.
+    int thread_idx = ws->RemoveOne(&rng_);
+    threads_[thread_idx].state = SimThread::Running;
+
+    // If no thread is current, make the unblocked thread current and wake it.
+    if (current_ == -1) {
+      current_ = thread_idx;
+      threads_[thread_idx].sem.Post();
+    }
+
+    mtx_.Unlock();
+  }
+
+  void CondBroadcast(uptr cond_addr) {
+    mtx_.Lock();
+
+    // Find the waitset for this condvar.
+    Waitset *ws = nullptr;
+    for (int i = 0; i < cond_waitset_count_; i++) {
+      if (cond_waitset_addrs_[i] == cond_addr) {
+        ws = &cond_waitsets_[i];
+        break;
+      }
+    }
+
+    if (!ws || ws->count == 0) {
+      mtx_.Unlock();
+      return;
+    }
+
+    // Wake all waiting threads.
+    int woken[kMaxSimThreads];
+    int n = ws->RemoveAll(woken);
+    for (int i = 0; i < n; i++) {
+      threads_[woken[i]].state = SimThread::Running;
+    }
+
+    // If no thread is current, pick one of the woken threads.
+    if (current_ == -1 && n > 0) {
+      int idx = rng_.NextRange(n);
+      current_ = woken[idx];
+      threads_[woken[idx]].sem.Post();
+      // Wake the rest later when scheduled.
+      for (int i = 0; i < n; i++) {
+        if (i != idx && threads_[woken[i]].state == SimThread::Running) {
+          // They'll be picked up by scheduler.
+        }
+      }
+    }
+
+    mtx_.Unlock();
+  }
+
  private:
   int CountRunnable() const {
     int n = 0;
@@ -247,6 +455,7 @@ class SimScheduler {
   // its semaphore, or sets current_ = -1 if none are runnable.
   void PickNextAndWake() {
     int runnable = CountRunnable();
+    DumpStates();
     if (runnable == 0) {
       current_ = -1;
       return;
@@ -256,12 +465,48 @@ class SimScheduler {
     threads_[chosen].sem.Post();
   }
 
+  // Get or create waitset for a mutex. Uses simple linear search since
+  // we don't expect many mutexes per iteration.
+  Waitset *GetOrCreateMutexWaitset(uptr mutex_addr) {
+    for (int i = 0; i < mutex_waitset_count_; i++) {
+      if (mutex_waitset_addrs_[i] == mutex_addr)
+        return &mutex_waitsets_[i];
+    }
+    CHECK_LT(mutex_waitset_count_, kMaxWaitsets);
+    int idx = mutex_waitset_count_++;
+    mutex_waitset_addrs_[idx] = mutex_addr;
+    new (&mutex_waitsets_[idx]) Waitset();
+    return &mutex_waitsets_[idx];
+  }
+
+  // Get or create waitset for a condition variable.
+  Waitset *GetOrCreateCondWaitset(uptr cond_addr) {
+    for (int i = 0; i < cond_waitset_count_; i++) {
+      if (cond_waitset_addrs_[i] == cond_addr)
+        return &cond_waitsets_[i];
+    }
+    CHECK_LT(cond_waitset_count_, kMaxWaitsets);
+    int idx = cond_waitset_count_++;
+    cond_waitset_addrs_[idx] = cond_addr;
+    new (&cond_waitsets_[idx]) Waitset();
+    return &cond_waitsets_[idx];
+  }
+
   SpinMutex mtx_;
   RandomGenerator rng_;
   SimThread threads_[kMaxSimThreads];
   int current_;
   int thread_count_;
   int depth_;
+
+  // Resource waitsets: map from resource address to waitset.
+  static constexpr int kMaxWaitsets = 256;
+  uptr mutex_waitset_addrs_[kMaxWaitsets];
+  Waitset mutex_waitsets_[kMaxWaitsets];
+  int mutex_waitset_count_ = 0;
+  uptr cond_waitset_addrs_[kMaxWaitsets];
+  Waitset cond_waitsets_[kMaxWaitsets];
+  int cond_waitset_count_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -340,6 +585,42 @@ void SimulateThreadUnblock() {
   if (idx < 0)
     return;
   sim_sched->AfterBlockingCall(idx);
+}
+
+void SimulateMutexBlock(uptr mutex_addr) {
+  if (!SimulateIsActive())
+    return;
+  int idx = sim_thread_idx;
+  if (idx < 0)
+    return;
+  sim_sched->MutexBlock(idx, mutex_addr);
+}
+
+void SimulateMutexUnblock(uptr mutex_addr) {
+  if (!SimulateIsActive())
+    return;
+  sim_sched->MutexUnblock(mutex_addr);
+}
+
+void SimulateCondWait(uptr cond_addr, uptr mutex_addr) {
+  if (!SimulateIsActive())
+    return;
+  int idx = sim_thread_idx;
+  if (idx < 0)
+    return;
+  sim_sched->CondWait(idx, cond_addr, mutex_addr);
+}
+
+void SimulateCondSignal(uptr cond_addr) {
+  if (!SimulateIsActive())
+    return;
+  sim_sched->CondSignal(cond_addr);
+}
+
+void SimulateCondBroadcast(uptr cond_addr) {
+  if (!SimulateIsActive())
+    return;
+  sim_sched->CondBroadcast(cond_addr);
 }
 
 int SimulateRun(void (*callback)(void *), void *arg) {

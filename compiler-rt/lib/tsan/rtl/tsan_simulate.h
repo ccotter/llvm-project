@@ -54,6 +54,24 @@ void SimulateThreadBlock();
 // joined thread finished). Marks the thread as runnable again.
 void SimulateThreadUnblock();
 
+// Called when pthread_mutex_lock cannot acquire the mutex. Adds the thread to
+// the mutex's waitset and parks it until pthread_mutex_unlock wakes it.
+void SimulateMutexBlock(uptr mutex_addr);
+
+// Called when pthread_mutex_unlock releases a mutex. Wakes one thread from
+// the mutex's waitset (if any).
+void SimulateMutexUnblock(uptr mutex_addr);
+
+// Called when pthread_cond_wait blocks on a condition variable. Adds the thread
+// to the condvar's waitset and parks it. Must be called only when SimulateIsActive().
+void SimulateCondWait(uptr cond_addr, uptr mutex_addr);
+
+// Called when pthread_cond_signal wakes one thread from a condition variable.
+void SimulateCondSignal(uptr cond_addr);
+
+// Called when pthread_cond_broadcast wakes all threads from a condition variable.
+void SimulateCondBroadcast(uptr cond_addr);
+
 // Run the simulation: invoke `callback(arg)` for `iterations` iterations,
 // exploring thread interleavings using the configured scheduler.
 // Returns 0 on success, non-zero on error (1=pre-existing threads,

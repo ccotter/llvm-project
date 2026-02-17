@@ -95,6 +95,7 @@ extern "C" int pthread_setspecific(unsigned key, const void *v);
 DECLARE_REAL(int, pthread_mutexattr_gettype, void *, void *)
 DECLARE_REAL(int, fflush, __sanitizer_FILE *fp)
 DECLARE_REAL(int, pthread_mutex_trylock, void *m)
+DECLARE_REAL(int, pthread_mutex_unlock, void *m)
 DECLARE_REAL_AND_INTERCEPTOR(void *, malloc, usize size)
 DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
 extern "C" int pthread_equal(void *t1, void *t2);
@@ -1321,11 +1322,47 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   MutexUnlock(thr, pc, (uptr)m);
   int res = 0;
-  // This ensures that we handle mutex lock even in case of pthread_cancel.
-  // See test/tsan/cond_cancel.cpp.
-  {
-    // In simulation mode, mark this thread as blocked so other threads can run
-    // while we wait on the condition variable.
+
+  // In simulation mode, use the waitset approach instead of real blocking.
+  if (SimulateIsActive()) {
+    // Simulated wait - must unlock the real mutex before parking.
+    // This matches pthread_cond_wait semantics: atomically unlock and wait.
+    // Call the real pthread function directly (not through interceptor).
+    res = REAL(pthread_mutex_unlock)(m);
+    if (res != 0) {
+      // Unlock failed - should not happen, but handle it.
+      MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
+      return res;
+    }
+
+    // Wake any thread waiting for this mutex in the simulation waitset.
+    // This is critical! The real pthread_mutex_unlock doesn't wake threads
+    // from the simulation's waitset, so we must do it explicitly.
+    SimulateMutexUnblock((uptr)m);
+
+    // Park this thread on the condvar's waitset until signal/broadcast wakes it.
+    SimulateCondWait((uptr)c, (uptr)m);
+
+    // After waking, re-acquire the mutex (mimicking pthread_cond_wait behavior).
+    // This may require multiple attempts if another thread holds the mutex.
+    SimulateSchedule();
+    while (true) {
+      // Call the real pthread function directly (not through interceptor).
+      res = REAL(pthread_mutex_trylock)(m);
+      if (res == 0 || res == errno_EOWNERDEAD)
+        break;
+      if (res != errno_EBUSY) {
+        // Some other error - give up.
+        MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
+        return res;
+      }
+      // Mutex is busy - park on the mutex's waitset.
+      SimulateMutexBlock((uptr)m);
+    }
+  } else {
+    // Not in simulation - do real wait.
+    // This ensures that we handle mutex lock even in case of pthread_cancel.
+    // See test/tsan/cond_cancel.cpp.
     SimulateThreadBlock();
     // Enable signal delivery while the thread is blocked.
     BlockingCall bc(thr);
@@ -1395,7 +1432,8 @@ INTERCEPTOR(int, pthread_cond_signal, void *c) {
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_signal, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   int res = REAL(pthread_cond_signal)(cond);
-  // In simulation mode, yield to give the woken thread a chance to run.
+  // In simulation mode, wake one thread from the condvar's waitset.
+  SimulateCondSignal((uptr)cond);
   SimulateSchedule();
   return res;
 }
@@ -1405,7 +1443,8 @@ INTERCEPTOR(int, pthread_cond_broadcast, void *c) {
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_broadcast, cond);
   MemoryAccessRange(thr, pc, (uptr)c, sizeof(uptr), false);
   int res = REAL(pthread_cond_broadcast)(cond);
-  // In simulation mode, yield to give woken threads a chance to run.
+  // In simulation mode, wake all threads from the condvar's waitset.
+  SimulateCondBroadcast((uptr)cond);
   SimulateSchedule();
   return res;
 }
@@ -1455,14 +1494,16 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   AdaptiveDelay::SyncOp();
   int res;
   if (SimulateIsActive()) {
-    // In simulation mode, the mutex holder may be parked by the scheduler.
-    // Use a trylock loop with scheduling yields to avoid deadlock.
+    // In simulation mode, use the waitset approach: try to lock, and if busy,
+    // add to waitset and park. Repeat until we acquire the lock.
     SimulateSchedule();
     while (true) {
       res = REAL(pthread_mutex_trylock)(m);
       if (res != errno_EBUSY)
         break;
-      SimulateSchedule();
+      // Mutex is held — add ourselves to the waitset and park.
+      // When woken, we'll retry (might succeed or fail if another thread got it first).
+      SimulateMutexBlock((uptr)m);
     }
   } else {
     res = BLOCK_REAL(pthread_mutex_lock)(m);
@@ -1504,6 +1545,10 @@ TSAN_INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   MutexUnlock(thr, pc, (uptr)m);
   int res = REAL(pthread_mutex_unlock)(m);
   AdaptiveDelay::SyncOp();
+  if (SimulateIsActive()) {
+    // Wake one thread from the mutex's waitset (if any).
+    SimulateMutexUnblock((uptr)m);
+  }
   SimulateSchedule();
   if (res == errno_EINVAL)
     MutexInvalidAccess(thr, pc, (uptr)m);
