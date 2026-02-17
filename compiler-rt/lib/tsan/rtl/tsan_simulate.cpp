@@ -277,12 +277,26 @@ static SimScheduler *sim_sched;
 // Per-thread scheduler index. -1 when not participating in simulation.
 static THREADLOCAL int sim_thread_idx = -1;
 
+// Set to 1 if an unsupported interceptor is called during simulation.
+static atomic_uint32_t sim_error;
+
 // ---------------------------------------------------------------------------
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
 
 bool SimulateIsActive() {
   return atomic_load_relaxed(&sim_active) != 0;
+}
+
+void SimulateReportUnsupported(const char *func_name) {
+  if (!SimulateIsActive())
+    return;
+  atomic_store_relaxed(&sim_error, 1);
+  Printf(
+      "ThreadSanitizer: simulation error - unsupported interceptor called: "
+      "%s\n"
+      "Simulation does not support this synchronization primitive.\n",
+      func_name);
 }
 
 void SimulateSchedule() {
@@ -328,13 +342,13 @@ void SimulateThreadUnblock() {
   sim_sched->AfterBlockingCall(idx);
 }
 
-void SimulateRun(void (*callback)(void *), void *arg) {
+int SimulateRun(void (*callback)(void *), void *arg) {
   const char *sched = flags()->simulate_scheduler;
   if (!sched || !sched[0] || internal_strcmp(sched, "random") != 0) {
     // No scheduler configured or not "random". Run the callback once without
     // simulation so that __tsan_simulate still works as a simple wrapper.
     callback(arg);
-    return;
+    return 0;
   }
 
   // Check if there are other threads running. Simulation requires that only
@@ -349,8 +363,11 @@ void SimulateRun(void (*callback)(void *), void *arg) {
         "Running callback once without simulation.\n",
         running_threads);
     callback(arg);
-    return;
+    return 1;  // Error: pre-existing threads
   }
+
+  // Reset error flag before starting simulation.
+  atomic_store_relaxed(&sim_error, 0);
 
   int iterations = flags()->simulate_iterations;
   if (iterations <= 0)
@@ -386,6 +403,18 @@ void SimulateRun(void (*callback)(void *), void *arg) {
     callback(arg);
     VPrintf(1, "End callback...\n");
 
+    // Check if an error occurred during this iteration.
+    if (atomic_load_relaxed(&sim_error)) {
+      // Deactivate simulation and clean up.
+      atomic_store_relaxed(&sim_active, 0);
+      sim_thread_idx = -1;
+      sim_sched = nullptr;
+      sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
+             iter + 1);
+      return 2;  // Error: unsupported interceptor called
+    }
+
     // Main thread finished; unregister from the scheduler.
     sched_ptr->ThreadFinish(main_idx);
 
@@ -398,6 +427,7 @@ void SimulateRun(void (*callback)(void *), void *arg) {
   }
 
   Printf("ThreadSanitizer: simulation finished (%d iterations)\n", iterations);
+  return 0;  // Success
 }
 
 }  // namespace __tsan

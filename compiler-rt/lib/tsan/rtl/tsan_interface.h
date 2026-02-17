@@ -97,11 +97,17 @@ SANITIZER_INTERFACE_ATTRIBUTE void __tsan_on_thread_idle();
 // and assert correctness. The simulator ensures exactly one thread runs at
 // a time and randomly varies the interleaving at each sync point.
 //
-// LIMITATION: No other threads must be running when __tsan_simulate is called.
-// If other threads exist, simulation is disabled and the callback runs once
-// without controlled scheduling. This limitation may be removed in the future.
+// Returns:
+//   0 on success
+//   1 if other threads are running when called
+//   2 if an unsupported interceptor is called during simulation
+//
+// LIMITATIONS:
+// - No other threads must be running when __tsan_simulate is called.
+// - Only pthread_mutex, pthread_cond, pthread_create/join, and atomics
+//   are supported. Other pthread primitives will abort the simulation.
 SANITIZER_INTERFACE_ATTRIBUTE
-void __tsan_simulate(void (*callback)(void *arg), void *arg);
+int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void *__tsan_external_register_tag(const char *object_type);

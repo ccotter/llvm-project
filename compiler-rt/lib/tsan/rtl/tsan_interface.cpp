@@ -84,9 +84,9 @@ void __tsan_set_fiber_name(void *fiber, const char *name) {
 }
 }  // extern "C"
 
-void __tsan_simulate(void (*callback)(void *arg), void *arg) {
+int __tsan_simulate(void (*callback)(void *arg), void *arg) {
   Initialize(cur_thread_init());
-  SimulateRun(callback, arg);
+  return SimulateRun(callback, arg);
 }
 
 void __tsan_acquire(void *addr) {

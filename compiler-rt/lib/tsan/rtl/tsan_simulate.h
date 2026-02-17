@@ -34,6 +34,10 @@ bool SimulateIsActive();
 // context-switch to another runnable thread.
 void SimulateSchedule();
 
+// Called when an unsupported interceptor is invoked during simulation.
+// Prints an error message and sets the failure flag.
+void SimulateReportUnsupported(const char *func_name);
+
 // Called when a new application thread starts. Registers the thread with the
 // scheduler and blocks until the scheduler selects it to run.
 void SimulateThreadStart();
@@ -52,7 +56,9 @@ void SimulateThreadUnblock();
 
 // Run the simulation: invoke `callback(arg)` for `iterations` iterations,
 // exploring thread interleavings using the configured scheduler.
-void SimulateRun(void (*callback)(void *), void *arg);
+// Returns 0 on success, non-zero on error (1=pre-existing threads,
+// 2=unsupported interceptor called).
+int SimulateRun(void (*callback)(void *), void *arg);
 
 }  // namespace __tsan
 
