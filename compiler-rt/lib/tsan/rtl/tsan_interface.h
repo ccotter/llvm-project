@@ -109,6 +109,27 @@ SANITIZER_INTERFACE_ATTRIBUTE void __tsan_on_thread_idle();
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
+// Manually annotate that a thread is blocked on a specific address (during simulation only).
+// Use this when blocking on a synchronization primitive that TSAN doesn't instrument
+// (e.g., direct futex calls, custom spinlocks). The address should be the memory location
+// that threads are waiting on (e.g., the futex word address).
+// This marks the thread as non-runnable so the scheduler won't pick it.
+// No-op if simulation is not active.
+SANITIZER_INTERFACE_ATTRIBUTE
+void __tsan_simulate_annotate_wait(void *addr);
+
+// Wake one thread waiting on the specified address (during simulation only).
+// Use this to signal that one thread blocked on the given address can become runnable.
+// No-op if simulation is not active or no threads are waiting.
+SANITIZER_INTERFACE_ATTRIBUTE
+void __tsan_simulate_annotate_wake_one(void *addr);
+
+// Wake all threads waiting on the specified address (during simulation only).
+// Use this to signal that all threads blocked on the given address can become runnable.
+// No-op if simulation is not active or no threads are waiting.
+SANITIZER_INTERFACE_ATTRIBUTE
+void __tsan_simulate_annotate_wake_all(void *addr);
+
 SANITIZER_INTERFACE_ATTRIBUTE
 void *__tsan_external_register_tag(const char *object_type);
 SANITIZER_INTERFACE_ATTRIBUTE

@@ -72,6 +72,16 @@ void SimulateCondSignal(uptr cond_addr);
 // Called when pthread_cond_broadcast wakes all threads from a condition variable.
 void SimulateCondBroadcast(uptr cond_addr);
 
+// Called to mark a thread as waiting on a custom address (e.g., futex word).
+// Adds the thread to the address's waitset and parks it.
+void SimulateAnnotateWait(uptr addr);
+
+// Called to wake one thread waiting on a custom address (e.g., futex_wake(1)).
+void SimulateAnnotateWakeOne(uptr addr);
+
+// Called to wake all threads waiting on a custom address (e.g., futex_wake_all()).
+void SimulateAnnotateWakeAll(uptr addr);
+
 // Run the simulation: invoke `callback(arg)` for `iterations` iterations,
 // exploring thread interleavings using the configured scheduler.
 // Returns 0 on success, non-zero on error (1=pre-existing threads,

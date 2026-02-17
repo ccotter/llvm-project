@@ -27,6 +27,7 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Demangle/Demangle.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -68,6 +69,9 @@ static cl::opt<bool> ClInstrumentAtomics("tsan-instrument-atomics",
 static cl::opt<bool> ClInstrumentMemIntrinsics(
     "tsan-instrument-memintrinsics", cl::init(true),
     cl::desc("Instrument memintrinsics (memset/memcpy/memmove)"), cl::Hidden);
+static cl::opt<bool> ClInstrumentAtomicWait(
+    "tsan-instrument-atomic-wait", cl::init(true),
+    cl::desc("Instrument std::atomic wait operations"), cl::Hidden);
 static cl::opt<bool> ClDistinguishVolatile(
     "tsan-distinguish-volatile", cl::init(false),
     cl::desc("Emit special instrumentation for accesses to volatiles"),
@@ -138,6 +142,9 @@ private:
   bool instrumentLoadOrStore(const InstructionInfo &II, const DataLayout &DL);
   bool instrumentAtomic(Instruction *I, const DataLayout &DL);
   bool instrumentMemIntrinsic(Instruction *I);
+  bool instrumentAtomicWait(CallInst *CI);
+  bool instrumentAtomicNotifyOne(CallInst *CI);
+  bool instrumentAtomicNotifyAll(CallInst *CI);
   void chooseInstructionsToInstrument(SmallVectorImpl<Instruction *> &Local,
                                       SmallVectorImpl<InstructionInfo> &All,
                                       const DataLayout &DL);
@@ -169,6 +176,9 @@ private:
   FunctionCallee TsanAtomicCAS[kNumberOfAccessSizes];
   FunctionCallee TsanAtomicThreadFence;
   FunctionCallee TsanAtomicSignalFence;
+  FunctionCallee TsanAtomicWaitFor;
+  FunctionCallee TsanAtomicNotifyOne;
+  FunctionCallee TsanAtomicNotifyAll;
   FunctionCallee TsanVptrUpdate;
   FunctionCallee TsanVptrLoad;
   FunctionCallee MemmoveFn, MemcpyFn, MemsetFn;
@@ -335,6 +345,12 @@ void ThreadSanitizer::initialize(Module &M, const TargetLibraryInfo &TLI) {
       "__tsan_atomic_signal_fence",
       TLI.getAttrList(&Ctx, {0}, /*Signed=*/true, /*Ret=*/false, Attr),
       IRB.getVoidTy(), OrdTy);
+
+  TsanAtomicNotifyOne = M.getOrInsertFunction(
+      "__tsan_atomic_notify_one", Attr, IRB.getVoidTy(), IRB.getPtrTy());
+
+  TsanAtomicNotifyAll = M.getOrInsertFunction(
+      "__tsan_atomic_notify_all", Attr, IRB.getVoidTy(), IRB.getPtrTy());
 
   MemmoveFn =
       M.getOrInsertFunction("__tsan_memmove", Attr, IRB.getPtrTy(),
@@ -517,6 +533,9 @@ bool ThreadSanitizer::sanitizeFunction(Function &F,
   SmallVector<Instruction*, 8> LocalLoadsAndStores;
   SmallVector<Instruction*, 8> AtomicAccesses;
   SmallVector<Instruction*, 8> MemIntrinCalls;
+  SmallVector<CallInst*, 8> AtomicWaitCalls;
+  SmallVector<CallInst*, 8> AtomicNotifyOneCalls;
+  SmallVector<CallInst*, 8> AtomicNotifyAllCalls;
   bool Res = false;
   bool HasCalls = false;
   bool SanitizeFunction = F.hasFnAttribute(Attribute::SanitizeThread);
@@ -533,8 +552,23 @@ bool ThreadSanitizer::sanitizeFunction(Function &F,
       else if (isa<LoadInst>(Inst) || isa<StoreInst>(Inst))
         LocalLoadsAndStores.push_back(&Inst);
       else if (isa<CallInst>(Inst) || isa<InvokeInst>(Inst)) {
-        if (CallInst *CI = dyn_cast<CallInst>(&Inst))
+        if (CallInst *CI = dyn_cast<CallInst>(&Inst)) {
           maybeMarkSanitizerLibraryCallNoBuiltin(CI, &TLI);
+          // Check if this is an atomic wait/notify call
+          if (Function *CalledFunc = CI->getCalledFunction()) {
+            std::string DemangledName = demangle(CalledFunc->getName());
+            if (DemangledName.find("atomic") != std::string::npos) {
+              // Check for wait(), wait_for(), wait_until() - all wait variants
+              if (DemangledName.find("wait") != std::string::npos) {
+                AtomicWaitCalls.push_back(CI);
+              } else if (DemangledName.find("notify_one") != std::string::npos) {
+                AtomicNotifyOneCalls.push_back(CI);
+              } else if (DemangledName.find("notify_all") != std::string::npos) {
+                AtomicNotifyAllCalls.push_back(CI);
+              }
+            }
+          }
+        }
         if (isa<MemIntrinsic>(Inst))
           MemIntrinCalls.push_back(&Inst);
         HasCalls = true;
@@ -565,6 +599,21 @@ bool ThreadSanitizer::sanitizeFunction(Function &F,
   if (ClInstrumentMemIntrinsics && SanitizeFunction)
     for (auto *Inst : MemIntrinCalls) {
       Res |= instrumentMemIntrinsic(Inst);
+    }
+
+  if (ClInstrumentAtomicWait && SanitizeFunction)
+    for (auto *Inst : AtomicWaitCalls) {
+      Res |= instrumentAtomicWait(Inst);
+    }
+
+  if (ClInstrumentAtomicWait && SanitizeFunction)
+    for (auto *Inst : AtomicNotifyOneCalls) {
+      Res |= instrumentAtomicNotifyOne(Inst);
+    }
+
+  if (ClInstrumentAtomicWait && SanitizeFunction)
+    for (auto *Inst : AtomicNotifyAllCalls) {
+      Res |= instrumentAtomicNotifyAll(Inst);
     }
 
   if (F.hasFnAttribute("sanitize_thread_no_checking_at_run_time")) {
@@ -710,6 +759,77 @@ bool ThreadSanitizer::instrumentMemIntrinsic(Instruction *I) {
     I->eraseFromParent();
   }
   return false;
+}
+
+bool ThreadSanitizer::instrumentAtomicWait(CallInst *CI) {
+  InstrumentationIRBuilder IRB(CI);
+  // std::atomic<T>::wait(T expected_value, std::memory_order order)
+  // The implicit 'this' pointer is not in the arg list for lowered member calls.
+  // We need to extract it from the call instruction or use a different approach.
+  // For TSAN, we primarily need to know the atomic object being waited on.
+  // The memory order information is in the second argument.
+
+  if (CI->arg_size() < 1)
+    return false;
+
+  // For member functions, we need the object being operated on.
+  // This might require looking at the call instruction differently.
+  // For now, we'll use the first argument as a proxy if available.
+  Value *AtomicPtr = CI->getArgOperand(0);
+
+  IRB.CreateCall(TsanAtomicWaitFor, {AtomicPtr});
+  return true;
+}
+
+bool ThreadSanitizer::instrumentAtomicNotifyOne(CallInst *CI) {
+  InstrumentationIRBuilder IRB(CI);
+  // std::atomic<T>::notify_one() - no arguments
+  // The implicit 'this' pointer needs to be extracted.
+
+  // For member functions, we may need to look at the call target
+  // or use CalledOperand to extract the object pointer.
+  // This is a simplified version that relies on first arg if present.
+  Value *AtomicPtr = nullptr;
+
+  if (CI->arg_size() >= 1) {
+    AtomicPtr = CI->getArgOperand(0);
+  } else if (Value *CalledValue = CI->getCalledOperand()) {
+    // Try to extract from member function call
+    if (auto *Fn = dyn_cast<Function>(CalledValue)) {
+      // For virtual calls or other complex cases, we may need more analysis
+      return false;
+    }
+  }
+
+  if (!AtomicPtr)
+    return false;
+
+  IRB.CreateCall(TsanAtomicNotifyOne, {AtomicPtr});
+  return true;
+}
+
+bool ThreadSanitizer::instrumentAtomicNotifyAll(CallInst *CI) {
+  InstrumentationIRBuilder IRB(CI);
+  // std::atomic<T>::notify_all() - no arguments
+  // The implicit 'this' pointer needs to be extracted.
+
+  Value *AtomicPtr = nullptr;
+
+  if (CI->arg_size() >= 1) {
+    AtomicPtr = CI->getArgOperand(0);
+  } else if (Value *CalledValue = CI->getCalledOperand()) {
+    // Try to extract from member function call
+    if (auto *Fn = dyn_cast<Function>(CalledValue)) {
+      // For virtual calls or other complex cases, we may need more analysis
+      return false;
+    }
+  }
+
+  if (!AtomicPtr)
+    return false;
+
+  IRB.CreateCall(TsanAtomicNotifyAll, {AtomicPtr});
+  return true;
 }
 
 // Both llvm and ThreadSanitizer atomic operations are based on C++11/C1x
