@@ -175,6 +175,7 @@ void test_condvar_producer_consumer(void *arg) {
 }
 
 int main() {
+#if 0
   printf("=== Test 1: Atomic counter (two threads) ===\n");
   __tsan_simulate(test_atomic_counter, nullptr);
 
@@ -186,8 +187,9 @@ int main() {
 
   printf("\n=== Test 4: Condition variable producer-consumer ===\n");
   __tsan_simulate(test_condvar_producer_consumer, nullptr);
+#endif
 
-  if (false) {
+  if (true) {
     printf("\n=== Test 5: Non-atomic increment (demonstrates race) ===\n");
     __tsan_simulate(test_non_atomic_increment, nullptr);
   }

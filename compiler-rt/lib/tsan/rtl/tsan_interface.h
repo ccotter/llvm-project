@@ -96,6 +96,10 @@ SANITIZER_INTERFACE_ATTRIBUTE void __tsan_on_thread_idle();
 // The callback should create threads, exercise concurrent data structures,
 // and assert correctness. The simulator ensures exactly one thread runs at
 // a time and randomly varies the interleaving at each sync point.
+//
+// LIMITATION: No other threads must be running when __tsan_simulate is called.
+// If other threads exist, simulation is disabled and the callback runs once
+// without controlled scheduling. This limitation may be removed in the future.
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_simulate(void (*callback)(void *arg), void *arg);
 

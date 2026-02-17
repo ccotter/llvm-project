@@ -23,6 +23,20 @@ We should assume the code under test does not rely on external APIs like network
 timed waits, or other non-deterministic APIs like random / file reads. If the code
 under test calls these APIS, we can exhibit undefined behavior.
 
+### Detect if other threads exist
+
+If other threads exist when `__tsan_simulate` is invoked, the simulation should detect
+this and print an error, only running the callback once.
+
+`__tsan_simulate` should return non-zero in this case.
+
+### Invoking unsupported posix interceptors
+
+While a simulation is active, if an interceptor is not supported, the simulation should
+report an error and bail out.
+
+`__tsan_simulate` should return non-zero in this case.
+
 ## Relacy reference
 
 Relacy is a runtime thread race detector. It provides an alternate implementation of

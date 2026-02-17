@@ -337,6 +337,21 @@ void SimulateRun(void (*callback)(void *), void *arg) {
     return;
   }
 
+  // Check if there are other threads running. Simulation requires that only
+  // the calling thread exists before starting.
+  uptr running_threads = 0;
+  ctx->thread_registry.GetNumberOfThreads(nullptr, &running_threads, nullptr);
+  if (running_threads > 1) {
+    Printf(
+        "ThreadSanitizer: simulation cannot start - other threads are "
+        "running (%zu threads detected).\n"
+        "Simulation requires that only the calling thread exists. "
+        "Running callback once without simulation.\n",
+        running_threads);
+    callback(arg);
+    return;
+  }
+
   int iterations = flags()->simulate_iterations;
   if (iterations <= 0)
     iterations = 1000;
