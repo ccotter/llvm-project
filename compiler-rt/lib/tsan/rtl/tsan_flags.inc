@@ -125,6 +125,9 @@ TSAN_FLAG(const char *, simulate_scheduler, "",
           "Supported values: 'random'. Empty means simulation is disabled.")
 TSAN_FLAG(int, simulate_iterations, 1000,
           "Number of iterations for __tsan_simulate.")
+TSAN_FLAG(int, simulate_start_iteration, 0,
+          "Starting iteration number for __tsan_simulate (useful for "
+          "reproducing specific iteration failures).")
 TSAN_FLAG(int, simulate_max_depth, 10000,
           "Maximum scheduling depth per iteration. If exceeded, the "
           "iteration is aborted and a new one starts.")

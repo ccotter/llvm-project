@@ -785,13 +785,17 @@ int SimulateRun(void (*callback)(void *), void *arg) {
   if (iterations <= 0)
     iterations = 1000;
 
+  int start_iter = flags()->simulate_start_iteration;
+  if (start_iter < 0)
+    start_iter = 0;
+
   int max_depth = flags()->simulate_max_depth;
   Printf(
-      "ThreadSanitizer: simulation starting (%d iterations, max_depth=%d, "
+      "ThreadSanitizer: simulation starting (iterations %d..%d, max_depth=%d, "
       "scheduler=%s)\n",
-      iterations, max_depth, sched);
+      start_iter, start_iter + iterations - 1, max_depth, sched);
 
-  for (int iter = 0; iter < iterations; iter++) {
+  for (int iter = start_iter; iter < start_iter + iterations; iter++) {
     // Allocate a fresh scheduler on the stack for each iteration.
     ALIGNED(64) char sched_buf[sizeof(SimScheduler)];
     SimScheduler *sched_ptr = new (sched_buf) SimScheduler();
@@ -805,7 +809,7 @@ int SimulateRun(void (*callback)(void *), void *arg) {
     atomic_store_relaxed(&sim_active, 1);
 
     // Seed the RNG and post the first thread's semaphore.
-    sched_ptr->StartIteration(iter + 1);
+    sched_ptr->StartIteration(iter);
 
     // Wait for our turn (StartIteration posted our semaphore).
     sched_ptr->GetSemaphore(main_idx)->Wait();
