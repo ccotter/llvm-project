@@ -130,6 +130,12 @@ void __tsan_simulate_annotate_wake_one(void *addr);
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_simulate_annotate_wake_all(void *addr);
 
+// Print shadow memory state (vector clocks) for the given address.
+// Useful for debugging why a race is not being detected.
+// Shows: thread ID, epoch, access pattern, and current thread's clock.
+SANITIZER_INTERFACE_ATTRIBUTE
+void __tsan_print_shadow(void *addr);
+
 SANITIZER_INTERFACE_ATTRIBUTE
 void *__tsan_external_register_tag(const char *object_type);
 SANITIZER_INTERFACE_ATTRIBUTE
