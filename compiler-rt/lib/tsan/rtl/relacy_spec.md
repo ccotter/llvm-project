@@ -37,6 +37,22 @@ report an error and bail out.
 
 `__tsan_simulate` should return non-zero in this case.
 
+### Hitting max depth
+
+If the simulation hits the maximum depth limit (controlled by `simulate_max_depth` flag),
+the simulation should report this condition and immediately exit. No further iterations
+should be executed.
+
+`__tsan_simulate` should return non-zero (specifically 3) in this case.
+
+### Return codes
+
+`__tsan_simulate` returns an integer status code:
+- `0` - Success: all iterations completed without errors
+- `1` - Error: pre-existing threads detected
+- `2` - Error: unsupported interceptor called during simulation
+- `3` - Error: max depth limit hit during simulation
+
 ## Relacy reference
 
 Relacy is a runtime thread race detector. It provides an alternate implementation of

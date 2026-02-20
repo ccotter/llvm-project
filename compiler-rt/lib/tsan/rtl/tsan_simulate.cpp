@@ -69,6 +69,9 @@ struct SimThread {
 
 static constexpr int kMaxSimThreads = 64;
 
+// Set to 1 if the max depth is hit during simulation.
+static atomic_uint32_t sim_max_depth_hit;
+
 // Waitset: tracks threads blocked waiting for a resource (mutex or condvar).
 struct Waitset {
   static constexpr int kMaxWaiters = kMaxSimThreads;
@@ -175,12 +178,15 @@ class SimScheduler {
     if (caller_idx != current_) {
       // Not the current thread — no-op. This can happen briefly during
       // blocking-call transitions.
+      // TODO - is this tue ^^ ??
       mtx_.Unlock();
       return;
     }
 
     int max_depth = flags()->simulate_max_depth;
     if (++depth_ > max_depth) {
+      atomic_store_relaxed(&sim_max_depth_hit, 1);
+      Printf("ThreadSanitizer: simulation hit max depth %d\n", max_depth);
       mtx_.Unlock();
       return;
     }
@@ -780,6 +786,7 @@ int SimulateRun(void (*callback)(void *), void *arg) {
 
   // Reset error flag before starting simulation.
   atomic_store_relaxed(&sim_error, 0);
+  atomic_store_relaxed(&sim_max_depth_hit, 0);
 
   int iterations = flags()->simulate_iterations;
   if (iterations <= 0)
@@ -827,8 +834,20 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
       Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
-             iter + 1);
+             iter - start_iter + 1);
       return 2;  // Error: unsupported interceptor called
+    }
+
+    // Check if max depth was hit during this iteration.
+    if (atomic_load_relaxed(&sim_max_depth_hit)) {
+      // Deactivate simulation and clean up.
+      atomic_store_relaxed(&sim_active, 0);
+      sim_thread_idx = -1;
+      sim_sched = nullptr;
+      sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: simulation stopped due to max depth after %d iterations\n",
+             iter - start_iter + 1);
+      return 3;  // Error: max depth hit
     }
 
     // Main thread finished; unregister from the scheduler.
