@@ -122,6 +122,13 @@ class SimScheduler {
  public:
   SimScheduler() : current_(-1), thread_count_(0), depth_(0) {
     internal_memset(threads_, 0, sizeof(threads_));
+    // Cache and validate schedule_probability once at initialization
+    int prob = flags()->simulate_schedule_probability;
+    if (prob < 0)
+      prob = 0;
+    else if (prob > 100)
+      prob = 100;
+    schedule_probability_ = prob;
   }
 
   // Register a new thread. Returns its scheduler index.
@@ -529,6 +536,18 @@ class SimScheduler {
     mtx_.Unlock();
   }
 
+  // Check if we should perform scheduling at this point based on probability.
+  // Always returns true if probability >= 100, otherwise uses RNG.
+  bool ShouldSchedule() {
+    if (schedule_probability_ >= 100)
+      return true;
+    if (schedule_probability_ <= 0)
+      return false;
+    // Generate random value [0, 99] and compare to probability percentage
+    u32 rand_val = rng_.NextRange(100);
+    return rand_val < static_cast<u32>(schedule_probability_);
+  }
+
  private:
   int CountRunnable() const {
     int n = 0;
@@ -611,6 +630,7 @@ class SimScheduler {
   int current_;
   int thread_count_;
   int depth_;
+  int schedule_probability_;  // Cached and validated at construction
 
   // Resource waitsets: map from resource address to waitset.
   static constexpr int kMaxWaitsets = 256;
@@ -665,6 +685,9 @@ void SimulateSchedule() {
     return;
   int idx = sim_thread_idx;
   if (idx < 0)
+    return;
+  // Check probability before scheduling
+  if (!sim_sched->ShouldSchedule())
     return;
   sim_sched->Schedule(idx);
 }

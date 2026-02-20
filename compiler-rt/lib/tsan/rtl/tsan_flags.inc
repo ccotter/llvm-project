@@ -134,3 +134,7 @@ TSAN_FLAG(int, simulate_max_depth, 10000,
 TSAN_FLAG(bool, simulate_schedule_on_memory_access, true,
           "Insert scheduling points at every memory read/write during "
           "simulation for maximum interleaving exploration.")
+TSAN_FLAG(int, simulate_schedule_probability, 100,
+          "Probability (0-100) of actually performing a context switch at "
+          "each scheduling point. Lower values allow threads to complete more "
+          "operations before switching. Default 100 schedules at every point.")
