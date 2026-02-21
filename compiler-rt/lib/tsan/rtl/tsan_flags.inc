@@ -138,3 +138,6 @@ TSAN_FLAG(int, simulate_schedule_probability, 100,
           "Probability (0-100) of actually performing a context switch at "
           "each scheduling point. Lower values allow threads to complete more "
           "operations before switching. Default 100 schedules at every point.")
+TSAN_FLAG(bool, simulate_print_schedule_stacks, false,
+          "Print stack trace at each simulation scheduling point. Useful for "
+          "debugging interleaving issues but generates significant output.")

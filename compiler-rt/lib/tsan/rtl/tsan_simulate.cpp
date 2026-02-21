@@ -723,6 +723,15 @@ void SimulateSchedule() {
   // Check probability before scheduling
   if (!sim_sched->ShouldSchedule())
     return;
+
+  // Optionally print stack trace at scheduling point
+  if (flags()->simulate_print_schedule_stacks) {
+    ThreadState *thr = cur_thread();
+    Printf("=========== Schedule point (thread %d) ===========\n", idx);
+    PrintCurrentStack(thr, StackTrace::GetCurrentPc());
+    Printf("==================================================\n");
+  }
+
   sim_sched->Schedule(idx);
 }
 

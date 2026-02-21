@@ -182,7 +182,7 @@ accesses, but we do not care about that for now.
 ## To Build
 
 cd /workarea/llvm-project/build
-ninja tsan
+ninja tsan -j 32
 
 To build a test executable with the new API
 
