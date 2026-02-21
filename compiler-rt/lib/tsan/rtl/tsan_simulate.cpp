@@ -292,6 +292,10 @@ class SimScheduler {
 
   Semaphore *GetSemaphore(int idx) { return &threads_[idx].sem; }
 
+  int GetThreadCount() const {
+    return thread_count_;
+  }
+
   void MutexBlock(int caller_idx, uptr mutex_addr) {
     mtx_.Lock();
 
@@ -707,6 +711,7 @@ void SimulateReportDeadlock() {
     return;
   atomic_store_relaxed(&sim_deadlock_detected, 1);
   Printf("ThreadSanitizer: deadlock detected - all threads are blocked\n");
+  Die();
 }
 
 void SimulateSchedule() {
@@ -879,6 +884,18 @@ int SimulateRun(void (*callback)(void *), void *arg) {
     VPrintf(1, "Start callback... iter=%d\n", iter);
     callback(arg);
     VPrintf(1, "End callback...\n");
+
+    // Check if no threads were spawned (only main thread exists).
+    // If so, there's no parallelism to explore, so exit successfully.
+    if (iter == start_iter && sched_ptr->GetThreadCount() == 1) {
+      // Deactivate simulation and clean up.
+      atomic_store_relaxed(&sim_active, 0);
+      sim_thread_idx = -1;
+      sim_sched = nullptr;
+      sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: simulation exiting - no threads were spawned\n");
+      return 0;  // Success: no parallelism to test
+    }
 
     // Check if an error occurred during this iteration.
     if (atomic_load_relaxed(&sim_error)) {
