@@ -1233,6 +1233,7 @@ TSAN_INTERCEPTOR(int, pthread_tryjoin_np, void *th, void **ret) {
 TSAN_INTERCEPTOR(int, pthread_timedjoin_np, void *th, void **ret,
                  const struct timespec *abstime) {
   SCOPED_INTERCEPTOR_RAW(pthread_timedjoin_np, th, ret, abstime);
+  SIMULATE_CHECK_UNSUPPORTED(pthread_timedjoin_np);
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
   int res = BLOCK_REAL(pthread_timedjoin_np)(th, ret, abstime);
@@ -1397,6 +1398,7 @@ INTERCEPTOR(int, pthread_cond_wait, void *c, void *m) {
 INTERCEPTOR(int, pthread_cond_timedwait, void *c, void *m, void *abstime) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_timedwait, cond, m, abstime);
+  SIMULATE_CHECK_UNSUPPORTED(pthread_cond_timedwait);
   return cond_wait(
       thr, pc, &si,
       [=]() { return REAL(pthread_cond_timedwait)(cond, m, abstime); }, cond,
@@ -1408,6 +1410,7 @@ INTERCEPTOR(int, pthread_cond_clockwait, void *c, void *m,
             __sanitizer_clockid_t clock, void *abstime) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_clockwait, cond, m, clock, abstime);
+  SIMULATE_CHECK_UNSUPPORTED(pthread_cond_clockwait);
   return cond_wait(
       thr, pc, &si,
       [=]() { return REAL(pthread_cond_clockwait)(cond, m, clock, abstime); },
@@ -1423,6 +1426,7 @@ INTERCEPTOR(int, pthread_cond_timedwait_relative_np, void *c, void *m,
             void *reltime) {
   void *cond = init_cond(c);
   SCOPED_TSAN_INTERCEPTOR(pthread_cond_timedwait_relative_np, cond, m, reltime);
+  SIMULATE_CHECK_UNSUPPORTED(pthread_cond_timedwait_relative_np);
   return cond_wait(
       thr, pc, &si,
       [=]() {
@@ -1536,6 +1540,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
 #if !SANITIZER_APPLE
 TSAN_INTERCEPTOR(int, pthread_mutex_timedlock, void *m, void *abstime) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_timedlock, m, abstime);
+  SIMULATE_CHECK_UNSUPPORTED(pthread_mutex_timedlock);
   AdaptiveDelay::SyncOp();
   int res = REAL(pthread_mutex_timedlock)(m, abstime);
   if (res == 0) {
