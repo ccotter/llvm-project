@@ -661,6 +661,9 @@ static THREADLOCAL int sim_thread_idx = -1;
 // Set to 1 if an unsupported interceptor is called during simulation.
 static atomic_uint32_t sim_error;
 
+// Set to 1 if a data race is detected during simulation.
+static atomic_uint32_t sim_race_detected;
+
 // ---------------------------------------------------------------------------
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
@@ -678,6 +681,12 @@ void SimulateReportUnsupported(const char *func_name) {
       "%s\n"
       "Simulation does not support this synchronization primitive.\n",
       func_name);
+}
+
+void SimulateReportRace() {
+  if (!SimulateIsActive())
+    return;
+  atomic_store_relaxed(&sim_race_detected, 1);
 }
 
 void SimulateSchedule() {
@@ -807,9 +816,10 @@ int SimulateRun(void (*callback)(void *), void *arg) {
     return 1;  // Error: pre-existing threads
   }
 
-  // Reset error flag before starting simulation.
+  // Reset error flags before starting simulation.
   atomic_store_relaxed(&sim_error, 0);
   atomic_store_relaxed(&sim_max_depth_hit, 0);
+  atomic_store_relaxed(&sim_race_detected, 0);
 
   int iterations = flags()->simulate_iterations;
   if (iterations <= 0)
@@ -845,7 +855,7 @@ int SimulateRun(void (*callback)(void *), void *arg) {
     sched_ptr->GetSemaphore(main_idx)->Wait();
 
     // Run the test callback for this iteration.
-    VPrintf(1, "Start callback...\n");
+    VPrintf(1, "Start callback... iter=%d\n", iter);
     callback(arg);
     VPrintf(1, "End callback...\n");
 
@@ -871,6 +881,18 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       Printf("ThreadSanitizer: simulation stopped due to max depth after %d iterations\n",
              iter - start_iter + 1);
       return 3;  // Error: max depth hit
+    }
+
+    // Check if a race was detected during this iteration.
+    if (atomic_load_relaxed(&sim_race_detected)) {
+      // Deactivate simulation and clean up.
+      atomic_store_relaxed(&sim_active, 0);
+      sim_thread_idx = -1;
+      sim_sched = nullptr;
+      sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: simulation stopped due to race detection after %d iterations\n",
+             iter - start_iter + 1);
+      return 4;  // Error: race detected
     }
 
     // Main thread finished; unregister from the scheduler.

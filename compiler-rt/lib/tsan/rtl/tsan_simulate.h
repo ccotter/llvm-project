@@ -38,6 +38,10 @@ void SimulateSchedule();
 // Prints an error message and sets the failure flag.
 void SimulateReportUnsupported(const char *func_name);
 
+// Called when a data race is detected during simulation.
+// Sets the race_detected flag to abort the simulation.
+void SimulateReportRace();
+
 // Called when a new application thread starts. Registers the thread with the
 // scheduler and blocks until the scheduler selects it to run.
 void SimulateThreadStart();
