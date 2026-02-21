@@ -577,6 +577,16 @@ class SimScheduler {
     DumpStates();
     if (runnable == 0) {
       current_ = -1;
+      // Check if this is a deadlock (blocked threads exist but no runnable ones)
+      int blocked = 0;
+      for (int i = 0; i < thread_count_; i++) {
+        if (threads_[i].state == SimThread::Blocked)
+          blocked++;
+      }
+      if (blocked > 0) {
+        // Deadlock: all remaining threads are blocked
+        SimulateReportDeadlock();
+      }
       return;
     }
     int chosen = PickRandomRunnable(runnable);
@@ -664,6 +674,9 @@ static atomic_uint32_t sim_error;
 // Set to 1 if a data race is detected during simulation.
 static atomic_uint32_t sim_race_detected;
 
+// Set to 1 if a deadlock is detected during simulation.
+static atomic_uint32_t sim_deadlock_detected;
+
 // ---------------------------------------------------------------------------
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
@@ -687,6 +700,13 @@ void SimulateReportRace() {
   if (!SimulateIsActive())
     return;
   atomic_store_relaxed(&sim_race_detected, 1);
+}
+
+void SimulateReportDeadlock() {
+  if (!SimulateIsActive())
+    return;
+  atomic_store_relaxed(&sim_deadlock_detected, 1);
+  Printf("ThreadSanitizer: deadlock detected - all threads are blocked\n");
 }
 
 void SimulateSchedule() {
@@ -820,6 +840,7 @@ int SimulateRun(void (*callback)(void *), void *arg) {
   atomic_store_relaxed(&sim_error, 0);
   atomic_store_relaxed(&sim_max_depth_hit, 0);
   atomic_store_relaxed(&sim_race_detected, 0);
+  atomic_store_relaxed(&sim_deadlock_detected, 0);
 
   int iterations = flags()->simulate_iterations;
   if (iterations <= 0)
@@ -893,6 +914,18 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       Printf("ThreadSanitizer: simulation stopped due to race detection after %d iterations\n",
              iter - start_iter + 1);
       return 4;  // Error: race detected
+    }
+
+    // Check if a deadlock was detected during this iteration.
+    if (atomic_load_relaxed(&sim_deadlock_detected)) {
+      // Deactivate simulation and clean up.
+      atomic_store_relaxed(&sim_active, 0);
+      sim_thread_idx = -1;
+      sim_sched = nullptr;
+      sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: simulation stopped due to deadlock after %d iterations\n",
+             iter - start_iter + 1);
+      return 5;  // Error: deadlock detected
     }
 
     // Main thread finished; unregister from the scheduler.

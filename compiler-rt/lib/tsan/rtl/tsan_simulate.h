@@ -42,6 +42,10 @@ void SimulateReportUnsupported(const char *func_name);
 // Sets the race_detected flag to abort the simulation.
 void SimulateReportRace();
 
+// Called when a deadlock is detected during simulation.
+// Sets the deadlock_detected flag to abort the simulation.
+void SimulateReportDeadlock();
+
 // Called when a new application thread starts. Registers the thread with the
 // scheduler and blocks until the scheduler selects it to run.
 void SimulateThreadStart();
