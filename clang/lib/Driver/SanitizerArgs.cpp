@@ -850,6 +850,22 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
     TsanAtomics =
         Args.hasFlag(options::OPT_fsanitize_thread_atomics,
                      options::OPT_fno_sanitize_thread_atomics, TsanAtomics);
+    TsanSimulateMain = Args.hasArg(options::OPT_fsanitize_thread_simulate_main);
+    
+    // Check for conflicting -Wl,--wrap=main when using -fsanitize-thread-simulate-main
+    if (TsanSimulateMain && DiagnoseErrors) {
+      for (const Arg *A : Args.filtered(options::OPT_Wl_COMMA, options::OPT_Xlinker)) {
+        for (StringRef Val : A->getValues()) {
+          if (Val == "--wrap=main" || Val == "-wrap=main") {
+            D.Diag(diag::err_drv_argument_not_allowed_with)
+                << "-fsanitize-thread-simulate-main"
+                << (A->getOption().matches(options::OPT_Wl_COMMA) 
+                    ? "-Wl,--wrap=main" : "-Xlinker --wrap=main");
+            break;
+          }
+        }
+      }
+    }
   }
 
   if (AllAddedKinds & SanitizerKind::CFI) {

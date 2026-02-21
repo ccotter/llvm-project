@@ -191,3 +191,15 @@ To build a test executable with the new API
 And to run,
 
 TSAN_OPTIONS=simulate_scheduler=random ./foo
+
+### TODO
+
+ - std::atomic::wait/notify_* do not work currently. Although it varies by platform,
+   OSes like Linux will implement with with futex, which is invisible to TSAN. TSAN
+   simulation will not be told when a thread is about to wait and be blocked, and
+   the simulation requires being told which threads are blocked so it can ensure
+   another runnable thread can execute.
+   Possible solutions (none are great)
+     - Update the Transform llvm opt pass to intercept atomic:::wait/notify_* calls
+     - Provide tsan_interface.h hooks for user code or even libstdc++/libc++ to
+       instrument when the calls happen within atomic::wait//notify_*.

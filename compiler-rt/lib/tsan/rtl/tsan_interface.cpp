@@ -91,6 +91,34 @@ int __tsan_simulate(void (*callback)(void *arg), void *arg) {
   return SimulateRun(callback, arg);
 }
 
+// Support for -fsanitize-thread-simulate-main linker wrapping
+extern "C" SANITIZER_WEAK_ATTRIBUTE int __real_main(int argc, char **argv,
+                                                     char **envp);
+
+namespace {
+struct MainArgs {
+  int argc;
+  char **argv;
+  char **envp;
+  int exit_code;
+};
+
+static void wrapped_main_callback(void *arg) {
+  MainArgs *args = static_cast<MainArgs *>(arg);
+  args->exit_code = __real_main(args->argc, args->argv, args->envp);
+}
+}  // namespace
+
+extern "C" int __wrap_main(int argc, char **argv, char **envp) {
+  MainArgs args = {argc, argv, envp, 0};
+  int sim_result = __tsan_simulate(wrapped_main_callback, &args);
+  // If simulation succeeded (return code 0 or exit due to no threads spawned),
+  // return the exit code from main. Otherwise, return the simulation error code.
+  if (sim_result == 0)
+    return args.exit_code;
+  return sim_result;
+}
+
 void __tsan_simulate_annotate_wait(void *addr) {
   SimulateAnnotateWait((uptr)addr);
 }
