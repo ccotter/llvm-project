@@ -742,11 +742,21 @@ void SimulateSchedule() {
   sim_sched->Schedule(idx);
 }
 
-void SimulateThreadStart() {
+void SimulateThreadRegister() {
   if (!SimulateIsActive())
     return;
+  // Register with scheduler (non-blocking).
   int idx = sim_sched->AddThread();
   sim_thread_idx = idx;
+}
+
+void SimulateThreadWaitScheduled() {
+  if (!SimulateIsActive())
+    return;
+  int idx = sim_thread_idx;
+  if (idx < 0)
+    return;
+  // Wait until scheduler picks us (blocking).
   sim_sched->ThreadStart(idx);
 }
 

@@ -1070,11 +1070,16 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
     Processor *proc = ProcCreate();
     ProcWire(proc, thr);
     ThreadStart(thr, p->tid, GetTid(), ThreadType::Regular);
+    // Register with simulation scheduler (non-blocking).
+    // This must happen before signaling parent to ensure deterministic
+    // thread registration order.
+    SimulateThreadRegister();
     p->started.Post();
   }
 
   AdaptiveDelay::BeforeChildThreadRuns();
-  SimulateThreadStart();
+  // Wait for scheduler to pick us (blocking).
+  SimulateThreadWaitScheduled();
 
   void *res = callback(param);
   SimulateThreadFinish();

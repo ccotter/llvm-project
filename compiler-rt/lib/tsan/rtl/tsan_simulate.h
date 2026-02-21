@@ -46,9 +46,14 @@ void SimulateReportRace();
 // Sets the deadlock_detected flag to abort the simulation.
 void SimulateReportDeadlock();
 
-// Called when a new application thread starts. Registers the thread with the
-// scheduler and blocks until the scheduler selects it to run.
-void SimulateThreadStart();
+// Called by a new thread to register with the scheduler (non-blocking).
+// Must be called before signaling the parent thread to ensure deterministic
+// thread registration order.
+void SimulateThreadRegister();
+
+// Called by a new thread after signaling the parent. Blocks until the
+// scheduler selects this thread to run.
+void SimulateThreadWaitScheduled();
 
 // Called when an application thread finishes. Removes the thread from the
 // set of runnable threads and wakes the scheduler.
