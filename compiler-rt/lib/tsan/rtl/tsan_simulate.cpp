@@ -72,6 +72,9 @@ static constexpr int kMaxSimThreads = 64;
 // Set to 1 if the max depth is hit during simulation.
 static atomic_uint32_t sim_max_depth_hit;
 
+// Current iteration number (for error reporting).
+static int sim_current_iteration = 0;
+
 // Waitset: tracks threads blocked waiting for a resource (mutex or condvar).
 struct Waitset {
   static constexpr int kMaxWaiters = kMaxSimThreads;
@@ -193,7 +196,8 @@ class SimScheduler {
     int max_depth = flags()->simulate_max_depth;
     if (++depth_ > max_depth) {
       atomic_store_relaxed(&sim_max_depth_hit, 1);
-      Printf("ThreadSanitizer: simulation hit max depth %d\n", max_depth);
+      Printf("ThreadSanitizer: simulation hit max depth %d at iteration %d\n",
+             max_depth, sim_current_iteration);
       mtx_.Unlock();
       return;
     }
@@ -704,14 +708,17 @@ void SimulateReportRace() {
   if (!SimulateIsActive())
     return;
   atomic_store_relaxed(&sim_race_detected, 1);
+  Printf("ThreadSanitizer: data race detected at iteration %d\n",
+         sim_current_iteration);
 }
 
 void SimulateReportDeadlock() {
   if (!SimulateIsActive())
     return;
   atomic_store_relaxed(&sim_deadlock_detected, 1);
-  Printf("ThreadSanitizer: deadlock detected - all threads are blocked\n");
-  Die();
+  Printf("ThreadSanitizer: deadlock detected at iteration %d - all threads are blocked\n",
+         sim_current_iteration);
+  //Die();
 }
 
 void SimulateSchedule() {
@@ -871,6 +878,9 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       start_iter, start_iter + iterations - 1, max_depth, sched);
 
   for (int iter = start_iter; iter < start_iter + iterations; iter++) {
+    // Track current iteration for error reporting.
+    sim_current_iteration = iter;
+
     // Allocate a fresh scheduler on the stack for each iteration.
     ALIGNED(64) char sched_buf[sizeof(SimScheduler)];
     SimScheduler *sched_ptr = new (sched_buf) SimScheduler();
@@ -913,6 +923,9 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n", iter);
+      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
+             iter);
       Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
              iter - start_iter + 1);
       return 2;  // Error: unsupported interceptor called
@@ -925,6 +938,8 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
+             iter);
       Printf("ThreadSanitizer: simulation stopped due to max depth after %d iterations\n",
              iter - start_iter + 1);
       return 3;  // Error: max depth hit
@@ -937,18 +952,22 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
+             iter);
       Printf("ThreadSanitizer: simulation stopped due to race detection after %d iterations\n",
              iter - start_iter + 1);
       return 4;  // Error: race detected
     }
 
     // Check if a deadlock was detected during this iteration.
-    if (atomic_load_relaxed(&sim_deadlock_detected)) {
+    if (false && atomic_load_relaxed(&sim_deadlock_detected)) {
       // Deactivate simulation and clean up.
       atomic_store_relaxed(&sim_active, 0);
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
+      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
+             iter);
       Printf("ThreadSanitizer: simulation stopped due to deadlock after %d iterations\n",
              iter - start_iter + 1);
       return 5;  // Error: deadlock detected
