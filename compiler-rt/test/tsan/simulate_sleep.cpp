@@ -9,7 +9,7 @@
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
 void *thread_func(void *arg) {
-  usleep(1000);  // Should trigger unsupported error
+  usleep(1000); // Should trigger unsupported error
   return nullptr;
 }
 
@@ -26,7 +26,8 @@ int main() {
 
   // Should return 2 (unsupported interceptor error)
   if (result == 2) {
-    printf("Test PASSED: simulation correctly detected unsupported sleep function\n");
+    printf("Test PASSED: simulation correctly detected unsupported sleep "
+           "function\n");
   } else {
     printf("Test FAILED: expected return value 2, got %d\n", result);
     return 1;

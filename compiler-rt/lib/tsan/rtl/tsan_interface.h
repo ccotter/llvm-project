@@ -107,34 +107,34 @@ SANITIZER_INTERFACE_ATTRIBUTE void __tsan_on_thread_idle();
 // - Only pthread_mutex, pthread_cond, pthread_create/join, and atomics
 //   are supported. Other pthread primitives will abort the simulation.
 SANITIZER_INTERFACE_ATTRIBUTE
-int __tsan_simulate(void (*callback)(void *arg), void *arg);
+int __tsan_simulate(void (*callback)(void* arg), void* arg);
 
-// Manually annotate that a thread is blocked on a specific address (during simulation only).
-// Use this when blocking on a synchronization primitive that TSAN doesn't instrument
-// (e.g., direct futex calls, custom spinlocks). The address should be the memory location
-// that threads are waiting on (e.g., the futex word address).
-// This marks the thread as non-runnable so the scheduler won't pick it.
-// No-op if simulation is not active.
+// Manually annotate that a thread is blocked on a specific address (during
+// simulation only). Use this when blocking on a synchronization primitive that
+// TSAN doesn't instrument (e.g., direct futex calls, custom spinlocks). The
+// address should be the memory location that threads are waiting on (e.g., the
+// futex word address). This marks the thread as non-runnable so the scheduler
+// won't pick it. No-op if simulation is not active.
 SANITIZER_INTERFACE_ATTRIBUTE
-void __tsan_simulate_annotate_wait(void *addr);
+void __tsan_simulate_annotate_wait(void* addr);
 
 // Wake one thread waiting on the specified address (during simulation only).
-// Use this to signal that one thread blocked on the given address can become runnable.
-// No-op if simulation is not active or no threads are waiting.
+// Use this to signal that one thread blocked on the given address can become
+// runnable. No-op if simulation is not active or no threads are waiting.
 SANITIZER_INTERFACE_ATTRIBUTE
-void __tsan_simulate_annotate_wake_one(void *addr);
+void __tsan_simulate_annotate_wake_one(void* addr);
 
 // Wake all threads waiting on the specified address (during simulation only).
-// Use this to signal that all threads blocked on the given address can become runnable.
-// No-op if simulation is not active or no threads are waiting.
+// Use this to signal that all threads blocked on the given address can become
+// runnable. No-op if simulation is not active or no threads are waiting.
 SANITIZER_INTERFACE_ATTRIBUTE
-void __tsan_simulate_annotate_wake_all(void *addr);
+void __tsan_simulate_annotate_wake_all(void* addr);
 
 // Print shadow memory state (vector clocks) for the given address.
 // Useful for debugging why a race is not being detected.
 // Shows: thread ID, epoch, access pattern, and current thread's clock.
 SANITIZER_INTERFACE_ATTRIBUTE
-void __tsan_print_shadow(void *addr);
+void __tsan_print_shadow(void* addr);
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void *__tsan_external_register_tag(const char *object_type);

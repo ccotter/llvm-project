@@ -11,13 +11,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "tsan_interface.h"
-#include "tsan_interface_ann.h"
-#include "tsan_rtl.h"
-#include "tsan_simulate.h"
-#include "tsan_platform.h"
-#include "tsan_shadow.h"
+
 #include "sanitizer_common/sanitizer_internal_defs.h"
 #include "sanitizer_common/sanitizer_ptrauth.h"
+#include "tsan_interface_ann.h"
+#include "tsan_platform.h"
+#include "tsan_rtl.h"
+#include "tsan_shadow.h"
+#include "tsan_simulate.h"
 
 #define CALLERPC ((uptr)__builtin_return_address(0))
 
@@ -86,61 +87,62 @@ void __tsan_set_fiber_name(void *fiber, const char *name) {
 }
 }  // extern "C"
 
-int __tsan_simulate(void (*callback)(void *arg), void *arg) {
+int __tsan_simulate(void (*callback)(void* arg), void* arg) {
   Initialize(cur_thread_init());
   return SimulateRun(callback, arg);
 }
 
 // Support for -fsanitize-thread-simulate-main linker wrapping
-extern "C" SANITIZER_WEAK_ATTRIBUTE int __real_main(int argc, char **argv,
-                                                     char **envp);
+extern "C" SANITIZER_WEAK_ATTRIBUTE int __real_main(int argc, char** argv,
+                                                    char** envp);
 
 namespace {
 struct MainArgs {
   int argc;
-  char **argv;
-  char **envp;
+  char** argv;
+  char** envp;
   int exit_code;
 };
 
-static void wrapped_main_callback(void *arg) {
-  MainArgs *args = static_cast<MainArgs *>(arg);
+static void wrapped_main_callback(void* arg) {
+  MainArgs* args = static_cast<MainArgs*>(arg);
   args->exit_code = __real_main(args->argc, args->argv, args->envp);
 }
 }  // namespace
 
-extern "C" int __wrap_main(int argc, char **argv, char **envp) {
+extern "C" int __wrap_main(int argc, char** argv, char** envp) {
   MainArgs args = {argc, argv, envp, 0};
   int sim_result = __tsan_simulate(wrapped_main_callback, &args);
   // If simulation succeeded (return code 0 or exit due to no threads spawned),
-  // return the exit code from main. Otherwise, return the simulation error code.
+  // return the exit code from main. Otherwise, return the simulation error
+  // code.
   if (sim_result == 0)
     return args.exit_code;
   return sim_result;
 }
 
-void __tsan_simulate_annotate_wait(void *addr) {
+void __tsan_simulate_annotate_wait(void* addr) {
   SimulateAnnotateWait((uptr)addr);
 }
 
-void __tsan_simulate_annotate_wake_one(void *addr) {
+void __tsan_simulate_annotate_wake_one(void* addr) {
   SimulateAnnotateWakeOne((uptr)addr);
 }
 
-void __tsan_simulate_annotate_wake_all(void *addr) {
+void __tsan_simulate_annotate_wake_all(void* addr) {
   SimulateAnnotateWakeAll((uptr)addr);
 }
 
-void __tsan_print_shadow(void *addr) {
+void __tsan_print_shadow(void* addr) {
   if (common_flags()->verbosity < 2)
     return;
 
-  ThreadState *thr = cur_thread();
+  ThreadState* thr = cur_thread();
   if (!thr)
     return;
   uptr a = (uptr)addr;
   uptr aligned_addr = RoundDown(a, kShadowCell);
-  RawShadow *shadow_mem = MemToShadow(aligned_addr);
+  RawShadow* shadow_mem = MemToShadow(aligned_addr);
 
   char buf[2048];
   uptr len = 0;
@@ -169,16 +171,15 @@ void __tsan_print_shadow(void *addr) {
     s.GetAccess(&off, &size, &typ);
 
     Epoch my_epoch = thr->clock.Get(s.sid());
-    const char *race_status = (my_epoch >= s.epoch()) ? "ordered" : "RACE";
+    const char* race_status = (my_epoch >= s.epoch()) ? "ordered" : "RACE";
 
-    len += internal_snprintf(buf + len, sizeof(buf) - len,
-                             "    [%d]: tid=%u epoch=%u access=0x%x "
-                             "(off=%zu size=%zu %s%s) my_clock[%u]=%u [%s]\n",
-                             i, (unsigned)s.sid(), (unsigned)s.epoch(),
-                             s.access(), off, size,
-                             (typ & kAccessRead) ? "R" : "W",
-                             (typ & kAccessAtomic) ? " atomic" : "",
-                             (unsigned)s.sid(), (unsigned)my_epoch, race_status);
+    len += internal_snprintf(
+        buf + len, sizeof(buf) - len,
+        "    [%d]: tid=%u epoch=%u access=0x%x "
+        "(off=%zu size=%zu %s%s) my_clock[%u]=%u [%s]\n",
+        i, (unsigned)s.sid(), (unsigned)s.epoch(), s.access(), off, size,
+        (typ & kAccessRead) ? "R" : "W", (typ & kAccessAtomic) ? " atomic" : "",
+        (unsigned)s.sid(), (unsigned)my_epoch, race_status);
   }
 
   Printf("%s", buf);

@@ -17,14 +17,12 @@ std::atomic<bool> keep_running(true);
 
 void *background_thread(void *arg) {
   while (keep_running.load(std::memory_order_relaxed)) {
-    usleep(10000);  // 10ms
+    usleep(10000); // 10ms
   }
   return nullptr;
 }
 
-void test_callback(void *arg) {
-  fprintf(stderr, "test_callback executed\n");
-}
+void test_callback(void *arg) { fprintf(stderr, "test_callback executed\n"); }
 
 int main() {
   // Test 1: Simulate with pre-existing thread (should fail)

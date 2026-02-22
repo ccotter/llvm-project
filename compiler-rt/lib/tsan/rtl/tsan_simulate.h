@@ -36,7 +36,7 @@ void SimulateSchedule();
 
 // Called when an unsupported interceptor is invoked during simulation.
 // Prints an error message and sets the failure flag.
-void SimulateReportUnsupported(const char *func_name);
+void SimulateReportUnsupported(const char* func_name);
 
 // Called when a data race is detected during simulation.
 // Sets the race_detected flag to abort the simulation.
@@ -48,7 +48,8 @@ void SimulateReportDeadlock();
 
 // Called by a new thread to register with the scheduler (non-blocking).
 // Must be called before signaling the parent thread to ensure deterministic
-// thread registration order. The thread_handle is the pthread_t for this thread.
+// thread registration order. The thread_handle is the pthread_t for this
+// thread.
 void SimulateThreadRegister(uptr thread_handle);
 
 // Called by a new thread after signaling the parent. Blocks until the
@@ -81,13 +82,15 @@ void SimulateMutexBlock(uptr mutex_addr);
 void SimulateMutexUnblock(uptr mutex_addr);
 
 // Called when pthread_cond_wait blocks on a condition variable. Adds the thread
-// to the condvar's waitset and parks it. Must be called only when SimulateIsActive().
+// to the condvar's waitset and parks it. Must be called only when
+// SimulateIsActive().
 void SimulateCondWait(uptr cond_addr, uptr mutex_addr);
 
 // Called when pthread_cond_signal wakes one thread from a condition variable.
 void SimulateCondSignal(uptr cond_addr);
 
-// Called when pthread_cond_broadcast wakes all threads from a condition variable.
+// Called when pthread_cond_broadcast wakes all threads from a condition
+// variable.
 void SimulateCondBroadcast(uptr cond_addr);
 
 // Called to mark a thread as waiting on a custom address (e.g., futex word).
@@ -97,14 +100,15 @@ void SimulateAnnotateWait(uptr addr);
 // Called to wake one thread waiting on a custom address (e.g., futex_wake(1)).
 void SimulateAnnotateWakeOne(uptr addr);
 
-// Called to wake all threads waiting on a custom address (e.g., futex_wake_all()).
+// Called to wake all threads waiting on a custom address (e.g.,
+// futex_wake_all()).
 void SimulateAnnotateWakeAll(uptr addr);
 
 // Run the simulation: invoke `callback(arg)` for `iterations` iterations,
 // exploring thread interleavings using the configured scheduler.
 // Returns 0 on success, non-zero on error (1=pre-existing threads,
 // 2=unsupported interceptor called).
-int SimulateRun(void (*callback)(void *), void *arg);
+int SimulateRun(void (*callback)(void*), void* arg);
 
 }  // namespace __tsan
 

@@ -449,14 +449,14 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
-  
+
   // Add --wrap=main for ThreadSanitizer simulation mode
   if (NeedsSanitizerDeps) {
     const SanitizerArgs &SanArgs = ToolChain.getSanitizerArgs(Args);
     if (SanArgs.needsTsanRt() && SanArgs.needsTsanSimulateMain())
       CmdArgs.push_back("--wrap=main");
   }
-  
+
   addLinkerCompressDebugSectionsOption(ToolChain, Args, CmdArgs);
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 

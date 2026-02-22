@@ -5,9 +5,9 @@
 // This is useful for futex-like primitives or custom synchronization
 // not known to TSAN's interceptors.
 
+#include <atomic>
 #include <pthread.h>
 #include <stdio.h>
-#include <atomic>
 
 extern "C" {
 int __tsan_simulate(void (*callback)(void *), void *arg);
@@ -45,7 +45,8 @@ void test_callback(void *) {
   pthread_create(&thread, nullptr, thread_func, nullptr);
 
   // Give worker thread time to call annotate_wait.
-  for (volatile int i = 0; i < 100; i++) {}
+  for (volatile int i = 0; i < 100; i++) {
+  }
 
   // Wake the worker thread (simulating a futex_wake).
   futex_word = 1;

@@ -32,7 +32,7 @@
 #include "tsan_flags.h"
 #include "tsan_rtl.h"
 
-extern "C" void *pthread_self();
+extern "C" void* pthread_self();
 
 namespace __tsan {
 
@@ -60,8 +60,8 @@ class RandomGenerator {
 struct SimThread {
   enum State : u32 {
     Unused = 0,
-    Running,   // Runnable — may be selected by the scheduler.
-    Blocked,   // Blocked on mutex/condvar — scheduler must not pick this thread.
+    Running,  // Runnable — may be selected by the scheduler.
+    Blocked,  // Blocked on mutex/condvar — scheduler must not pick this thread.
     Finished,  // Thread has exited the simulation.
   };
 
@@ -85,9 +85,7 @@ struct Waitset {
   int waiters[kMaxWaiters];
   int count;
 
-  Waitset() : count(0) {
-    internal_memset(waiters, 0, sizeof(waiters));
-  }
+  Waitset() : count(0) { internal_memset(waiters, 0, sizeof(waiters)); }
 
   void AddWaiter(int thread_idx) {
     CHECK_LT(count, kMaxWaiters);
@@ -96,23 +94,21 @@ struct Waitset {
 
   // Randomly select and remove one thread from the waitset.
   // Matches Relacy's approach to maximize interleaving exploration.
-  int RemoveOne(RandomGenerator *rng) {
+  int RemoveOne(RandomGenerator* rng) {
     CHECK_GT(count, 0);
     // Pick a random thread from the waitset.
     int idx = rng->NextRange(count);
     int thread_idx = waiters[idx];
     // Remove it by shifting remaining threads.
-    for (int i = idx + 1; i < count; i++)
-      waiters[i - 1] = waiters[i];
+    for (int i = idx + 1; i < count; i++) waiters[i - 1] = waiters[i];
     count--;
     return thread_idx;
   }
 
   // Remove all threads and return count.
-  int RemoveAll(int *out_threads) {
+  int RemoveAll(int* out_threads) {
     int n = count;
-    for (int i = 0; i < count; i++)
-      out_threads[i] = waiters[i];
+    for (int i = 0; i < count; i++) out_threads[i] = waiters[i];
     count = 0;
     return n;
   }
@@ -173,21 +169,29 @@ class SimScheduler {
 
   void DumpStates() {
     // Debug: print thread states before context switch.
-      if (common_flags()->verbosity >= 2) {
-        VPrintf(2, "Thread states: ");
-        for (int i = 0; i < thread_count_; i++) {
-        const char *state_str = "?";
+    if (common_flags()->verbosity >= 2) {
+      VPrintf(2, "Thread states: ");
+      for (int i = 0; i < thread_count_; i++) {
+        const char* state_str = "?";
         switch (threads_[i].state) {
-          case SimThread::Unused: state_str = "Unused"; break;
-          case SimThread::Running: state_str = "Running"; break;
-          case SimThread::Blocked: state_str = "Blocked"; break;
-          case SimThread::Finished: state_str = "Finished"; break;
+          case SimThread::Unused:
+            state_str = "Unused";
+            break;
+          case SimThread::Running:
+            state_str = "Running";
+            break;
+          case SimThread::Blocked:
+            state_str = "Blocked";
+            break;
+          case SimThread::Finished:
+            state_str = "Finished";
+            break;
         }
         VPrintf(2, "[%d:%s] ", i, state_str);
-        }
-        VPrintf(2, "\n");
       }
+      VPrintf(2, "\n");
     }
+  }
 
   // ------- Scheduling point (non-blocking) -------
   //
@@ -318,7 +322,8 @@ class SimScheduler {
   }
 
   // Check if a thread with the given pthread_t handle is still active
-  // (i.e., not Finished). Returns false if thread not found or already finished.
+  // (i.e., not Finished). Returns false if thread not found or already
+  // finished.
   bool IsThreadActive(uptr thread_handle) {
     SpinMutexLock lock(&mtx_);
     for (int i = 0; i < thread_count_; i++) {
@@ -347,11 +352,9 @@ class SimScheduler {
     threads_[idx].sem.Wait();
   }
 
-  Semaphore *GetSemaphore(int idx) { return &threads_[idx].sem; }
+  Semaphore* GetSemaphore(int idx) { return &threads_[idx].sem; }
 
-  int GetThreadCount() const {
-    return thread_count_;
-  }
+  int GetThreadCount() const { return thread_count_; }
 
   void MutexBlock(int caller_idx, uptr mutex_addr) {
     mtx_.Lock();
@@ -363,7 +366,7 @@ class SimScheduler {
     }
 
     // Add this thread to the mutex's waitset.
-    Waitset *ws = GetOrCreateMutexWaitset(mutex_addr);
+    Waitset* ws = GetOrCreateMutexWaitset(mutex_addr);
     ws->AddWaiter(caller_idx);
 
     // Mark thread as blocked.
@@ -382,7 +385,7 @@ class SimScheduler {
     mtx_.Lock();
 
     // Find the waitset for this mutex.
-    Waitset *ws = nullptr;
+    Waitset* ws = nullptr;
     for (int i = 0; i < mutex_waitset_count_; i++) {
       if (mutex_waitset_addrs_[i] == mutex_addr) {
         ws = &mutex_waitsets_[i];
@@ -404,7 +407,8 @@ class SimScheduler {
       current_ = thread_idx;
       threads_[thread_idx].sem.Post();
     }
-    // Otherwise it will be picked up by next Schedule() or when current finishes.
+    // Otherwise it will be picked up by next Schedule() or when current
+    // finishes.
 
     mtx_.Unlock();
   }
@@ -418,7 +422,7 @@ class SimScheduler {
     }
 
     // Add this thread to the condvar's waitset.
-    Waitset *ws = GetOrCreateCondWaitset(cond_addr);
+    Waitset* ws = GetOrCreateCondWaitset(cond_addr);
     ws->AddWaiter(caller_idx);
 
     // Mark thread as blocked.
@@ -437,7 +441,7 @@ class SimScheduler {
     mtx_.Lock();
 
     // Find the waitset for this condvar.
-    Waitset *ws = nullptr;
+    Waitset* ws = nullptr;
     for (int i = 0; i < cond_waitset_count_; i++) {
       if (cond_waitset_addrs_[i] == cond_addr) {
         ws = &cond_waitsets_[i];
@@ -467,7 +471,7 @@ class SimScheduler {
     mtx_.Lock();
 
     // Find the waitset for this condvar.
-    Waitset *ws = nullptr;
+    Waitset* ws = nullptr;
     for (int i = 0; i < cond_waitset_count_; i++) {
       if (cond_waitset_addrs_[i] == cond_addr) {
         ws = &cond_waitsets_[i];
@@ -512,7 +516,7 @@ class SimScheduler {
     }
 
     // Add this thread to the annotated address's waitset.
-    Waitset *ws = GetOrCreateAnnotateWaitset(addr);
+    Waitset* ws = GetOrCreateAnnotateWaitset(addr);
     ws->AddWaiter(caller_idx);
 
     // Mark thread as blocked.
@@ -531,7 +535,7 @@ class SimScheduler {
     mtx_.Lock();
 
     // Find the waitset for this address.
-    Waitset *ws = nullptr;
+    Waitset* ws = nullptr;
     for (int i = 0; i < annotate_waitset_count_; i++) {
       if (annotate_waitset_addrs_[i] == addr) {
         ws = &annotate_waitsets_[i];
@@ -561,7 +565,7 @@ class SimScheduler {
     mtx_.Lock();
 
     // Find the waitset for this address.
-    Waitset *ws = nullptr;
+    Waitset* ws = nullptr;
     for (int i = 0; i < annotate_waitset_count_; i++) {
       if (annotate_waitset_addrs_[i] == addr) {
         ws = &annotate_waitsets_[i];
@@ -638,7 +642,8 @@ class SimScheduler {
     DumpStates();
     if (runnable == 0) {
       current_ = -1;
-      // Check if this is a deadlock (blocked threads exist but no runnable ones)
+      // Check if this is a deadlock (blocked threads exist but no runnable
+      // ones)
       int blocked = 0;
       for (int i = 0; i < thread_count_; i++) {
         if (threads_[i].state == SimThread::Blocked)
@@ -657,7 +662,7 @@ class SimScheduler {
 
   // Get or create waitset for a mutex. Uses simple linear search since
   // we don't expect many mutexes per iteration.
-  Waitset *GetOrCreateMutexWaitset(uptr mutex_addr) {
+  Waitset* GetOrCreateMutexWaitset(uptr mutex_addr) {
     for (int i = 0; i < mutex_waitset_count_; i++) {
       if (mutex_waitset_addrs_[i] == mutex_addr)
         return &mutex_waitsets_[i];
@@ -670,7 +675,7 @@ class SimScheduler {
   }
 
   // Get or create waitset for a condition variable.
-  Waitset *GetOrCreateCondWaitset(uptr cond_addr) {
+  Waitset* GetOrCreateCondWaitset(uptr cond_addr) {
     for (int i = 0; i < cond_waitset_count_; i++) {
       if (cond_waitset_addrs_[i] == cond_addr)
         return &cond_waitsets_[i];
@@ -683,7 +688,7 @@ class SimScheduler {
   }
 
   // Get or create waitset for an annotated address (e.g., futex).
-  Waitset *GetOrCreateAnnotateWaitset(uptr addr) {
+  Waitset* GetOrCreateAnnotateWaitset(uptr addr) {
     for (int i = 0; i < annotate_waitset_count_; i++) {
       if (annotate_waitset_addrs_[i] == addr)
         return &annotate_waitsets_[i];
@@ -724,7 +729,7 @@ class SimScheduler {
 static atomic_uint32_t sim_active;
 
 // Pointer to the current scheduler instance (valid while sim_active == 1).
-static SimScheduler *sim_sched;
+static SimScheduler* sim_sched;
 
 // Per-thread scheduler index. -1 when not participating in simulation.
 static THREADLOCAL int sim_thread_idx = -1;
@@ -742,11 +747,9 @@ static atomic_uint32_t sim_deadlock_detected;
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
 
-bool SimulateIsActive() {
-  return atomic_load_relaxed(&sim_active) != 0;
-}
+bool SimulateIsActive() { return atomic_load_relaxed(&sim_active) != 0; }
 
-void SimulateReportUnsupported(const char *func_name) {
+void SimulateReportUnsupported(const char* func_name) {
   if (!SimulateIsActive())
     return;
   atomic_store_relaxed(&sim_error, 1);
@@ -769,9 +772,11 @@ void SimulateReportDeadlock() {
   if (!SimulateIsActive())
     return;
   atomic_store_relaxed(&sim_deadlock_detected, 1);
-  Printf("ThreadSanitizer: deadlock detected at iteration %d - all threads are blocked\n",
-         sim_current_iteration);
-  //Die();
+  Printf(
+      "ThreadSanitizer: deadlock detected at iteration %d - all threads are "
+      "blocked\n",
+      sim_current_iteration);
+  // Die();
 }
 
 void SimulateSchedule() {
@@ -786,7 +791,7 @@ void SimulateSchedule() {
 
   // Optionally print stack trace at scheduling point
   if (flags()->simulate_print_schedule_stacks) {
-    ThreadState *thr = cur_thread();
+    ThreadState* thr = cur_thread();
     Printf("=========== Schedule point (thread %d) ===========\n", idx);
     PrintCurrentStack(thr, StackTrace::GetCurrentPc());
     Printf("==================================================\n");
@@ -911,8 +916,8 @@ void SimulateAnnotateWakeAll(uptr addr) {
   sim_sched->AnnotateWakeAll(addr);
 }
 
-int SimulateRun(void (*callback)(void *), void *arg) {
-  const char *sched = flags()->simulate_scheduler;
+int SimulateRun(void (*callback)(void*), void* arg) {
+  const char* sched = flags()->simulate_scheduler;
   if (!sched || !sched[0] || internal_strcmp(sched, "random") != 0) {
     // No scheduler configured or not "random". Run the callback once without
     // simulation so that __tsan_simulate still works as a simple wrapper.
@@ -961,7 +966,7 @@ int SimulateRun(void (*callback)(void *), void *arg) {
 
     // Allocate a fresh scheduler on the stack for each iteration.
     ALIGNED(64) char sched_buf[sizeof(SimScheduler)];
-    SimScheduler *sched_ptr = new (sched_buf) SimScheduler();
+    SimScheduler* sched_ptr = new (sched_buf) SimScheduler();
     sim_sched = sched_ptr;
 
     // Register the calling (main) thread as thread 0.
@@ -1003,9 +1008,12 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
-      Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n", iter);
-      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
+      Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n",
              iter);
+      Printf(
+          "ThreadSanitizer: to reproduce, set "
+          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+          iter);
       Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
              iter - start_iter + 1);
       return 2;  // Error: unsupported interceptor called
@@ -1018,10 +1026,14 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
-      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
-             iter);
-      Printf("ThreadSanitizer: simulation stopped due to max depth after %d iterations\n",
-             iter - start_iter + 1);
+      Printf(
+          "ThreadSanitizer: to reproduce, set "
+          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+          iter);
+      Printf(
+          "ThreadSanitizer: simulation stopped due to max depth after %d "
+          "iterations\n",
+          iter - start_iter + 1);
       return 3;  // Error: max depth hit
     }
 
@@ -1032,10 +1044,14 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
-      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
-             iter);
-      Printf("ThreadSanitizer: simulation stopped due to race detection after %d iterations\n",
-             iter - start_iter + 1);
+      Printf(
+          "ThreadSanitizer: to reproduce, set "
+          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+          iter);
+      Printf(
+          "ThreadSanitizer: simulation stopped due to race detection after %d "
+          "iterations\n",
+          iter - start_iter + 1);
       return 4;  // Error: race detected
     }
 
@@ -1046,10 +1062,14 @@ int SimulateRun(void (*callback)(void *), void *arg) {
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
-      Printf("ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration=%d\n",
-             iter);
-      Printf("ThreadSanitizer: simulation stopped due to deadlock after %d iterations\n",
-             iter - start_iter + 1);
+      Printf(
+          "ThreadSanitizer: to reproduce, set "
+          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+          iter);
+      Printf(
+          "ThreadSanitizer: simulation stopped due to deadlock after %d "
+          "iterations\n",
+          iter - start_iter + 1);
       return 5;  // Error: deadlock detected
     }
 

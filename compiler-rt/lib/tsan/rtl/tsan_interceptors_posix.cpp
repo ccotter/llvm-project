@@ -94,8 +94,8 @@ extern "C" int pthread_key_create(unsigned *key, void (*destructor)(void* v));
 extern "C" int pthread_setspecific(unsigned key, const void *v);
 DECLARE_REAL(int, pthread_mutexattr_gettype, void *, void *)
 DECLARE_REAL(int, fflush, __sanitizer_FILE *fp)
-DECLARE_REAL(int, pthread_mutex_trylock, void *m)
-DECLARE_REAL(int, pthread_mutex_unlock, void *m)
+DECLARE_REAL(int, pthread_mutex_trylock, void* m)
+DECLARE_REAL(int, pthread_mutex_unlock, void* m)
 DECLARE_REAL_AND_INTERCEPTOR(void *, malloc, usize size)
 DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
 extern "C" int pthread_equal(void *t1, void *t2);
@@ -1135,7 +1135,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
     p.tid = ThreadCreate(thr, pc, *(uptr *)th, IsStateDetached(detached));
     CHECK_NE(p.tid, kMainTid);
     // Store the pthread_t handle so the child thread can register it.
-    p.pthread_handle = *(uptr *)th;
+    p.pthread_handle = *(uptr*)th;
     // Synchronization on p.tid serves two purposes:
     // 1. ThreadCreate must finish before the new thread starts.
     //    Otherwise the new thread can call pthread_detach, but the pthread_t
@@ -1348,11 +1348,13 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
     // from the simulation's waitset, so we must do it explicitly.
     SimulateMutexUnblock((uptr)m);
 
-    // Park this thread on the condvar's waitset until signal/broadcast wakes it.
+    // Park this thread on the condvar's waitset until signal/broadcast wakes
+    // it.
     SimulateCondWait((uptr)c, (uptr)m);
 
-    // After waking, re-acquire the mutex (mimicking pthread_cond_wait behavior).
-    // This may require multiple attempts if another thread holds the mutex.
+    // After waking, re-acquire the mutex (mimicking pthread_cond_wait
+    // behavior). This may require multiple attempts if another thread holds the
+    // mutex.
     SimulateSchedule();
     while (true) {
       // Call the real pthread function directly (not through interceptor).
@@ -1513,7 +1515,8 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
       if (res != errno_EBUSY)
         break;
       // Mutex is held — add ourselves to the waitset and park.
-      // When woken, we'll retry (might succeed or fail if another thread got it first).
+      // When woken, we'll retry (might succeed or fail if another thread got it
+      // first).
       SimulateMutexBlock((uptr)m);
     }
   } else {

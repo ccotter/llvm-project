@@ -18,7 +18,7 @@
 #include <thread>
 
 // Declare the TSan simulate interface.
-extern "C" void __tsan_simulate(void (*callback)(void *arg), void *arg);
+extern "C" void __tsan_simulate(void (*callback)(void* arg), void* arg);
 
 // Shared state for the test. Re-initialized each iteration by the callback.
 struct TestState {
@@ -28,17 +28,15 @@ struct TestState {
 
 // Test callback: two threads atomically increment a counter.
 // The simulation explores different orderings of the increments.
-void test_atomic_counter(void *arg) {
+void test_atomic_counter(void* arg) {
   (void)arg;
   TestState state;
 
-  std::thread t1([&state]() {
-    state.counter.fetch_add(1, std::memory_order_relaxed);
-  });
+  std::thread t1(
+      [&state]() { state.counter.fetch_add(1, std::memory_order_relaxed); });
 
-  std::thread t2([&state]() {
-    state.counter.fetch_add(1, std::memory_order_relaxed);
-  });
+  std::thread t2(
+      [&state]() { state.counter.fetch_add(1, std::memory_order_relaxed); });
 
   t1.join();
   t2.join();
@@ -51,7 +49,7 @@ void test_atomic_counter(void *arg) {
 // Two threads increment a non-atomic variable under a mutex.
 #include <mutex>
 
-void test_mutex_protected(void *arg) {
+void test_mutex_protected(void* arg) {
   (void)arg;
 
   int shared_data = 0;
@@ -74,7 +72,7 @@ void test_mutex_protected(void *arg) {
 }
 
 // Test callback: producer-consumer with atomic flag.
-void test_producer_consumer(void *arg) {
+void test_producer_consumer(void* arg) {
   (void)arg;
 
   int data = 0;
@@ -99,7 +97,7 @@ void test_producer_consumer(void *arg) {
 // Test callback: non-atomic increments (demonstrates data race).
 // Two threads each increment a shared variable 5 times without synchronization.
 // TSAN will detect the race condition.
-void test_non_atomic_increment(void *arg) {
+void test_non_atomic_increment(void* arg) {
   (void)arg;
 
   std::atomic<int> shared_counter = 0;
@@ -107,14 +105,14 @@ void test_non_atomic_increment(void *arg) {
   std::thread t1([&]() {
     for (int i = 0; i < 5; i++) {
       int x = shared_counter.load();
-      shared_counter.store(x+1);
+      shared_counter.store(x + 1);
     }
   });
 
   std::thread t2([&]() {
     for (int i = 0; i < 5; i++) {
       int x = shared_counter.load();
-      shared_counter.store(x+1);
+      shared_counter.store(x + 1);
     }
   });
 
@@ -123,7 +121,7 @@ void test_non_atomic_increment(void *arg) {
 
   printf("Counter value: %d\n", shared_counter.load());
 
-  //assert(shared_counter == 10 && "Counter should be 10 if no race occurred");
+  // assert(shared_counter == 10 && "Counter should be 10 if no race occurred");
 }
 
 // Test callback: producer-consumer with condition variable.
@@ -131,7 +129,7 @@ void test_non_atomic_increment(void *arg) {
 #include <condition_variable>
 #include <queue>
 
-void test_condvar_producer_consumer(void *arg) {
+void test_condvar_producer_consumer(void* arg) {
   (void)arg;
 
   std::queue<int> queue;
@@ -159,7 +157,7 @@ void test_condvar_producer_consumer(void *arg) {
     while (true) {
       std::unique_lock<std::mutex> lock(mtx);
       cv.wait(lock, [&]() { return !queue.empty() || done; });
-      
+
       if (!queue.empty()) {
         queue.pop();
         count++;
