@@ -131,7 +131,7 @@ TSAN_FLAG(int, simulate_start_iteration, 0,
 TSAN_FLAG(int, simulate_max_depth, 10000,
           "Maximum scheduling depth per iteration. If exceeded, the "
           "iteration is aborted and a new one starts.")
-TSAN_FLAG(bool, simulate_schedule_on_memory_access, true,
+TSAN_FLAG(bool, simulate_schedule_on_memory_access, false,
           "Insert scheduling points at every memory read/write during "
           "simulation for maximum interleaving exploration.")
 TSAN_FLAG(int, simulate_schedule_probability, 100,
