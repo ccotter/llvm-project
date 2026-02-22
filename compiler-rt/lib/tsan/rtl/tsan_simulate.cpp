@@ -167,9 +167,15 @@ class SimScheduler {
     current_ = -1;
   }
 
-  void DumpStates() {
-    // Debug: print thread states before context switch.
+  void DumpStates(int chosen = -1, int current = -1) {
+    // Debug: print thread states and scheduling decision.
     if (common_flags()->verbosity >= 2) {
+      if (chosen >= 0) {
+        Printf("Chose tid %d to run", chosen);
+        if (current >= 0)
+          Printf(" (current %d)", current);
+        Printf(" - ");
+      }
       Printf("Thread states: ");
       for (int i = 0; i < thread_count_; i++) {
         const char* state_str = "?";
@@ -233,8 +239,7 @@ class SimScheduler {
     // Random scheduling: pick a random runnable thread.
     int chosen = PickRandomRunnable(runnable);
 
-    VPrintf(2, "Chose tid %d to run current %d\n", chosen, caller_idx);
-    DumpStates();
+    DumpStates(chosen, caller_idx);
 
     if (chosen == caller_idx) {
       // Random picked us — keep running.
@@ -639,8 +644,8 @@ class SimScheduler {
   // its semaphore, or sets current_ = -1 if none are runnable.
   void PickNextAndWake() {
     int runnable = CountRunnable();
-    DumpStates();
     if (runnable == 0) {
+      DumpStates();
       current_ = -1;
       // Check if this is a deadlock (blocked threads exist but no runnable
       // ones)
@@ -656,6 +661,7 @@ class SimScheduler {
       return;
     }
     int chosen = PickRandomRunnable(runnable);
+    DumpStates(chosen);
     current_ = chosen;
     threads_[chosen].sem.Post();
   }
