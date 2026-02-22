@@ -37,23 +37,23 @@ void* thread_c_func(void* arg) {
 
 void test_callback(void* arg) {
   pthread_barrier_init(&barrier, nullptr, 3);
-  
+
   // Create threads in sequence
   pthread_create(&thread_a, nullptr, thread_a_func, nullptr);
   pthread_create(&thread_b, nullptr, thread_b_func, nullptr);
   pthread_create(&thread_c, nullptr, thread_c_func, nullptr);
-  
+
   // All three threads will be blocked on join, creating a deadlock
   // A joins B, B joins C, C joins A - impossible to resolve
-  
+
   pthread_barrier_destroy(&barrier);
 }
 
 int main() {
   int result = __tsan_simulate(test_callback, nullptr);
-  
+
   fprintf(stderr, "__tsan_simulate returned: %d\n", result);
-  
+
   // Should return 5 (deadlock detected)
   if (result == 5) {
     fprintf(stderr, "Test PASSED: join-cycle deadlock correctly detected\n");

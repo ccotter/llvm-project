@@ -33,7 +33,7 @@ void test_callback(void* arg) {
   pthread_join(t2, nullptr);
 
   pthread_mutex_destroy(&mutex);
-  
+
   // With proper synchronization, value should be correct
   if (shared_var != 20) {
     fprintf(stderr, "ERROR: Expected shared_var=20, got %d\n", shared_var);
@@ -45,7 +45,7 @@ int main() {
   int result = __tsan_simulate(test_callback, nullptr);
 
   fprintf(stderr, "Simulation returned: %d\n", result);
-  
+
   if (result == 0) {
     fprintf(stderr, "Test PASSED: no race with proper synchronization\n");
     return 0;

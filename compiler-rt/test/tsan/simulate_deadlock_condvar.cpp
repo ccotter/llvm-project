@@ -28,26 +28,26 @@ void* thread_func(void* arg) {
 void test_callback(void* arg) {
   pthread_mutex_init(&mutex, nullptr);
   pthread_cond_init(&condvar, nullptr);
-  
+
   pthread_t t1, t2;
   pthread_create(&t1, nullptr, thread_func, nullptr);
   pthread_create(&t2, nullptr, thread_func, nullptr);
-  
+
   // Both threads will block on pthread_cond_wait(), creating a deadlock
   // since no one will signal the condition variable
-  
+
   pthread_join(t1, nullptr);
   pthread_join(t2, nullptr);
-  
+
   pthread_cond_destroy(&condvar);
   pthread_mutex_destroy(&mutex);
 }
 
 int main() {
   int result = __tsan_simulate(test_callback, nullptr);
-  
+
   fprintf(stderr, "__tsan_simulate returned: %d\n", result);
-  
+
   // Should return 5 (deadlock detected)
   if (result == 5) {
     fprintf(stderr, "Test PASSED: condvar deadlock correctly detected\n");
