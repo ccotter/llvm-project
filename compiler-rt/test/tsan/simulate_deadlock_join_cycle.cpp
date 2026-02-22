@@ -15,28 +15,35 @@
 extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
 
 pthread_t thread_a, thread_b, thread_c;
-pthread_barrier_t barrier;
+int ready_count = 0;
 
 void* thread_a_func(void* arg) {
-  pthread_barrier_wait(&barrier);  // Wait until all threads are created
+  __atomic_fetch_add(&ready_count, 1, __ATOMIC_SEQ_CST);
+  while (__atomic_load_n(&ready_count, __ATOMIC_SEQ_CST) < 3)
+    ; // spin
   pthread_join(thread_b, nullptr);
   return nullptr;
 }
 
 void* thread_b_func(void* arg) {
-  pthread_barrier_wait(&barrier);  // Wait until all threads are created
+  __atomic_fetch_add(&ready_count, 1, __ATOMIC_SEQ_CST);
+  while (__atomic_load_n(&ready_count, __ATOMIC_SEQ_CST) < 3)
+    ; // spin
   pthread_join(thread_c, nullptr);
   return nullptr;
 }
 
 void* thread_c_func(void* arg) {
-  pthread_barrier_wait(&barrier);  // Wait until all threads are created
+  __atomic_fetch_add(&ready_count, 1, __ATOMIC_SEQ_CST);
+  while (__atomic_load_n(&ready_count, __ATOMIC_SEQ_CST) < 3)
+    ;
   pthread_join(thread_a, nullptr);
   return nullptr;
 }
 
 void test_callback(void* arg) {
-  pthread_barrier_init(&barrier, nullptr, 3);
+  // Reset counter
+  __atomic_store_n(&ready_count, 0, __ATOMIC_SEQ_CST);
 
   // Create threads in sequence
   pthread_create(&thread_a, nullptr, thread_a_func, nullptr);
@@ -45,8 +52,6 @@ void test_callback(void* arg) {
 
   // All three threads will be blocked on join, creating a deadlock
   // A joins B, B joins C, C joins A - impossible to resolve
-
-  pthread_barrier_destroy(&barrier);
 }
 
 int main() {
