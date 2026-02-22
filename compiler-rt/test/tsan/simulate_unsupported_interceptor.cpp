@@ -7,6 +7,8 @@
 
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
+// TODO - update the test to bail when the pthread timed APIs are called, not rw mutexes
+
 pthread_rwlock_t rwlock;
 
 void *thread_func(void *arg) {

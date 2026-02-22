@@ -1620,7 +1620,6 @@ TSAN_INTERCEPTOR(int, __pthread_mutex_unlock, void *m) {
 #if !SANITIZER_APPLE
 TSAN_INTERCEPTOR(int, pthread_spin_init, void *m, int pshared) {
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_init, m, pshared);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_spin_init);
   int res = REAL(pthread_spin_init)(m, pshared);
   if (res == 0) {
     MutexCreate(thr, pc, (uptr)m);
@@ -1673,7 +1672,6 @@ TSAN_INTERCEPTOR(int, pthread_spin_unlock, void *m) {
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_init, void *m, void *a) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_init, m, a);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_rwlock_init);
   int res = REAL(pthread_rwlock_init)(m, a);
   if (res == 0) {
     MutexCreate(thr, pc, (uptr)m);
