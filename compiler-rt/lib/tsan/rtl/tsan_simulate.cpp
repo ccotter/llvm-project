@@ -726,7 +726,7 @@ class SimScheduler {
 // ---------------------------------------------------------------------------
 
 // 0 = inactive, 1 = active.
-static atomic_uint32_t sim_active;
+u32 sim_active;
 
 // Pointer to the current scheduler instance (valid while sim_active == 1).
 static SimScheduler* sim_sched;
@@ -746,8 +746,6 @@ static atomic_uint32_t sim_deadlock_detected;
 // ---------------------------------------------------------------------------
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
-
-bool SimulateIsActive() { return atomic_load_relaxed(&sim_active) != 0; }
 
 void SimulateReportUnsupported(const char* func_name) {
   if (!SimulateIsActive())
@@ -776,12 +774,11 @@ void SimulateReportDeadlock() {
       "ThreadSanitizer: deadlock detected at iteration %d - all threads are "
       "blocked\n",
       sim_current_iteration);
-  // Die();
 }
 
-void SimulateSchedule() {
-  if (!SimulateIsActive())
-    return;
+
+
+void SimulateScheduleImpl() {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
@@ -976,7 +973,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
     // Activate simulation before starting the iteration.
-    atomic_store_relaxed(&sim_active, 1);
+    sim_active = 1;
 
     // Seed the RNG and post the first thread's semaphore.
     sched_ptr->StartIteration(iter);
@@ -993,7 +990,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // If so, there's no parallelism to explore, so exit successfully.
     if (iter == start_iter && sched_ptr->GetThreadCount() == 1) {
       // Deactivate simulation and clean up.
-      atomic_store_relaxed(&sim_active, 0);
+      sim_active = 0;
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
@@ -1004,7 +1001,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Check if an error occurred during this iteration.
     if (atomic_load_relaxed(&sim_error)) {
       // Deactivate simulation and clean up.
-      atomic_store_relaxed(&sim_active, 0);
+      sim_active = 0;
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
@@ -1022,7 +1019,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Check if max depth was hit during this iteration.
     if (atomic_load_relaxed(&sim_max_depth_hit)) {
       // Deactivate simulation and clean up.
-      atomic_store_relaxed(&sim_active, 0);
+      sim_active = 0;
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
@@ -1040,7 +1037,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Check if a race was detected during this iteration.
     if (atomic_load_relaxed(&sim_race_detected)) {
       // Deactivate simulation and clean up.
-      atomic_store_relaxed(&sim_active, 0);
+      sim_active = 0;
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
@@ -1058,7 +1055,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Check if a deadlock was detected during this iteration.
     if (false && atomic_load_relaxed(&sim_deadlock_detected)) {
       // Deactivate simulation and clean up.
-      atomic_store_relaxed(&sim_active, 0);
+      sim_active = 0;
       sim_thread_idx = -1;
       sim_sched = nullptr;
       sched_ptr->~SimScheduler();
@@ -1077,7 +1074,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     sched_ptr->ThreadFinish(main_idx);
 
     // Deactivate simulation and clean up.
-    atomic_store_relaxed(&sim_active, 0);
+    sim_active = 0;
     sim_thread_idx = -1;
     sim_sched = nullptr;
 

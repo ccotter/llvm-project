@@ -133,58 +133,6 @@ void __tsan_simulate_annotate_wake_all(void* addr) {
   SimulateAnnotateWakeAll((uptr)addr);
 }
 
-void __tsan_print_shadow(void* addr) {
-  if (common_flags()->verbosity < 2)
-    return;
-
-  ThreadState* thr = cur_thread();
-  if (!thr)
-    return;
-  uptr a = (uptr)addr;
-  uptr aligned_addr = RoundDown(a, kShadowCell);
-  RawShadow* shadow_mem = MemToShadow(aligned_addr);
-
-  char buf[2048];
-  uptr len = 0;
-
-  len += internal_snprintf(buf + len, sizeof(buf) - len,
-                           "ThreadSanitizer: shadow state for address %p:\n",
-                           addr);
-  len += internal_snprintf(buf + len, sizeof(buf) - len,
-                           "  Current thread: tid=%d sid=%d epoch=%d\n",
-                           thr->tid, (int)thr->fast_state.sid(),
-                           (int)thr->fast_state.epoch());
-  len += internal_snprintf(buf + len, sizeof(buf) - len,
-                           "  Shadow memory (4 cells for 8-byte aligned %p):\n",
-                           (void*)aligned_addr);
-
-  for (int i = 0; i < kShadowCnt; i++) {
-    Shadow s(shadow_mem[i]);
-    if (shadow_mem[i] == Shadow::kEmpty) {
-      len += internal_snprintf(buf + len, sizeof(buf) - len,
-                               "    [%d]: <empty>\n", i);
-      continue;
-    }
-
-    AccessType typ;
-    uptr off, size;
-    s.GetAccess(&off, &size, &typ);
-
-    Epoch my_epoch = thr->clock.Get(s.sid());
-    const char* race_status = (my_epoch >= s.epoch()) ? "ordered" : "RACE";
-
-    len += internal_snprintf(
-        buf + len, sizeof(buf) - len,
-        "    [%d]: tid=%u epoch=%u access=0x%x "
-        "(off=%zu size=%zu %s%s) my_clock[%u]=%u [%s]\n",
-        i, (unsigned)s.sid(), (unsigned)s.epoch(), s.access(), off, size,
-        (typ & kAccessRead) ? "R" : "W", (typ & kAccessAtomic) ? " atomic" : "",
-        (unsigned)s.sid(), (unsigned)my_epoch, race_status);
-  }
-
-  Printf("%s", buf);
-}
-
 void __tsan_acquire(void *addr) {
   Acquire(cur_thread(), CALLERPC, (uptr)addr);
 }

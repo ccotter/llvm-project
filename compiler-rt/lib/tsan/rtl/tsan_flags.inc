@@ -126,18 +126,18 @@ TSAN_FLAG(const char*, simulate_scheduler, "",
 TSAN_FLAG(int, simulate_iterations, 1000,
           "Number of iterations for __tsan_simulate.")
 TSAN_FLAG(int, simulate_start_iteration, 0,
-          "Starting iteration number for __tsan_simulate (useful for "
-          "reproducing specific iteration failures).")
+          "Starting iteration number for __tsan_simulate. Useful for "
+          "reproducing specific iteration failures.")
 TSAN_FLAG(int, simulate_max_depth, 10000,
           "Maximum scheduling depth per iteration. If exceeded, the "
-          "iteration is aborted and a new one starts.")
+          "iteration is aborted the simulation returns an error immediately")
 TSAN_FLAG(bool, simulate_schedule_on_memory_access, false,
           "Insert scheduling points at every memory read/write during "
           "simulation for maximum interleaving exploration.")
 TSAN_FLAG(int, simulate_schedule_probability, 100,
-          "Probability (0-100) of actually performing a context switch at "
+          "Probability (0-100%) of actually performing a context switch at "
           "each scheduling point. Lower values allow threads to complete more "
-          "operations before switching. Default 100 schedules at every point.")
+          "operations before switching.")
 TSAN_FLAG(bool, simulate_print_schedule_stacks, false,
           "Print stack trace at each simulation scheduling point. Useful for "
-          "debugging interleaving issues but generates significant output.")
+          "understanding the exact interleavings, but it generates significant output.")

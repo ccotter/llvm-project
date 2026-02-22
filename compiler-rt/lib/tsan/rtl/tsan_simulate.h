@@ -26,13 +26,26 @@ namespace __tsan {
 
 struct ThreadState;
 
+// Simulation active flag (0 = inactive, 1 = active).
+// Set from a single thread before parallel execution begins.
+extern u32 sim_active;
+
 // Returns true if simulation mode is active for the current process.
-bool SimulateIsActive();
+ALWAYS_INLINE bool SimulateIsActive() {
+  return sim_active != 0;
+}
+
+// Implementation of schedule point logic (called only when active).
+void SimulateScheduleImpl();
 
 // Called at each scheduling point (atomic op, mutex lock/unlock, thread
 // create/join, condvar signal/wait, etc.). If simulation is active, this may
 // context-switch to another runnable thread.
-void SimulateSchedule();
+ALWAYS_INLINE void SimulateSchedule() {
+  if (!SimulateIsActive())
+    return;
+  SimulateScheduleImpl();
+}
 
 // Called when an unsupported interceptor is invoked during simulation.
 // Prints an error message and sets the failure flag.

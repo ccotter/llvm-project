@@ -192,6 +192,15 @@ And to run,
 
 TSAN_OPTIONS=simulate_scheduler=random ./foo
 
+## Test cases needed
+
+ - fsanitize-thread-simulate-main
+   and, that it conflicts with -Wl,--wrap
+ - simulation calls an unsupported API
+ - deadlock detection
+ - paper1, rare_ref
+ - simulate existing threads are running
+
 ### TODO
 
  - std::atomic::wait/notify_* do not work currently. Although it varies by platform,
