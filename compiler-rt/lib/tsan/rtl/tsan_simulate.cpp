@@ -170,7 +170,7 @@ class SimScheduler {
   void DumpStates() {
     // Debug: print thread states before context switch.
     if (common_flags()->verbosity >= 2) {
-      VPrintf(2, "Thread states: ");
+      Printf("Thread states: ");
       for (int i = 0; i < thread_count_; i++) {
         const char* state_str = "?";
         switch (threads_[i].state) {
@@ -187,9 +187,9 @@ class SimScheduler {
             state_str = "Finished";
             break;
         }
-        VPrintf(2, "[%d:%s] ", i, state_str);
+        Printf("[%d:%s] ", i, state_str);
       }
-      VPrintf(2, "\n");
+      Printf("\n");
     }
   }
 
@@ -233,7 +233,7 @@ class SimScheduler {
     // Random scheduling: pick a random runnable thread.
     int chosen = PickRandomRunnable(runnable);
 
-    VPrintf(1, "Chose tid %d to run current %d\n", chosen, caller_idx);
+    VPrintf(2, "Chose tid %d to run current %d\n", chosen, caller_idx);
     DumpStates();
 
     if (chosen == caller_idx) {
@@ -747,9 +747,7 @@ static atomic_uint32_t sim_deadlock_detected;
 // Public API (called from interceptors and tsan_interface.cpp)
 // ---------------------------------------------------------------------------
 
-void SimulateReportUnsupported(const char* func_name) {
-  if (!SimulateIsActive())
-    return;
+void SimulateReportUnsupportedImpl(const char* func_name) {
   atomic_store_relaxed(&sim_error, 1);
   Printf(
       "ThreadSanitizer: simulation error - unsupported interceptor called: "
@@ -758,25 +756,19 @@ void SimulateReportUnsupported(const char* func_name) {
       func_name);
 }
 
-void SimulateReportRace() {
-  if (!SimulateIsActive())
-    return;
+void SimulateReportRaceImpl() {
   atomic_store_relaxed(&sim_race_detected, 1);
   Printf("ThreadSanitizer: data race detected at iteration %d\n",
          sim_current_iteration);
 }
 
-void SimulateReportDeadlock() {
-  if (!SimulateIsActive())
-    return;
+void SimulateReportDeadlockImpl() {
   atomic_store_relaxed(&sim_deadlock_detected, 1);
   Printf(
       "ThreadSanitizer: deadlock detected at iteration %d - all threads are "
       "blocked\n",
       sim_current_iteration);
 }
-
-
 
 void SimulateScheduleImpl() {
   int idx = sim_thread_idx;
@@ -797,9 +789,7 @@ void SimulateScheduleImpl() {
   sim_sched->Schedule(idx);
 }
 
-void SimulateThreadRegister(uptr thread_handle) {
-  if (!SimulateIsActive())
-    return;
+void SimulateThreadRegisterImpl(uptr thread_handle) {
   // Register with scheduler (non-blocking).
   int idx = sim_sched->AddThread();
   sim_thread_idx = idx;
@@ -807,9 +797,7 @@ void SimulateThreadRegister(uptr thread_handle) {
   sim_sched->SetThreadHandle(idx, thread_handle);
 }
 
-void SimulateThreadWaitScheduled() {
-  if (!SimulateIsActive())
-    return;
+void SimulateThreadWaitScheduledImpl() {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
@@ -817,26 +805,22 @@ void SimulateThreadWaitScheduled() {
   sim_sched->ThreadStart(idx);
 }
 
-void SimulateThreadFinish() {
+void SimulateThreadFinishImpl() {
   int idx = sim_thread_idx;
   sim_thread_idx = -1;
-  if (!SimulateIsActive() || idx < 0)
+  if (idx < 0)
     return;
   sim_sched->ThreadFinish(idx);
 }
 
-void SimulateThreadBlock() {
-  if (!SimulateIsActive())
-    return;
+void SimulateThreadBlockImpl() {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
   sim_sched->BeforeBlockingCall(idx);
 }
 
-void SimulateJoinBlock(uptr thread_handle) {
-  if (!SimulateIsActive())
-    return;
+void SimulateJoinBlockImpl(uptr thread_handle) {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
@@ -847,69 +831,51 @@ void SimulateJoinBlock(uptr thread_handle) {
   }
 }
 
-void SimulateThreadUnblock() {
-  if (!SimulateIsActive())
-    return;
+void SimulateThreadUnblockImpl() {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
   sim_sched->AfterBlockingCall(idx);
 }
 
-void SimulateMutexBlock(uptr mutex_addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateMutexBlockImpl(uptr mutex_addr) {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
   sim_sched->MutexBlock(idx, mutex_addr);
 }
 
-void SimulateMutexUnblock(uptr mutex_addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateMutexUnblockImpl(uptr mutex_addr) {
   sim_sched->MutexUnblock(mutex_addr);
 }
 
-void SimulateCondWait(uptr cond_addr, uptr mutex_addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr) {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
   sim_sched->CondWait(idx, cond_addr, mutex_addr);
 }
 
-void SimulateCondSignal(uptr cond_addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateCondSignalImpl(uptr cond_addr) {
   sim_sched->CondSignal(cond_addr);
 }
 
-void SimulateCondBroadcast(uptr cond_addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateCondBroadcastImpl(uptr cond_addr) {
   sim_sched->CondBroadcast(cond_addr);
 }
 
-void SimulateAnnotateWait(uptr addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateAnnotateWaitImpl(uptr addr) {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
   sim_sched->AnnotateWait(idx, addr);
 }
 
-void SimulateAnnotateWakeOne(uptr addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateAnnotateWakeOneImpl(uptr addr) {
   sim_sched->AnnotateWakeOne(addr);
 }
 
-void SimulateAnnotateWakeAll(uptr addr) {
-  if (!SimulateIsActive())
-    return;
+void SimulateAnnotateWakeAllImpl(uptr addr) {
   sim_sched->AnnotateWakeAll(addr);
 }
 
@@ -982,9 +948,9 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     sched_ptr->GetSemaphore(main_idx)->Wait();
 
     // Run the test callback for this iteration.
-    VPrintf(1, "Start callback... iter=%d\n", iter);
+    DPrintf(1, "Start callback... iter=%d\n", iter);
     callback(arg);
-    VPrintf(1, "End callback...\n");
+    DPrintf(1, "End callback...\n");
 
     // Check if no threads were spawned (only main thread exists).
     // If so, there's no parallelism to explore, so exit successfully.

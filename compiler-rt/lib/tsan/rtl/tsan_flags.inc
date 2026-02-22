@@ -140,4 +140,5 @@ TSAN_FLAG(int, simulate_schedule_probability, 100,
           "operations before switching.")
 TSAN_FLAG(bool, simulate_print_schedule_stacks, false,
           "Print stack trace at each simulation scheduling point. Useful for "
-          "understanding the exact interleavings, but it generates significant output.")
+          "understanding the exact interleavings, but it generates significant "
+          "output.")
