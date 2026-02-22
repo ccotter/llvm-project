@@ -50,8 +50,7 @@ int main() {
 // CHECK: test_callback executed
 
 // CHECK: === Test after thread joined ===
-// CHECK: ThreadSanitizer: simulation starting (2 iterations
+// CHECK: ThreadSanitizer: simulation starting (iterations 0..1
 // CHECK: test_callback executed
-// CHECK: test_callback executed
-// CHECK: ThreadSanitizer: simulation finished (2 iterations)
+// CHECK: ThreadSanitizer: simulation exiting - no threads were spawned
 // CHECK: DONE

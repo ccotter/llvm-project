@@ -41,8 +41,8 @@ int main() {
   return 0;
 }
 
-// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_spin_init
+// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_spin_lock
 // CHECK: Simulation does not support this synchronization primitive
-// CHECK: ThreadSanitizer: simulation aborted after 1 iterations
+// CHECK: ThreadSanitizer: unsupported interceptor at iteration 0
 // CHECK: __tsan_simulate returned: 2
 // CHECK: Test PASSED: simulation correctly detected unsupported spinlock

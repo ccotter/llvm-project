@@ -1025,7 +1025,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     }
 
     // Check if a deadlock was detected during this iteration.
-    if (false && atomic_load_relaxed(&sim_deadlock_detected)) {
+    if (atomic_load_relaxed(&sim_deadlock_detected)) {
       // Deactivate simulation and clean up.
       sim_active = 0;
       sim_thread_idx = -1;
