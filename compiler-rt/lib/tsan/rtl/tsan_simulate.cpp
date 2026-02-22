@@ -32,6 +32,8 @@
 #include "tsan_flags.h"
 #include "tsan_rtl.h"
 
+extern "C" void *pthread_self();
+
 namespace __tsan {
 
 // ---------------------------------------------------------------------------
@@ -65,6 +67,8 @@ struct SimThread {
 
   Semaphore sem;
   State state;
+  uptr thread_handle;  // This thread's pthread_t (from pthread_self())
+  uptr joining_on;     // pthread_t this thread is joining on (0 if not joining)
 };
 
 static constexpr int kMaxSimThreads = 64;
@@ -140,7 +144,15 @@ class SimScheduler {
     CHECK_LT(thread_count_, kMaxSimThreads);
     int idx = thread_count_++;
     threads_[idx].state = SimThread::Running;
+    threads_[idx].thread_handle = 0;
+    threads_[idx].joining_on = 0;
     return idx;
+  }
+
+  // Store this thread's pthread_t handle.
+  void SetThreadHandle(int idx, uptr handle) {
+    SpinMutexLock lock(&mtx_);
+    threads_[idx].thread_handle = handle;
   }
 
   // Seed the RNG and post the first runnable thread's semaphore.
@@ -183,6 +195,11 @@ class SimScheduler {
   // runnable thread. If the caller is NOT the current thread (e.g. during a
   // brief window around a blocking call), this is a no-op.
   void Schedule(int caller_idx) {
+    // If max depth already hit, stop all scheduling.
+    if (atomic_load_relaxed(&sim_max_depth_hit)) {
+      return;
+    }
+
     mtx_.Lock();
 
     if (caller_idx != current_) {
@@ -246,9 +263,21 @@ class SimScheduler {
 
   // Called when a thread finishes its user callback. Removes the thread from
   // the runnable set and wakes the next runnable thread (if any).
+  // Also wakes any thread that was blocked joining on this thread.
   void ThreadFinish(int idx) {
     mtx_.Lock();
     threads_[idx].state = SimThread::Finished;
+    uptr my_handle = threads_[idx].thread_handle;
+
+    // Find any thread that was joining on this thread and make it runnable.
+    if (my_handle != 0) {
+      for (int i = 0; i < thread_count_; i++) {
+        if (threads_[i].joining_on == my_handle) {
+          threads_[i].state = SimThread::Running;
+          threads_[i].joining_on = 0;
+        }
+      }
+    }
 
     if (idx != current_) {
       mtx_.Unlock();
@@ -274,6 +303,30 @@ class SimScheduler {
       PickNextAndWake();
     }
     mtx_.Unlock();
+  }
+
+  // Called BEFORE a pthread_join call. Records the target pthread_t handle.
+  void BeforeJoinCall(int idx, uptr target_handle) {
+    mtx_.Lock();
+    threads_[idx].state = SimThread::Blocked;
+    threads_[idx].joining_on = target_handle;
+
+    if (idx == current_) {
+      PickNextAndWake();
+    }
+    mtx_.Unlock();
+  }
+
+  // Check if a thread with the given pthread_t handle is still active
+  // (i.e., not Finished). Returns false if thread not found or already finished.
+  bool IsThreadActive(uptr thread_handle) {
+    SpinMutexLock lock(&mtx_);
+    for (int i = 0; i < thread_count_; i++) {
+      if (threads_[i].thread_handle == thread_handle) {
+        return threads_[i].state != SimThread::Finished;
+      }
+    }
+    return false;  // Thread not found
   }
 
   // Called AFTER a blocking OS call returns. Marks this thread as Running
@@ -742,12 +795,14 @@ void SimulateSchedule() {
   sim_sched->Schedule(idx);
 }
 
-void SimulateThreadRegister() {
+void SimulateThreadRegister(uptr thread_handle) {
   if (!SimulateIsActive())
     return;
   // Register with scheduler (non-blocking).
   int idx = sim_sched->AddThread();
   sim_thread_idx = idx;
+  // Store this thread's pthread_t handle for join tracking.
+  sim_sched->SetThreadHandle(idx, thread_handle);
 }
 
 void SimulateThreadWaitScheduled() {
@@ -775,6 +830,19 @@ void SimulateThreadBlock() {
   if (idx < 0)
     return;
   sim_sched->BeforeBlockingCall(idx);
+}
+
+void SimulateJoinBlock(uptr thread_handle) {
+  if (!SimulateIsActive())
+    return;
+  int idx = sim_thread_idx;
+  if (idx < 0)
+    return;
+  // Only mark ourselves as blocked if the target thread is still active.
+  // If it's already finished, pthread_join will return immediately.
+  if (sim_sched->IsThreadActive(thread_handle)) {
+    sim_sched->BeforeJoinCall(idx, thread_handle);
+  }
 }
 
 void SimulateThreadUnblock() {
@@ -899,6 +967,8 @@ int SimulateRun(void (*callback)(void *), void *arg) {
     // Register the calling (main) thread as thread 0.
     int main_idx = sched_ptr->AddThread();
     sim_thread_idx = main_idx;
+    // Set the main thread's pthread_t handle for join tracking.
+    sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
     // Activate simulation before starting the iteration.
     atomic_store_relaxed(&sim_active, 1);

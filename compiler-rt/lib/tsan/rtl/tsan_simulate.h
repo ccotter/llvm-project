@@ -48,8 +48,8 @@ void SimulateReportDeadlock();
 
 // Called by a new thread to register with the scheduler (non-blocking).
 // Must be called before signaling the parent thread to ensure deterministic
-// thread registration order.
-void SimulateThreadRegister();
+// thread registration order. The thread_handle is the pthread_t for this thread.
+void SimulateThreadRegister(uptr thread_handle);
 
 // Called by a new thread after signaling the parent. Blocks until the
 // scheduler selects this thread to run.
@@ -59,9 +59,14 @@ void SimulateThreadWaitScheduled();
 // set of runnable threads and wakes the scheduler.
 void SimulateThreadFinish();
 
-// Called when a thread is about to block (e.g. mutex lock, condvar wait,
-// pthread_join). Marks the thread as blocked so the scheduler won't pick it.
+// Called when a thread is about to block (e.g. mutex lock, condvar wait).
+// Marks the thread as blocked so the scheduler won't pick it.
 void SimulateThreadBlock();
+
+// Called when a thread is about to block on pthread_join.
+// Records the target pthread_t so the thread can be made runnable
+// when the target finishes.
+void SimulateJoinBlock(uptr thread_handle);
 
 // Called when a thread is unblocked (e.g. mutex acquired, condvar signaled,
 // joined thread finished). Marks the thread as runnable again.

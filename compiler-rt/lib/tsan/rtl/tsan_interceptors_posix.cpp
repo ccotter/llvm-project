@@ -1045,6 +1045,7 @@ struct ThreadParam {
   void* (*callback)(void *arg);
   void *param;
   Tid tid;
+  uptr pthread_handle;  // pthread_t handle for this thread
   Semaphore created;
   Semaphore started;
 };
@@ -1073,7 +1074,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
     // Register with simulation scheduler (non-blocking).
     // This must happen before signaling parent to ensure deterministic
     // thread registration order.
-    SimulateThreadRegister();
+    SimulateThreadRegister(p->pthread_handle);
     p->started.Post();
   }
 
@@ -1133,6 +1134,8 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (res == 0) {
     p.tid = ThreadCreate(thr, pc, *(uptr *)th, IsStateDetached(detached));
     CHECK_NE(p.tid, kMainTid);
+    // Store the pthread_t handle so the child thread can register it.
+    p.pthread_handle = *(uptr *)th;
     // Synchronization on p.tid serves two purposes:
     // 1. ThreadCreate must finish before the new thread starts.
     //    Otherwise the new thread can call pthread_detach, but the pthread_t
@@ -1171,11 +1174,10 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
   // In simulation mode the target thread may be parked by the scheduler.
-  // Mark ourselves as blocked so the scheduler can run other threads while
-  // we wait for the target to exit.
-  SimulateThreadBlock();
+  // Mark ourselves as blocked and record what we're joining on. When the
+  // target thread finishes, it will mark us as runnable.
+  SimulateJoinBlock((uptr)th);
   int res = BLOCK_REAL(pthread_join)(th, ret);
-  SimulateThreadUnblock();
   ThreadIgnoreEnd(thr);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);
