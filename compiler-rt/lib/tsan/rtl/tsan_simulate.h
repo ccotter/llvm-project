@@ -79,51 +79,36 @@ ALWAYS_INLINE void SimulateReportRace() {
   SimulateReportRaceImpl();
 }
 
-// Called by a new thread to register with the scheduler (non-blocking).
-// Must be called before signaling the parent thread to ensure deterministic
-// thread registration order. The thread_handle is the pthread_t for this
-// thread.
 ALWAYS_INLINE void SimulateThreadRegister(uptr thread_handle) {
   if (!SimulateIsActive())
     return;
   SimulateThreadRegisterImpl(thread_handle);
 }
 
-// Called by a new thread after signaling the parent. Blocks until the
-// scheduler selects this thread to run.
 ALWAYS_INLINE void SimulateThreadWaitScheduled() {
   if (!SimulateIsActive())
     return;
   SimulateThreadWaitScheduledImpl();
 }
 
-// Called when an application thread finishes. Removes the thread from the
-// set of runnable threads and wakes the scheduler.
 ALWAYS_INLINE void SimulateThreadFinish() {
   if (!SimulateIsActive())
     return;
   SimulateThreadFinishImpl();
 }
 
-// Called when a thread is about to block (e.g. mutex lock, condvar wait).
-// Marks the thread as blocked so the scheduler won't pick it.
 ALWAYS_INLINE void SimulateThreadBlock() {
   if (!SimulateIsActive())
     return;
   SimulateThreadBlockImpl();
 }
 
-// Called when a thread is about to block on pthread_join.
-// Records the target pthread_t so the thread can be made runnable
-// when the target finishes.
 ALWAYS_INLINE void SimulateJoinBlock(uptr thread_handle) {
   if (!SimulateIsActive())
     return;
   SimulateJoinBlockImpl(thread_handle);
 }
 
-// Called when a thread is unblocked (e.g. mutex acquired, condvar signaled,
-// joined thread finished). Marks the thread as runnable again.
 ALWAYS_INLINE void SimulateThreadUnblock() {
   if (!SimulateIsActive())
     return;
@@ -137,45 +122,37 @@ void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr);
 void SimulateCondSignalImpl(uptr cond_addr);
 void SimulateCondBroadcastImpl(uptr cond_addr);
 
-// Called when pthread_mutex_lock cannot acquire the mutex. Adds the thread to
-// the mutex's waitset and parks it until pthread_mutex_unlock wakes it.
 ALWAYS_INLINE void SimulateMutexBlock(uptr mutex_addr) {
   if (!SimulateIsActive())
     return;
   SimulateMutexBlockImpl(mutex_addr);
 }
 
-// Called when pthread_mutex_unlock releases a mutex. Wakes one thread from
-// the mutex's waitset (if any).
 ALWAYS_INLINE void SimulateMutexUnblock(uptr mutex_addr) {
   if (!SimulateIsActive())
     return;
   SimulateMutexUnblockImpl(mutex_addr);
 }
 
-// Called when pthread_cond_wait blocks on a condition variable. Adds the thread
-// to the condvar's waitset and parks it. Must be called only when
-// SimulateIsActive().
 ALWAYS_INLINE void SimulateCondWait(uptr cond_addr, uptr mutex_addr) {
   if (!SimulateIsActive())
     return;
   SimulateCondWaitImpl(cond_addr, mutex_addr);
 }
 
-// Called when pthread_cond_signal wakes one thread from a condition variable.
 ALWAYS_INLINE void SimulateCondSignal(uptr cond_addr) {
   if (!SimulateIsActive())
     return;
   SimulateCondSignalImpl(cond_addr);
 }
 
-// Called when pthread_cond_broadcast wakes all threads from a condition
-// variable.
 ALWAYS_INLINE void SimulateCondBroadcast(uptr cond_addr) {
   if (!SimulateIsActive())
     return;
   SimulateCondBroadcastImpl(cond_addr);
 }
+
+// TODO - remove below for now.
 
 // Implementation functions for annotations.
 void SimulateAnnotateWaitImpl(uptr addr);

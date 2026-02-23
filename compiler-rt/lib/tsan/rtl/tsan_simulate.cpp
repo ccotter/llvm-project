@@ -881,14 +881,10 @@ void SimulateAnnotateWakeAllImpl(uptr addr) {
 int SimulateRun(void (*callback)(void*), void* arg) {
   const char* sched = flags()->simulate_scheduler;
   if (!sched || !sched[0] || internal_strcmp(sched, "random") != 0) {
-    // No scheduler configured or not "random". Run the callback once without
-    // simulation so that __tsan_simulate still works as a simple wrapper.
     callback(arg);
     return 0;
   }
 
-  // Check if there are other threads running. Simulation requires that only
-  // the calling thread exists before starting.
   uptr running_threads = 0;
   ctx->thread_registry.GetNumberOfThreads(nullptr, &running_threads, nullptr);
   if (running_threads > 1) {
@@ -896,10 +892,9 @@ int SimulateRun(void (*callback)(void*), void* arg) {
         "ThreadSanitizer: simulation cannot start - other threads are "
         "running (%zu threads detected).\n"
         "Simulation requires that only the calling thread exists. "
-        "Running callback once without simulation.\n",
+        "Not running callback\n",
         running_threads);
-    callback(arg);
-    return -1;  // Error: pre-existing threads
+    return -1;
   }
 
   // Reset error flags before starting simulation.

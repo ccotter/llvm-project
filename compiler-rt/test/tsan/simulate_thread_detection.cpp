@@ -47,8 +47,7 @@ int main() {
 // CHECK: === Test with pre-existing thread ===
 // CHECK: ThreadSanitizer: simulation cannot start - other threads are running
 // CHECK: Simulation requires that only the calling thread exists
-// CHECK: test_callback executed
-
+// CHECK-NOT: test_callback executed
 // CHECK: === Test after thread joined ===
 // CHECK: ThreadSanitizer: simulation starting (iterations 0..1
 // CHECK: test_callback executed
