@@ -119,8 +119,8 @@ struct Waitset {
 };
 
 // SimScheduler controls which thread runs at each scheduling point. Exactly one
-// thread is designated as "current" and executes user code. Other runnable threads
-// park on their per-thread semaphore until the scheduler selects them.
+// thread is designated as "current" and executes user code. Other runnable
+// threads park on their per-thread semaphore until the scheduler selects them.
 class SimScheduler {
  public:
   SimScheduler() : current_(-1), thread_count_(0), depth_(0) {
@@ -278,6 +278,9 @@ class SimScheduler {
       }
     }
 
+    // Clear the handle to allow pthread_t reuse
+    threads_[idx].thread_handle = 0;
+
     if (idx != current_) {
       mtx_.Unlock();
       return;
@@ -322,11 +325,12 @@ class SimScheduler {
   bool IsThreadActive(uptr thread_handle) {
     SpinMutexLock lock(&mtx_);
     for (int i = 0; i < thread_count_; i++) {
-      if (threads_[i].thread_handle == thread_handle) {
-        return threads_[i].state != SimThread::Finished;
-      }
+      if (threads_[i].state == SimThread::Finished)
+        continue;
+      if (threads_[i].thread_handle == thread_handle)
+        return true;
     }
-    return false;  // Thread not found
+    return false;
   }
 
   // Called AFTER a blocking OS call returns. Marks this thread as Runnable
@@ -679,9 +683,8 @@ void SimulateJoinBlockImpl(uptr thread_handle) {
   CHECK_GE(sim_thread_idx, 0);
   // Only mark ourselves as blocked if the target thread is still active.
   // If it's already finished, pthread_join will return immediately.
-  if (sim_sched->IsThreadActive(thread_handle)) {
+  if (sim_sched->IsThreadActive(thread_handle))
     sim_sched->BeforeJoinCall(sim_thread_idx, thread_handle);
-  }
 }
 
 void SimulateThreadUnblockImpl() {
