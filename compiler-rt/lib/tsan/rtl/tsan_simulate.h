@@ -52,7 +52,6 @@ void SimulateReportRaceImpl();
 void SimulateThreadRegisterImpl(uptr thread_handle);
 void SimulateThreadWaitScheduledImpl();
 void SimulateThreadFinishImpl();
-void SimulateThreadBlockImpl();
 void SimulateJoinBlockImpl(uptr thread_handle);
 void SimulateThreadUnblockImpl();
 
@@ -94,12 +93,6 @@ ALWAYS_INLINE void SimulateThreadFinish() {
   if (!SimulateIsActive())
     return;
   SimulateThreadFinishImpl();
-}
-
-ALWAYS_INLINE void SimulateThreadBlock() {
-  if (!SimulateIsActive())
-    return;
-  SimulateThreadBlockImpl();
 }
 
 ALWAYS_INLINE void SimulateJoinBlock(uptr thread_handle) {

@@ -1045,7 +1045,7 @@ struct ThreadParam {
   void* (*callback)(void *arg);
   void *param;
   Tid tid;
-  uptr pthread_handle;  // pthread_t handle for this thread
+  uptr pthread_handle;
   Semaphore created;
   Semaphore started;
 };
@@ -1076,7 +1076,6 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   }
 
   AdaptiveDelay::BeforeChildThreadRuns();
-  // Wait for scheduler to pick us (blocking).
   SimulateThreadWaitScheduled();
 
   void *res = callback(param);
@@ -1131,7 +1130,6 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (res == 0) {
     p.tid = ThreadCreate(thr, pc, *(uptr *)th, IsStateDetached(detached));
     CHECK_NE(p.tid, kMainTid);
-    // Store the pthread_t handle so the child thread can register it.
     p.pthread_handle = *(uptr*)th;
     // Synchronization on p.tid serves two purposes:
     // 1. ThreadCreate must finish before the new thread starts.
@@ -1170,9 +1168,6 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
 #endif
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
-  // In simulation mode the target thread may be parked by the scheduler.
-  // Mark ourselves as blocked and record what we're joining on. When the
-  // target thread finishes, it will mark us as runnable.
   SimulateJoinBlock((uptr)th);
   int res = BLOCK_REAL(pthread_join)(th, ret);
   ThreadIgnoreEnd(thr);
@@ -1367,10 +1362,6 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
       SimulateMutexBlock((uptr)m);
     }
   } else {
-    // Not in simulation - do real wait.
-    // This ensures that we handle mutex lock even in case of pthread_cancel.
-    // See test/tsan/cond_cancel.cpp.
-    SimulateThreadBlock();
     // Enable signal delivery while the thread is blocked.
     BlockingCall bc(thr);
     CondMutexUnlockCtx<Fn> arg = {si, thr, pc, m, c, fn};
@@ -1380,8 +1371,6 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
         },
         [](void *arg) { ((const CondMutexUnlockCtx<Fn> *)arg)->Unlock(); },
         &arg);
-    // After waking from the condition variable, re-register as runnable.
-    SimulateThreadUnblock();
   }
   if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);
   MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
@@ -1557,10 +1546,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_unlock, void *m) {
   MutexUnlock(thr, pc, (uptr)m);
   int res = REAL(pthread_mutex_unlock)(m);
   AdaptiveDelay::SyncOp();
-  if (SimulateIsActive()) {
-    // Wake one thread from the mutex's waitset (if any).
-    SimulateMutexUnblock((uptr)m);
-  }
+  SimulateMutexUnblock((uptr)m);
   SimulateSchedule();
   if (res == errno_EINVAL)
     MutexInvalidAccess(thr, pc, (uptr)m);

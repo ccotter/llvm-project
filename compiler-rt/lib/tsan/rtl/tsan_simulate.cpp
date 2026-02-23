@@ -34,20 +34,6 @@ extern "C" void* pthread_self();
 
 namespace __tsan {
 
-struct SimThread {
-  enum State : u32 {
-    Unused = 0,
-    Runnable,  // Runnable - may be selected by the scheduler.
-    Blocked,  // Blocked on mutex/condvar - scheduler must not pick this thread.
-    Finished,  // Thread has exited the simulation.
-  };
-
-  Semaphore sem;
-  State state;
-  uptr thread_handle;  // This thread's pthread_t (from pthread_self())
-  uptr joining_on;     // pthread_t this thread is joining on (0 if not joining)
-};
-
 static constexpr int kMaxSimThreads = 64;
 
 static int sim_current_iteration = 0;
@@ -82,6 +68,22 @@ void SimulateReportDeadlock() {
       sim_current_iteration);
   Die();
 }
+
+namespace {
+
+struct SimThread {
+  enum State : u32 {
+    Unused = 0,
+    Runnable,  // Runnable - may be selected by the scheduler.
+    Blocked,  // Blocked on mutex/condvar - scheduler must not pick this thread.
+    Finished,  // Thread has exited the simulation.
+  };
+
+  Semaphore sem;
+  State state;
+  uptr thread_handle;  // This thread's pthread_t (from pthread_self())
+  uptr joining_on;     // pthread_t this thread is joining on (0 if not joining)
+};
 
 // Waitset: tracks threads blocked waiting for a resource (mutex or condvar).
 struct Waitset {
@@ -123,7 +125,6 @@ struct Waitset {
   }
 };
 
-// WaitsetMap: maps resource addresses to their waitsets.
 struct WaitsetMap {
   struct Element {
     uptr addr;
@@ -163,23 +164,6 @@ class SimScheduler {
  public:
   SimScheduler() : current_(-1), thread_count_(0), depth_(0) {
     internal_memset(threads_, 0, sizeof(threads_));
-    schedule_probability_ = flags()->simulate_schedule_probability;
-  }
-
-  // Register a new thread. Returns its scheduler index.
-  int AddThread() {
-    SpinMutexLock lock(&mtx_);
-    CHECK_LT(thread_count_, kMaxSimThreads);
-    int idx = thread_count_++;
-    threads_[idx].state = SimThread::Runnable;
-    threads_[idx].thread_handle = 0;
-    threads_[idx].joining_on = 0;
-    return idx;
-  }
-
-  void SetThreadHandle(int idx, uptr handle) {
-    SpinMutexLock lock(&mtx_);
-    threads_[idx].thread_handle = handle;
   }
 
   void ResetForIteration() {
@@ -192,6 +176,46 @@ class SimScheduler {
     cond_waitsets_.Reset();
   }
 
+  // ------- Main scheduling point -------
+  //
+  // Called by the currently running thread. May randomly switch to another
+  // runnable thread.
+  void Schedule(int caller_idx) {
+    if (atomic_load_relaxed(&sim_max_depth_hit))
+      return;
+
+    {
+      SpinMutexLock lock(&mtx_);
+
+      CHECK_EQ(caller_idx, current_);
+
+      int max_depth = flags()->simulate_max_depth;
+      if (++depth_ > max_depth) {
+        atomic_store_relaxed(&sim_max_depth_hit, 1);
+        Printf("ThreadSanitizer: simulation hit max depth %d at iteration %d\n",
+               max_depth, sim_current_iteration);
+      }
+
+      int runnable = CountRunnable();
+      if (runnable <= 1)
+        return;
+
+      int chosen = PickRandomRunnable(runnable);
+
+      DumpStates(chosen, caller_idx);
+
+      if (chosen == caller_idx)
+        return;
+
+      // Context switch: wake the chosen thread, park ourselves.
+      current_ = chosen;
+      threads_[chosen].sem.Post();
+    }
+    threads_[caller_idx].sem.Wait();
+  }
+
+  // Thread lifecycle methods
+
   void StartIteration(u32 seed) {
     SpinMutexLock lock(&mtx_);
     rng_state_ = seed;
@@ -199,110 +223,37 @@ class SimScheduler {
     current_ = 0;
   }
 
-  void DumpStates(int chosen = -1, int current = -1) {
-    // Debug: print thread states and scheduling decision.
-    if (common_flags()->verbosity >= 2) {
-      if (chosen >= 0) {
-        Printf("Chose tid %d to run", chosen);
-        if (current >= 0)
-          Printf(" (current %d)", current);
-        Printf(" - ");
-      }
-      Printf("Thread states: ");
-      for (int i = 0; i < thread_count_; i++) {
-        const char* state_str = "?";
-        switch (threads_[i].state) {
-          case SimThread::Unused:
-            state_str = "Unused";
-            break;
-          case SimThread::Runnable:
-            state_str = "Runnable";
-            break;
-          case SimThread::Blocked:
-            state_str = "Blocked";
-            break;
-          case SimThread::Finished:
-            state_str = "Finished";
-            break;
-        }
-        Printf("[%d:%s] ", i, state_str);
-      }
-      Printf("\n");
+  int RegisterThread() {
+    SpinMutexLock lock(&mtx_);
+    if (thread_count_ >= kMaxSimThreads) {
+      Printf(
+          "ThreadSanitizer: simulation error - max thread count %d exceeded\n",
+          kMaxSimThreads);
+      Die();
     }
+
+    int idx = thread_count_++;
+    threads_[idx].state = SimThread::Runnable;
+    threads_[idx].thread_handle = 0;
+    threads_[idx].joining_on = 0;
+    return idx;
   }
 
-  // ------- Scheduling point (non-blocking) -------
-  //
-  // Called by the currently running thread. May randomly switch to another
-  // runnable thread. If the caller is NOT the current thread (e.g. during a
-  // brief window around a blocking call), this is a no-op.
-  void Schedule(int caller_idx) {
-    // If max depth already hit, stop all scheduling.
-    if (atomic_load_relaxed(&sim_max_depth_hit)) {
-      return;
-    }
-
-    mtx_.Lock();
-
-    if (caller_idx != current_) {
-      // Not the current thread - no-op. This can happen briefly during
-      // blocking-call transitions.
-      // TODO - is this tue ^^ ??
-      mtx_.Unlock();
-      return;
-    }
-
-    int max_depth = flags()->simulate_max_depth;
-    if (++depth_ > max_depth) {
-      atomic_store_relaxed(&sim_max_depth_hit, 1);
-      Printf("ThreadSanitizer: simulation hit max depth %d at iteration %d\n",
-             max_depth, sim_current_iteration);
-      mtx_.Unlock();
-      return;
-    }
-
-    // Count runnable threads.
-    int runnable = CountRunnable();
-    if (runnable <= 1) {
-      mtx_.Unlock();
-      return;
-    }
-
-    // Random scheduling: pick a random runnable thread.
-    int chosen = PickRandomRunnable(runnable);
-
-    DumpStates(chosen, caller_idx);
-
-    if (chosen == caller_idx) {
-      // Random picked us -  keep running.
-      mtx_.Unlock();
-      return;
-    }
-
-    // Context switch: wake the chosen thread, park ourselves.
-    current_ = chosen;
-    threads_[chosen].sem.Post();
-    mtx_.Unlock();
-    threads_[caller_idx].sem.Wait();
+  void SetThreadHandle(int idx, uptr handle) {
+    SpinMutexLock lock(&mtx_);
+    threads_[idx].thread_handle = handle;
   }
 
-  // Called by a newly created thread after AddThread(). If no thread is
-  // currently running (current_ == -1), the new thread becomes current and
-  // returns immediately. Otherwise it parks until the scheduler selects it.
   void ThreadStart(int idx) {
-    mtx_.Lock();
-    CHECK_NE(current_, -1);
-    if (current_ == -1) {
-      current_ = idx;
-      mtx_.Unlock();
-      return;
+    {
+      SpinMutexLock lock(&mtx_);
+      CHECK_NE(current_, -1);
     }
-    mtx_.Unlock();
     threads_[idx].sem.Wait();
   }
 
   void ThreadFinish(int idx) {
-    mtx_.Lock();
+    SpinMutexLock lock(&mtx_);
     threads_[idx].state = SimThread::Finished;
     uptr my_handle = threads_[idx].thread_handle;
     CHECK_NE(my_handle, 0);
@@ -319,42 +270,24 @@ class SimScheduler {
     // Clear the handle to allow pthread_t reuse
     threads_[idx].thread_handle = 0;
 
-    if (idx != current_) {
-      mtx_.Unlock();
+    if (idx != current_)
       return;
-    }
 
     // We were current. Pick next runnable thread.
     PickNextAndWake();
-    mtx_.Unlock();
   }
 
   // ------- Blocking-call support -------
 
-  // Called BEFORE a blocking OS call (pthread_join, pthread_cond_wait, etc.).
-  // Marks this thread as Blocked so the scheduler won't pick it, and wakes
-  // another runnable thread. The calling thread does NOT park - it proceeds
-  // to the blocking OS call.
-  void BeforeBlockingCall(int idx) {
-    mtx_.Lock();
-    threads_[idx].state = SimThread::Blocked;
-
-    if (idx == current_) {
-      PickNextAndWake();
-    }
-    mtx_.Unlock();
-  }
-
   // Called BEFORE a pthread_join call. Records the target pthread_t handle.
   void BeforeJoinCall(int idx, uptr target_handle) {
-    mtx_.Lock();
+    SpinMutexLock lock(&mtx_);
     threads_[idx].state = SimThread::Blocked;
     threads_[idx].joining_on = target_handle;
 
     if (idx == current_) {
       PickNextAndWake();
     }
-    mtx_.Unlock();
   }
 
   // Check if a thread with the given pthread_t handle is still active
@@ -375,58 +308,43 @@ class SimScheduler {
   // (runnable) again. If no thread is currently running, this thread becomes
   // current and returns immediately. Otherwise it parks until selected.
   void AfterBlockingCall(int idx) {
-    mtx_.Lock();
-    threads_[idx].state = SimThread::Runnable;
+    {
+      SpinMutexLock lock(&mtx_);
+      threads_[idx].state = SimThread::Runnable;
 
-    if (current_ == -1) {
-      current_ = idx;
-      mtx_.Unlock();
-      return;
+      if (current_ == -1)
+        current_ = idx;
     }
-
     // Another thread is running. Park until selected.
-    mtx_.Unlock();
     threads_[idx].sem.Wait();
   }
-
-  Semaphore* GetSemaphore(int idx) { return &threads_[idx].sem; }
 
   int GetThreadCount() const { return thread_count_; }
 
   void MutexBlock(int caller_idx, uptr mutex_addr) {
-    mtx_.Lock();
+    {
+      SpinMutexLock lock(&mtx_);
 
-    if (caller_idx != current_) {
-      // Not the current thread - shouldn't happen.
-      mtx_.Unlock();
-      return;
+      CHECK_EQ(caller_idx, current_);
+
+      Waitset* ws = mutex_waitsets_.GetOrCreate(mutex_addr);
+      ws->AddWaiter(caller_idx);
+
+      threads_[caller_idx].state = SimThread::Blocked;
+
+      PickNextAndWake();
     }
-
-    // Add this thread to the mutex's waitset.
-    Waitset* ws = mutex_waitsets_.GetOrCreate(mutex_addr);
-    ws->AddWaiter(caller_idx);
-
-    // Mark thread as blocked.
-    threads_[caller_idx].state = SimThread::Blocked;
-
-    // Pick next runnable thread and wake it.
-    PickNextAndWake();
-
-    mtx_.Unlock();
-
     // Park this thread until woken by unlock.
     threads_[caller_idx].sem.Wait();
   }
 
   void MutexUnblock(uptr mutex_addr) {
-    mtx_.Lock();
+    SpinMutexLock lock(&mtx_);
 
     Waitset* ws = mutex_waitsets_.Find(mutex_addr);
 
-    if (!ws || ws->count == 0) {
-      mtx_.Unlock();
+    if (!ws || ws->count == 0)
       return;
-    }
 
     // Remove one waiter randomly and mark it as runnable.
     int thread_idx = ws->RemoveOne(&rng_state_);
@@ -439,92 +357,65 @@ class SimScheduler {
     }
     // Otherwise it will be picked up by next Schedule() or when current
     // finishes.
-
-    mtx_.Unlock();
   }
 
   void CondWait(int caller_idx, uptr cond_addr, uptr mutex_addr) {
-    mtx_.Lock();
+    {
+      SpinMutexLock lock(&mtx_);
 
-    if (caller_idx != current_) {
-      mtx_.Unlock();
-      return;
+      if (caller_idx != current_)
+        return;
+
+      // Add this thread to the condvar's waitset.
+      Waitset* ws = cond_waitsets_.GetOrCreate(cond_addr);
+      ws->AddWaiter(caller_idx);
+
+      // Mark thread as blocked.
+      threads_[caller_idx].state = SimThread::Blocked;
+
+      // Pick next runnable thread and wake it.
+      PickNextAndWake();
     }
-
-    // Add this thread to the condvar's waitset.
-    Waitset* ws = cond_waitsets_.GetOrCreate(cond_addr);
-    ws->AddWaiter(caller_idx);
-
-    // Mark thread as blocked.
-    threads_[caller_idx].state = SimThread::Blocked;
-
-    // Pick next runnable thread and wake it.
-    PickNextAndWake();
-
-    mtx_.Unlock();
 
     // Park this thread until woken by signal/broadcast.
     threads_[caller_idx].sem.Wait();
   }
 
   void CondSignal(uptr cond_addr) {
-    mtx_.Lock();
+    {
+      SpinMutexLock lock(&mtx_);
+      CHECK_NE(current_, -1);
 
-    Waitset* ws = cond_waitsets_.Find(cond_addr);
+      Waitset* ws = cond_waitsets_.Find(cond_addr);
 
-    if (!ws || ws->count == 0) {
-      mtx_.Unlock();
-      return;
+      if (!ws || ws->count == 0)
+        return;
+
+      // Remove one waiter randomly and mark it as runnable.
+      int thread_idx = ws->RemoveOne(&rng_state_);
+      threads_[thread_idx].state = SimThread::Runnable;
     }
-
-    // Remove one waiter randomly and mark it as runnable.
-    int thread_idx = ws->RemoveOne(&rng_state_);
-    threads_[thread_idx].state = SimThread::Runnable;
-
-    // If no thread is current, make the unblocked thread current and wake it.
-    if (current_ == -1) {
-      current_ = thread_idx;
-      threads_[thread_idx].sem.Post();
-    }
-
-    mtx_.Unlock();
   }
 
   void CondBroadcast(uptr cond_addr) {
-    mtx_.Lock();
+    {
+      SpinMutexLock lock(&mtx_);
+      CHECK_NE(current_, -1);
 
-    Waitset* ws = cond_waitsets_.Find(cond_addr);
+      Waitset* ws = cond_waitsets_.Find(cond_addr);
 
-    if (!ws || ws->count == 0) {
-      mtx_.Unlock();
-      return;
+      if (!ws || ws->count == 0)
+        return;
+
+      int woken[kMaxSimThreads];
+      int n = ws->RemoveAll(woken);
+      for (int i = 0; i < n; i++)
+        threads_[woken[i]].state = SimThread::Runnable;
     }
-
-    // Wake all waiting threads.
-    int woken[kMaxSimThreads];
-    int n = ws->RemoveAll(woken);
-    for (int i = 0; i < n; i++) {
-      threads_[woken[i]].state = SimThread::Runnable;
-    }
-
-    // If no thread is current, pick one of the woken threads.
-    if (current_ == -1 && n > 0) {
-      int idx = RandN(&rng_state_, n);
-      current_ = woken[idx];
-      threads_[woken[idx]].sem.Post();
-      // Wake the rest later when scheduled.
-      for (int i = 0; i < n; i++) {
-        if (i != idx && threads_[woken[i]].state == SimThread::Runnable) {
-          // They'll be picked up by scheduler.
-        }
-      }
-    }
-
-    mtx_.Unlock();
   }
 
-  // Check if we should perform scheduling at this point based on probability.
   bool ShouldSchedule() {
+    int schedule_probability_ = flags()->simulate_schedule_probability;
     if (schedule_probability_ >= 100)
       return true;
     if (schedule_probability_ <= 0)
@@ -563,37 +454,70 @@ class SimScheduler {
     if (runnable == 0) {
       DumpStates();
       current_ = -1;
-      // Check if this is a deadlock (blocked threads exist but no runnable
-      // ones)
       int blocked = 0;
-      for (int i = 0; i < thread_count_; i++) {
+      for (int i = 0; i < thread_count_; i++)
         if (threads_[i].state == SimThread::Blocked)
           blocked++;
-      }
-      if (blocked > 0) {
-        // Deadlock: all remaining threads are blocked
+
+      if (blocked > 0)
         SimulateReportDeadlock();
-      }
+
+      // Should only hapen when the callback thread is exiting
       return;
     }
+
     int chosen = PickRandomRunnable(runnable);
     DumpStates(chosen);
     current_ = chosen;
     threads_[chosen].sem.Post();
   }
 
+  void DumpStates(int chosen = -1, int current = -1) {
+    if (common_flags()->verbosity >= 2) {
+      if (chosen >= 0) {
+        Printf("Chose tid %d to run", chosen);
+        if (current >= 0)
+          Printf(" (current %d)", current);
+        Printf(" - ");
+      }
+      Printf("Thread states: ");
+      for (int i = 0; i < thread_count_; i++) {
+        const char* state_str = "?";
+        switch (threads_[i].state) {
+          case SimThread::Unused:
+            state_str = "Unused";
+            break;
+          case SimThread::Runnable:
+            state_str = "Runnable";
+            break;
+          case SimThread::Blocked:
+            state_str = "Blocked";
+            break;
+          case SimThread::Finished:
+            state_str = "Finished";
+            break;
+        }
+        Printf("[%d:%s] ", i, state_str);
+      }
+      Printf("\n");
+    }
+  }
+
+ private:
   SpinMutex mtx_;
-  u32 rng_state_ = 1;  // Random number generator state
+  u32 rng_state_ = 0;
   SimThread threads_[kMaxSimThreads];
   int current_;
   int thread_count_;
   int depth_;
-  int schedule_probability_;  // Cached and validated at construction
+  int schedule_probability_;
 
   // Resource waitsets: map from resource address to waitset.
   WaitsetMap mutex_waitsets_;
   WaitsetMap cond_waitsets_;
 };
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Global state
@@ -642,13 +566,12 @@ void SimulateScheduleImpl() {
 }
 
 void SimulateThreadRegisterImpl(uptr thread_handle) {
-  sim_thread_idx = sim_sched->AddThread();
+  sim_thread_idx = sim_sched->RegisterThread();
   sim_sched->SetThreadHandle(sim_thread_idx, thread_handle);
 }
 
 void SimulateThreadWaitScheduledImpl() {
   CHECK_GE(sim_thread_idx, 0);
-  // Wait until scheduler picks us (blocking).
   sim_sched->ThreadStart(sim_thread_idx);
 }
 
@@ -657,11 +580,6 @@ void SimulateThreadFinishImpl() {
   CHECK_GE(idx, 0);
   sim_thread_idx = -1;
   sim_sched->ThreadFinish(idx);
-}
-
-void SimulateThreadBlockImpl() {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->BeforeBlockingCall(sim_thread_idx);
 }
 
 void SimulateJoinBlockImpl(uptr thread_handle) {
@@ -757,7 +675,6 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     return -1;
   }
 
-  // Reset error flags before starting simulation.
   atomic_store_relaxed(&sim_unsupported_interceptor_called, 0);
   atomic_store_relaxed(&sim_max_depth_hit, 0);
   atomic_store_relaxed(&sim_race_detected, 0);
@@ -802,7 +719,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
 
     sched_ptr->ResetForIteration();
 
-    int main_idx = sched_ptr->AddThread();
+    int main_idx = sched_ptr->RegisterThread();
     CHECK_EQ(main_idx, 0);
     sim_thread_idx = main_idx;
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
