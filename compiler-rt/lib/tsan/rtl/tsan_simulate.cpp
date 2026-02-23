@@ -172,7 +172,7 @@ class SimScheduler {
   // Seed the RNG and post the first runnable thread's semaphore.
   void StartIteration(u32 seed) {
     SpinMutexLock lock(&mtx_);
-    rng_state_ = seed ? seed : 1;
+    rng_state_ = seed;
     depth_ = 0;
     // Pick the first Running thread (should be the main thread at idx 0).
     for (int i = 0; i < thread_count_; i++) {
