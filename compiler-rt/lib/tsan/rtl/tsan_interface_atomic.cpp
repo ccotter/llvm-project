@@ -535,9 +535,9 @@ ALWAYS_INLINE auto AtomicDelayImpl(morder mo, AddrType addr, Types... args) {
 template <class Op, class... Types>
 ALWAYS_INLINE auto AtomicImpl(morder mo, Types... args) {
   AtomicDelayImpl(mo, args...);
-#if !SANITIZER_GO
+#  if !SANITIZER_GO
   SimulateSchedule();
-#endif
+#  endif
   ThreadState *const thr = cur_thread();
   ProcessPendingSignals(thr);
   if (UNLIKELY(thr->ignore_sync || thr->ignore_interceptors))

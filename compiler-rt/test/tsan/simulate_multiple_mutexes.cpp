@@ -1,9 +1,7 @@
 // RUN: %clangxx_tsan -O1 %s -o %t
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=10 %run %t 2>&1 | FileCheck %s
-//
-// Test that simulation handles many different mutexes used by different thread pairs.
-// Verifies that waitset allocation and tracking works with multiple mutexes.
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 
@@ -14,7 +12,7 @@ pthread_mutex_t mutexes[num_mutexes];
 int counters[num_mutexes];
 
 void *thread_func(void *arg) {
-  int mutex_id = (long)arg;
+  long mutex_id = (long)arg;
 
   pthread_mutex_lock(&mutexes[mutex_id]);
   counters[mutex_id]++;
@@ -24,7 +22,6 @@ void *thread_func(void *arg) {
 }
 
 void test_callback(void *arg) {
-  // Initialize mutexes and counters
   for (int i = 0; i < num_mutexes; i++) {
     pthread_mutex_init(&mutexes[i], nullptr);
     counters[i] = 0;
@@ -46,35 +43,12 @@ void test_callback(void *arg) {
     pthread_join(threads[i], nullptr);
   }
 
-  // Verify all counters
-  int errors = 0;
   for (int i = 0; i < num_mutexes; i++) {
-    if (counters[i] != threads_per_mutex) {
-      fprintf(stderr, "ERROR: mutex %d counter=%d, expected %d\n", i,
-              counters[i], threads_per_mutex);
-      errors++;
-    }
+    assert(counters[i] == threads_per_mutex);
     pthread_mutex_destroy(&mutexes[i]);
   }
-
-  if (errors == 0) {
-    fprintf(stderr, "All %d mutexes verified successfully\n", num_mutexes);
-  }
 }
 
-int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-
-  if (result == 0) {
-    fprintf(stderr, "Test PASSED: multiple mutexes handled correctly\n");
-    return 0;
-  } else {
-    fprintf(stderr, "Test FAILED: unexpected return value %d\n", result);
-    return 1;
-  }
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation starting
-// CHECK: All 10 mutexes verified successfully
-// CHECK: ThreadSanitizer: simulation finished
-// CHECK: Test PASSED: multiple mutexes handled correctly

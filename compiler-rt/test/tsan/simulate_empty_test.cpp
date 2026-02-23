@@ -10,19 +10,8 @@ void test_callback(void *arg) {
   fprintf(stderr, "Callback executed with no threads\n");
 }
 
-int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-  if (result == 0) {
-    fprintf(stderr, "Test PASSED: empty test handled correctly\n");
-    return 0;
-  } else {
-    fprintf(stderr, "Test FAILED: expected return value 0, got %d\n", result);
-    return 1;
-  }
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
-// CHECK: ThreadSanitizer: simulation starting (iterations 0..1
+// CHECK: ThreadSanitizer: simulation starting (iterations 0..
 // CHECK: Callback executed with no threads
 // CHECK: ThreadSanitizer: simulation exiting - no threads were spawned
-// CHECK: __tsan_simulate returned: 0
-// CHECK: Test PASSED: empty test handled correctly

@@ -765,7 +765,8 @@ void SimulateScheduleImpl() {
 
   if (flags()->simulate_print_schedule_stacks) {
     ThreadState* thr = cur_thread();
-    Printf("=========== Schedule point (thread %d) ===========\n", sim_thread_idx);
+    Printf("=========== Schedule point (thread %d) ===========\n",
+           sim_thread_idx);
     PrintCurrentStack(thr, StackTrace::GetCurrentPc());
     Printf("==================================================\n");
   }
@@ -924,8 +925,10 @@ int SimulateRun(void (*callback)(void*), void* arg) {
 
   int prob = flags()->simulate_schedule_probability;
   if (prob < 0 || prob > 100) {
-    Printf("ThreadSanitizer: simulate_schedule_probabilitymust be >=0 and <= 100 (got %d)\n",
-           prob);
+    Printf(
+        "ThreadSanitizer: simulate_schedule_probabilitymust be >=0 and <= 100 "
+        "(got %d)\n",
+        prob);
     return -1;
   }
 
