@@ -89,7 +89,12 @@ struct Waitset {
   int waiters[kMaxWaiters];
   int count;
 
-  Waitset() : count(0) { internal_memset(waiters, 0, sizeof(waiters)); }
+  Waitset() { Reset(); }
+
+  void Reset() {
+    count = 0;
+    internal_memset(waiters, 0, sizeof(waiters));
+  }
 
   void AddWaiter(int thread_idx) {
     CHECK_LT(count, kMaxWaiters);
@@ -116,6 +121,39 @@ struct Waitset {
     count = 0;
     return n;
   }
+};
+
+// WaitsetMap: maps resource addresses to their waitsets.
+struct WaitsetMap {
+  struct Element {
+    uptr addr;
+    Waitset waitset;
+  };
+
+  static constexpr int kMaxElements = 256;
+  Element elements[kMaxElements];
+  int count = 0;
+
+  Waitset* Find(uptr addr) {
+    for (int i = 0; i < count; i++)
+      if (elements[i].addr == addr)
+        return &elements[i].waitset;
+    return nullptr;
+  }
+
+  Waitset* GetOrCreate(uptr addr) {
+    Waitset* ws = Find(addr);
+    if (ws)
+      return ws;
+
+    CHECK_LT(count, kMaxElements);
+    int idx = count++;
+    elements[idx].addr = addr;
+    elements[idx].waitset.Reset();
+    return &elements[idx].waitset;
+  }
+
+  void Reset() { count = 0; }
 };
 
 // SimScheduler controls which thread runs at each scheduling point. Exactly one
@@ -150,8 +188,8 @@ class SimScheduler {
     thread_count_ = 0;
     depth_ = 0;
     internal_memset(threads_, 0, sizeof(threads_));
-    mutex_waitset_count_ = 0;
-    cond_waitset_count_ = 0;
+    mutex_waitsets_.Reset();
+    cond_waitsets_.Reset();
   }
 
   void StartIteration(u32 seed) {
@@ -365,7 +403,7 @@ class SimScheduler {
     }
 
     // Add this thread to the mutex's waitset.
-    Waitset* ws = GetOrCreateMutexWaitset(mutex_addr);
+    Waitset* ws = mutex_waitsets_.GetOrCreate(mutex_addr);
     ws->AddWaiter(caller_idx);
 
     // Mark thread as blocked.
@@ -383,14 +421,7 @@ class SimScheduler {
   void MutexUnblock(uptr mutex_addr) {
     mtx_.Lock();
 
-    // Find the waitset for this mutex.
-    Waitset* ws = nullptr;
-    for (int i = 0; i < mutex_waitset_count_; i++) {
-      if (mutex_waitset_addrs_[i] == mutex_addr) {
-        ws = &mutex_waitsets_[i];
-        break;
-      }
-    }
+    Waitset* ws = mutex_waitsets_.Find(mutex_addr);
 
     if (!ws || ws->count == 0) {
       mtx_.Unlock();
@@ -421,7 +452,7 @@ class SimScheduler {
     }
 
     // Add this thread to the condvar's waitset.
-    Waitset* ws = GetOrCreateCondWaitset(cond_addr);
+    Waitset* ws = cond_waitsets_.GetOrCreate(cond_addr);
     ws->AddWaiter(caller_idx);
 
     // Mark thread as blocked.
@@ -439,14 +470,7 @@ class SimScheduler {
   void CondSignal(uptr cond_addr) {
     mtx_.Lock();
 
-    // Find the waitset for this condvar.
-    Waitset* ws = nullptr;
-    for (int i = 0; i < cond_waitset_count_; i++) {
-      if (cond_waitset_addrs_[i] == cond_addr) {
-        ws = &cond_waitsets_[i];
-        break;
-      }
-    }
+    Waitset* ws = cond_waitsets_.Find(cond_addr);
 
     if (!ws || ws->count == 0) {
       mtx_.Unlock();
@@ -469,14 +493,7 @@ class SimScheduler {
   void CondBroadcast(uptr cond_addr) {
     mtx_.Lock();
 
-    // Find the waitset for this condvar.
-    Waitset* ws = nullptr;
-    for (int i = 0; i < cond_waitset_count_; i++) {
-      if (cond_waitset_addrs_[i] == cond_addr) {
-        ws = &cond_waitsets_[i];
-        break;
-      }
-    }
+    Waitset* ws = cond_waitsets_.Find(cond_addr);
 
     if (!ws || ws->count == 0) {
       mtx_.Unlock();
@@ -565,33 +582,6 @@ class SimScheduler {
     threads_[chosen].sem.Post();
   }
 
-  // Get or create waitset for a mutex. Uses simple linear search since
-  // we don't expect many mutexes per iteration.
-  Waitset* GetOrCreateMutexWaitset(uptr mutex_addr) {
-    for (int i = 0; i < mutex_waitset_count_; i++) {
-      if (mutex_waitset_addrs_[i] == mutex_addr)
-        return &mutex_waitsets_[i];
-    }
-    CHECK_LT(mutex_waitset_count_, kMaxWaitsets);
-    int idx = mutex_waitset_count_++;
-    mutex_waitset_addrs_[idx] = mutex_addr;
-    new (&mutex_waitsets_[idx]) Waitset();
-    return &mutex_waitsets_[idx];
-  }
-
-  // Get or create waitset for a condition variable.
-  Waitset* GetOrCreateCondWaitset(uptr cond_addr) {
-    for (int i = 0; i < cond_waitset_count_; i++) {
-      if (cond_waitset_addrs_[i] == cond_addr)
-        return &cond_waitsets_[i];
-    }
-    CHECK_LT(cond_waitset_count_, kMaxWaitsets);
-    int idx = cond_waitset_count_++;
-    cond_waitset_addrs_[idx] = cond_addr;
-    new (&cond_waitsets_[idx]) Waitset();
-    return &cond_waitsets_[idx];
-  }
-
   SpinMutex mtx_;
   u32 rng_state_ = 1;  // Random number generator state
   SimThread threads_[kMaxSimThreads];
@@ -601,13 +591,8 @@ class SimScheduler {
   int schedule_probability_;  // Cached and validated at construction
 
   // Resource waitsets: map from resource address to waitset.
-  static constexpr int kMaxWaitsets = 256;
-  uptr mutex_waitset_addrs_[kMaxWaitsets];
-  Waitset mutex_waitsets_[kMaxWaitsets];
-  int mutex_waitset_count_ = 0;
-  uptr cond_waitset_addrs_[kMaxWaitsets];
-  Waitset cond_waitsets_[kMaxWaitsets];
-  int cond_waitset_count_ = 0;
+  WaitsetMap mutex_waitsets_;
+  WaitsetMap cond_waitsets_;
 };
 
 // ---------------------------------------------------------------------------
