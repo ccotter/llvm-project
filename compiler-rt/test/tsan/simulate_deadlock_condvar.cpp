@@ -41,15 +41,11 @@ void test_callback(void* arg) {
 }
 
 int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-
-  fprintf(stderr, "__tsan_simulate returned: %d\n", result);
-
-  // Should return 5 (deadlock detected)
-  if (result == 5) {
-    fprintf(stderr, "Test PASSED: condvar deadlock correctly detected\n");
-    return 0;
-}
+  // Deadlock will cause Die() - this will not return
+  alarm(10);  // Safety timeout
+  __tsan_simulate(test_callback, nullptr);
+  fprintf(stderr, "Test FAILED: simulation should have died on deadlock\n");
+  return 1;
 }
 
 // CHECK: ThreadSanitizer: simulation starting

@@ -28,14 +28,14 @@ under test calls these APIS, we can exhibit undefined behavior.
 If other threads exist when `__tsan_simulate` is invoked, the simulation should detect
 this and print an error, only running the callback once.
 
-`__tsan_simulate` should return non-zero in this case.
+`__tsan_simulate` should return `-1` (error) in this case.
 
 ### Invoking unsupported posix interceptors
 
 While a simulation is active, if an interceptor is not supported, the simulation should
 report an error and bail out.
 
-`__tsan_simulate` should return non-zero in this case.
+`__tsan_simulate` should return `-1` (error) in this case.
 
 ### Hitting max depth
 
@@ -43,15 +43,15 @@ If the simulation hits the maximum depth limit (controlled by `simulate_max_dept
 the simulation should report this condition and immediately exit. No further iterations
 should be executed.
 
-`__tsan_simulate` should return non-zero (specifically 3) in this case.
+`__tsan_simulate` should return `-1` (error) in this case.
 
 ### Return codes
 
 `__tsan_simulate` returns an integer status code:
 - `0` - Success: all iterations completed without errors
-- `1` - Error: pre-existing threads detected
-- `2` - Error: unsupported interceptor called during simulation
-- `3` - Error: max depth limit hit during simulation
+- `-1` - Failure: simulation encountered an error (pre-existing threads, unsupported operation, max depth hit, race detected, or deadlock detected)
+
+**Note**: When a deadlock is detected, `__tsan_simulate` will call `Die()` and print reproduction instructions, so it will not return normally in that case.
 
 ## Relacy reference
 
@@ -191,6 +191,11 @@ To build a test executable with the new API
 And to run,
 
 TSAN_OPTIONS=simulate_scheduler=random ./foo
+
+To run the tests (they might take up to 60s to run)
+
+cd /workarea/llvm-project/build
+./bin/llvm-lit /workarea/llvm-project/compiler-rt/test/tsan/simulate_*
 
 ## Test cases needed
 

@@ -33,12 +33,12 @@ int main() {
 
   printf("__tsan_simulate returned: %d\n", result);
 
-  // Should return 2 (unsupported interceptor error)
-  if (result == 2) {
+  // Should return -1 (unsupported interceptor error)
+  if (result == -1) {
     printf(
         "Test PASSED: simulation correctly detected unsupported interceptor\n");
   } else {
-    printf("Test FAILED: expected return value 2, got %d\n", result);
+    printf("Test FAILED: expected return value -1, got %d\n", result);
     return 1;
   }
 
@@ -48,5 +48,5 @@ int main() {
 // CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_rwlock_rdlock
 // CHECK: Simulation does not support this synchronization primitive
 // CHECK: ThreadSanitizer: simulation aborted after 1 iterations
-// CHECK: __tsan_simulate returned: 2
+// CHECK: __tsan_simulate returned: -1
 // CHECK: Test PASSED: simulation correctly detected unsupported interceptor

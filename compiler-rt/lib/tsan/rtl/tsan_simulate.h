@@ -210,8 +210,9 @@ ALWAYS_INLINE void SimulateAnnotateWakeAll(uptr addr) {
 
 // Run the simulation: invoke `callback(arg)` for `iterations` iterations,
 // exploring thread interleavings using the configured scheduler.
-// Returns 0 on success, non-zero on error (1=pre-existing threads,
-// 2=unsupported interceptor called).
+// Returns 0 on success, -1 on error (pre-existing threads, unsupported
+// interceptor, max depth hit, or race detected).
+// Note: Deadlock detection calls Die() and does not return.
 int SimulateRun(void (*callback)(void*), void* arg);
 
 }  // namespace __tsan

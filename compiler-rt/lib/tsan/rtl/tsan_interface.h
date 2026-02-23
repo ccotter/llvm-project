@@ -98,9 +98,11 @@ SANITIZER_INTERFACE_ATTRIBUTE void __tsan_on_thread_idle();
 // a time and randomly varies the interleaving at each sync point.
 //
 // Returns:
-//   0 on success
-//   1 if other threads are running when called
-//   2 if an unsupported interceptor is called during simulation
+//   0 - Success (all iterations completed without errors)
+//  -1 - Failure (pre-existing threads, unsupported interceptor, max depth hit,
+//       or race detected)
+//
+// Note: Deadlock detection calls Die() and does not return.
 //
 // LIMITATIONS:
 // - No other threads must be running when __tsan_simulate is called.

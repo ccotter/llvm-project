@@ -40,16 +40,16 @@ int main() {
 
   fprintf(stderr, "Simulation returned: %d\n", result);
 
-  if (result == 3) {
-    fprintf(stderr, "Test PASSED: max depth correctly detected (exit code 3)\n");
+  if (result == -1) {
+    fprintf(stderr, "Test PASSED: max depth correctly detected (exit code -1)\n");
     return 0;
   } else {
-    fprintf(stderr, "Test FAILED: expected exit code 3, got %d\n", result);
+    fprintf(stderr, "Test FAILED: expected exit code -1, got %d\n", result);
     return 1;
   }
 }
 
 // CHECK: Starting max depth test
 // CHECK: ThreadSanitizer: simulation stopped due to max depth
-// CHECK: Simulation returned: 3
-// CHECK: Test PASSED: max depth correctly detected (exit code 3)
+// CHECK: Simulation returned: -1
+// CHECK: Test PASSED: max depth correctly detected (exit code -1)

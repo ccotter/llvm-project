@@ -907,7 +907,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
         "Running callback once without simulation.\n",
         running_threads);
     callback(arg);
-    return 1;  // Error: pre-existing threads
+    return -1;  // Error: pre-existing threads
   }
 
   // Reset error flags before starting simulation.
@@ -985,7 +985,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
           iter);
       Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
              iter - start_iter + 1);
-      return 2;  // Error: unsupported interceptor called
+      return -1;  // Error: unsupported interceptor called
     }
 
     // Check if max depth was hit during this iteration.
@@ -1003,7 +1003,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
           "ThreadSanitizer: simulation stopped due to max depth after %d "
           "iterations\n",
           iter - start_iter + 1);
-      return 3;  // Error: max depth hit
+      return -1;  // Error: max depth hit
     }
 
     // Check if a race was detected during this iteration.
@@ -1021,7 +1021,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
           "ThreadSanitizer: simulation stopped due to race detection after %d "
           "iterations\n",
           iter - start_iter + 1);
-      return 4;  // Error: race detected
+      return -1;  // Error: race detected
     }
 
     // Main thread finished; unregister from the scheduler.

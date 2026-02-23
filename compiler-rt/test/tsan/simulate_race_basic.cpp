@@ -45,5 +45,5 @@ int main() {
 // CHECK: WARNING: ThreadSanitizer: data race
 // CHECK: ThreadSanitizer: data race detected at iteration
 // CHECK: ThreadSanitizer: simulation stopped due to race detection
-// CHECK: Simulation returned: 4
+// CHECK: Simulation returned: -1
 // CHECK: Test PASSED
