@@ -718,7 +718,9 @@ bool OutputReport(ThreadState *thr, ScopedReport &srep) {
   if (flags()->halt_on_error)
     Die();
   thr->current_report = nullptr;
+#if !SANITIZER_GO
   SimulateReportRace();  // Notify simulation of race detection
+#endif
   return true;
 }
 
