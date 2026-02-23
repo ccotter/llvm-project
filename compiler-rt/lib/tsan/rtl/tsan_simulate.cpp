@@ -53,10 +53,6 @@ class RandomGenerator {
   u32 state_ = 1;
 };
 
-// ---------------------------------------------------------------------------
-// Per-thread simulation state
-// ---------------------------------------------------------------------------
-
 struct SimThread {
   enum State : u32 {
     Unused = 0,
@@ -73,11 +69,38 @@ struct SimThread {
 
 static constexpr int kMaxSimThreads = 64;
 
-// Set to 1 if the max depth is hit during simulation.
-static atomic_uint32_t sim_max_depth_hit;
-
-// Current iteration number (for error reporting).
 static int sim_current_iteration = 0;
+
+static atomic_uint32_t sim_max_depth_hit;
+static atomic_uint32_t sim_race_detected;
+static atomic_uint32_t sim_unsupported_interceptor_called;
+
+void SimulateReportUnsupportedImpl(const char* func_name) {
+  atomic_store_relaxed(&sim_unsupported_interceptor_called, 1);
+  Printf(
+      "ThreadSanitizer: simulation error - unsupported interceptor called: "
+      "%s\n"
+      "Simulation does not support this synchronization primitive.\n",
+      func_name);
+}
+
+void SimulateReportRaceImpl() {
+  atomic_store_relaxed(&sim_race_detected, 1);
+  Printf("ThreadSanitizer: data race detected at iteration %d\n",
+         sim_current_iteration);
+}
+
+void SimulateReportDeadlock() {
+  Printf(
+      "ThreadSanitizer: deadlock detected at iteration %d - all threads are "
+      "blocked\n",
+      sim_current_iteration);
+  Printf(
+      "ThreadSanitizer: to reproduce, set "
+      "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+      sim_current_iteration);
+  Die();
+}
 
 // Waitset: tracks threads blocked waiting for a resource (mutex or condvar).
 struct Waitset {
@@ -149,6 +172,18 @@ class SimScheduler {
   void SetThreadHandle(int idx, uptr handle) {
     SpinMutexLock lock(&mtx_);
     threads_[idx].thread_handle = handle;
+  }
+
+  // Reset scheduler state for a new iteration.
+  void ResetForIteration() {
+    SpinMutexLock lock(&mtx_);
+    current_ = -1;
+    thread_count_ = 0;
+    depth_ = 0;
+    internal_memset(threads_, 0, sizeof(threads_));
+    mutex_waitset_count_ = 0;
+    cond_waitset_count_ = 0;
+    annotate_waitset_count_ = 0;
   }
 
   // Seed the RNG and post the first runnable thread's semaphore.
@@ -731,61 +766,39 @@ class SimScheduler {
 // Global state
 // ---------------------------------------------------------------------------
 
-// 0 = inactive, 1 = active.
-u32 sim_active;
+bool sim_active;
 
-// Pointer to the current scheduler instance (valid while sim_active == 1).
+// Pointer to the current scheduler instance (valid while sim_active == true).
 static SimScheduler* sim_sched;
 
 // Per-thread scheduler index. -1 when not participating in simulation.
 static THREADLOCAL int sim_thread_idx = -1;
 
-// Set to 1 if an unsupported interceptor is called during simulation.
-static atomic_uint32_t sim_error;
+class SimStateGuard {
+  SimScheduler* sched_;
 
-// Set to 1 if a data race is detected during simulation.
-static atomic_uint32_t sim_race_detected;
-
-// ---------------------------------------------------------------------------
-// Public API (called from interceptors and tsan_interface.cpp)
-// ---------------------------------------------------------------------------
-
-void SimulateReportUnsupportedImpl(const char* func_name) {
-  atomic_store_relaxed(&sim_error, 1);
-  Printf(
-      "ThreadSanitizer: simulation error - unsupported interceptor called: "
-      "%s\n"
-      "Simulation does not support this synchronization primitive.\n",
-      func_name);
-}
-
-void SimulateReportRaceImpl() {
-  atomic_store_relaxed(&sim_race_detected, 1);
-  Printf("ThreadSanitizer: data race detected at iteration %d\n",
-         sim_current_iteration);
-}
-
-void SimulateReportDeadlockImpl() {
-  Printf(
-      "ThreadSanitizer: deadlock detected at iteration %d - all threads are "
-      "blocked\n",
-      sim_current_iteration);
-  Printf(
-      "ThreadSanitizer: to reproduce, set "
-      "TSAN_OPTIONS=simulate_start_iteration=%d\n",
-      sim_current_iteration);
-  Die();
-}
+ public:
+  SimStateGuard(SimScheduler* sched) : sched_(sched) { sim_active = true; }
+  ~SimStateGuard() {
+    sim_active = false;
+    sim_thread_idx = -1;
+    sim_sched = nullptr;
+    if (sched_) {
+      sched_->~SimScheduler();
+      InternalFree(sched_);
+    }
+  }
+  SimStateGuard(const SimStateGuard&) = delete;
+  SimStateGuard& operator=(const SimStateGuard&) = delete;
+};
 
 void SimulateScheduleImpl() {
   int idx = sim_thread_idx;
   if (idx < 0)
     return;
-  // Check probability before scheduling
   if (!sim_sched->ShouldSchedule())
     return;
 
-  // Optionally print stack trace at scheduling point
   if (flags()->simulate_print_schedule_stacks) {
     ThreadState* thr = cur_thread();
     Printf("=========== Schedule point (thread %d) ===========\n", idx);
@@ -797,10 +810,8 @@ void SimulateScheduleImpl() {
 }
 
 void SimulateThreadRegisterImpl(uptr thread_handle) {
-  // Register with scheduler (non-blocking).
   int idx = sim_sched->AddThread();
   sim_thread_idx = idx;
-  // Store this thread's pthread_t handle for join tracking.
   sim_sched->SetThreadHandle(idx, thread_handle);
 }
 
@@ -911,7 +922,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
   }
 
   // Reset error flags before starting simulation.
-  atomic_store_relaxed(&sim_error, 0);
+  atomic_store_relaxed(&sim_unsupported_interceptor_called, 0);
   atomic_store_relaxed(&sim_max_depth_hit, 0);
   atomic_store_relaxed(&sim_race_detected, 0);
 
@@ -929,14 +940,20 @@ int SimulateRun(void (*callback)(void*), void* arg) {
       "scheduler=%s)\n",
       start_iter, start_iter + iterations - 1, max_depth, sched);
 
+  // Allocate scheduler once on the heap for all iterations.
+  void* sched_mem = InternalAlloc(sizeof(SimScheduler));
+  SimScheduler* sched_ptr = new (sched_mem) SimScheduler();
+  sim_sched = sched_ptr;
+
+  // Activate simulation
+  SimStateGuard guard(sched_ptr);
+
   for (int iter = start_iter; iter < start_iter + iterations; iter++) {
     // Track current iteration for error reporting.
     sim_current_iteration = iter;
 
-    // Allocate a fresh scheduler on the stack for each iteration.
-    ALIGNED(64) char sched_buf[sizeof(SimScheduler)];
-    SimScheduler* sched_ptr = new (sched_buf) SimScheduler();
-    sim_sched = sched_ptr;
+    // Reset scheduler state for this iteration.
+    sched_ptr->ResetForIteration();
 
     // Register the calling (main) thread as thread 0.
     int main_idx = sched_ptr->AddThread();
@@ -944,10 +961,6 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Set the main thread's pthread_t handle for join tracking.
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
-    // Activate simulation before starting the iteration.
-    sim_active = 1;
-
-    // Seed the RNG and post the first thread's semaphore.
     sched_ptr->StartIteration(iter);
 
     // Wait for our turn (StartIteration posted our semaphore).
@@ -961,22 +974,12 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     // Check if no threads were spawned (only main thread exists).
     // If so, there's no parallelism to explore, so exit successfully.
     if (iter == start_iter && sched_ptr->GetThreadCount() == 1) {
-      // Deactivate simulation and clean up.
-      sim_active = 0;
-      sim_thread_idx = -1;
-      sim_sched = nullptr;
-      sched_ptr->~SimScheduler();
       Printf("ThreadSanitizer: simulation exiting - no threads were spawned\n");
       return 0;  // Success: no parallelism to test
     }
 
     // Check if an error occurred during this iteration.
-    if (atomic_load_relaxed(&sim_error)) {
-      // Deactivate simulation and clean up.
-      sim_active = 0;
-      sim_thread_idx = -1;
-      sim_sched = nullptr;
-      sched_ptr->~SimScheduler();
+    if (atomic_load_relaxed(&sim_unsupported_interceptor_called)) {
       Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n",
              iter);
       Printf(
@@ -985,16 +988,11 @@ int SimulateRun(void (*callback)(void*), void* arg) {
           iter);
       Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
              iter - start_iter + 1);
-      return -1;  // Error: unsupported interceptor called
+      return -1;  // Error: unsupported interceptor
     }
 
     // Check if max depth was hit during this iteration.
     if (atomic_load_relaxed(&sim_max_depth_hit)) {
-      // Deactivate simulation and clean up.
-      sim_active = 0;
-      sim_thread_idx = -1;
-      sim_sched = nullptr;
-      sched_ptr->~SimScheduler();
       Printf(
           "ThreadSanitizer: to reproduce, set "
           "TSAN_OPTIONS=simulate_start_iteration=%d\n",
@@ -1008,11 +1006,6 @@ int SimulateRun(void (*callback)(void*), void* arg) {
 
     // Check if a race was detected during this iteration.
     if (atomic_load_relaxed(&sim_race_detected)) {
-      // Deactivate simulation and clean up.
-      sim_active = 0;
-      sim_thread_idx = -1;
-      sim_sched = nullptr;
-      sched_ptr->~SimScheduler();
       Printf(
           "ThreadSanitizer: to reproduce, set "
           "TSAN_OPTIONS=simulate_start_iteration=%d\n",
@@ -1026,13 +1019,6 @@ int SimulateRun(void (*callback)(void*), void* arg) {
 
     // Main thread finished; unregister from the scheduler.
     sched_ptr->ThreadFinish(main_idx);
-
-    // Deactivate simulation and clean up.
-    sim_active = 0;
-    sim_thread_idx = -1;
-    sim_sched = nullptr;
-
-    sched_ptr->~SimScheduler();
   }
 
   Printf("ThreadSanitizer: simulation finished (%d iterations)\n", iterations);

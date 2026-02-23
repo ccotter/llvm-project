@@ -24,14 +24,28 @@
 
 namespace __tsan {
 
-struct ThreadState;
+// Run the simulation: invoke `callback(arg)` for `simulate_iterations`
+// iterations, exploring thread interleavings using the configured scheduler.
+// Returns 0 on success, -1 on error.
+//
+// Errors include
+//  - Pre-existing threads when simulation was started
+//  - Unsupported interceptor
+//  - Max simulation depth hit
+//  - Race detected
+//  - Deadlock detected (all simulated threads were blocked)
+//    Deadlock results in program termination via Die()
+//
+// If an unsupported interceptor is invoked, the simlulation enters undefined
+// behavior from the ThreadSanitizer simulation perspective. The interceptor
+// may lead to the simulation being unable to advance (deadlocked), or the
+// simulation may eventually be able to return out from SimulateRun.
+int SimulateRun(void (*callback)(void*), void* arg);
 
-// Simulation active flag (0 = inactive, 1 = active).
-// Set from a single thread before parallel execution begins.
-extern u32 sim_active;
+extern bool sim_active;
 
 // Returns true if simulation mode is active for the current process.
-ALWAYS_INLINE bool SimulateIsActive() { return sim_active != 0; }
+ALWAYS_INLINE bool SimulateIsActive() { return sim_active; }
 
 // Implementation of schedule point logic (called only when active).
 void SimulateScheduleImpl();
@@ -45,10 +59,8 @@ ALWAYS_INLINE void SimulateSchedule() {
   SimulateScheduleImpl();
 }
 
-// Implementation functions (called only when active)
 void SimulateReportUnsupportedImpl(const char* func_name);
 void SimulateReportRaceImpl();
-void SimulateReportDeadlockImpl();
 
 // Called when an unsupported interceptor is invoked during simulation.
 // Prints an error message and sets the failure flag.
@@ -64,14 +76,6 @@ ALWAYS_INLINE void SimulateReportRace() {
   if (!SimulateIsActive())
     return;
   SimulateReportRaceImpl();
-}
-
-// Called when a deadlock is detected during simulation.
-// Sets the deadlock_detected flag to abort the simulation.
-ALWAYS_INLINE void SimulateReportDeadlock() {
-  if (!SimulateIsActive())
-    return;
-  SimulateReportDeadlockImpl();
 }
 
 // Implementation functions for thread lifecycle.
@@ -207,13 +211,6 @@ ALWAYS_INLINE void SimulateAnnotateWakeAll(uptr addr) {
     return;
   SimulateAnnotateWakeAllImpl(addr);
 }
-
-// Run the simulation: invoke `callback(arg)` for `iterations` iterations,
-// exploring thread interleavings using the configured scheduler.
-// Returns 0 on success, -1 on error (pre-existing threads, unsupported
-// interceptor, max depth hit, or race detected).
-// Note: Deadlock detection calls Die() and does not return.
-int SimulateRun(void (*callback)(void*), void* arg);
 
 }  // namespace __tsan
 
