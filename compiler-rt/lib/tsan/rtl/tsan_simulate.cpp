@@ -12,7 +12,7 @@
 // Inspired by Relacy Race Detector's random scheduler.
 //
 // Design:
-//   - Real OS threads, not fibers. Exactly one thread runs user code at a time.
+//   - Exactly one thread runs user code at a time.
 //   - Other threads park on per-thread Semaphores.
 //   - At scheduling points (atomic ops, pthread_* calls), the running thread
 //     may yield to another thread chosen by the random scheduler.
@@ -35,23 +35,6 @@
 extern "C" void* pthread_self();
 
 namespace __tsan {
-
-// ---------------------------------------------------------------------------
-// Random number generator (LCG)
-// ---------------------------------------------------------------------------
-
-class RandomGenerator {
- public:
-  void Seed(u32 s) { state_ = s ? s : 1; }
-  u32 Next() {
-    state_ = state_ * 1103515245u + 12345u;
-    return (state_ >> 16) & 0x7fff;
-  }
-  u32 NextRange(u32 n) { return Next() % n; }
-
- private:
-  u32 state_ = 1;
-};
 
 struct SimThread {
   enum State : u32 {
@@ -117,10 +100,10 @@ struct Waitset {
 
   // Randomly select and remove one thread from the waitset.
   // Matches Relacy's approach to maximize interleaving exploration.
-  int RemoveOne(RandomGenerator* rng) {
+  int RemoveOne(u32* rng_state) {
     CHECK_GT(count, 0);
     // Pick a random thread from the waitset.
-    int idx = rng->NextRange(count);
+    int idx = RandN(rng_state, count);
     int thread_idx = waiters[idx];
     // Remove it by shifting remaining threads.
     for (int i = idx + 1; i < count; i++) waiters[i - 1] = waiters[i];
@@ -189,7 +172,7 @@ class SimScheduler {
   // Seed the RNG and post the first runnable thread's semaphore.
   void StartIteration(u32 seed) {
     SpinMutexLock lock(&mtx_);
-    rng_.Seed(seed);
+    rng_state_ = seed ? seed : 1;
     depth_ = 0;
     // Pick the first Running thread (should be the main thread at idx 0).
     for (int i = 0; i < thread_count_; i++) {
@@ -439,7 +422,7 @@ class SimScheduler {
     }
 
     // Remove one waiter randomly and mark it as runnable.
-    int thread_idx = ws->RemoveOne(&rng_);
+    int thread_idx = ws->RemoveOne(&rng_state_);
     threads_[thread_idx].state = SimThread::Running;
 
     // If no thread is current, make the unblocked thread current and wake it.
@@ -495,7 +478,7 @@ class SimScheduler {
     }
 
     // Remove one waiter randomly and mark it as runnable.
-    int thread_idx = ws->RemoveOne(&rng_);
+    int thread_idx = ws->RemoveOne(&rng_state_);
     threads_[thread_idx].state = SimThread::Running;
 
     // If no thread is current, make the unblocked thread current and wake it.
@@ -533,7 +516,7 @@ class SimScheduler {
 
     // If no thread is current, pick one of the woken threads.
     if (current_ == -1 && n > 0) {
-      int idx = rng_.NextRange(n);
+      int idx = RandN(&rng_state_, n);
       current_ = woken[idx];
       threads_[woken[idx]].sem.Post();
       // Wake the rest later when scheduled.
@@ -589,7 +572,7 @@ class SimScheduler {
     }
 
     // Remove one waiter randomly and mark it as runnable.
-    int thread_idx = ws->RemoveOne(&rng_);
+    int thread_idx = ws->RemoveOne(&rng_state_);
     threads_[thread_idx].state = SimThread::Running;
 
     // If no thread is current, make the unblocked thread current and wake it.
@@ -627,7 +610,7 @@ class SimScheduler {
 
     // If no thread is current, pick one of the woken threads.
     if (current_ == -1 && n > 0) {
-      int idx = rng_.NextRange(n);
+      int idx = RandN(&rng_state_, n);
       current_ = woken[idx];
       threads_[woken[idx]].sem.Post();
       // Wake the rest later when scheduled.
@@ -649,7 +632,7 @@ class SimScheduler {
     if (schedule_probability_ <= 0)
       return false;
     // Generate random value [0, 99] and compare to probability percentage
-    u32 rand_val = rng_.NextRange(100);
+    u32 rand_val = RandN(&rng_state_, 100);
     return rand_val < static_cast<u32>(schedule_probability_);
   }
 
@@ -664,7 +647,7 @@ class SimScheduler {
   }
 
   int PickRandomRunnable(int runnable) {
-    int target = rng_.NextRange(runnable);
+    int target = RandN(&rng_state_, runnable);
     for (int i = 0; i < thread_count_; i++) {
       if (threads_[i].state == SimThread::Running) {
         if (target == 0)
@@ -742,7 +725,7 @@ class SimScheduler {
   }
 
   SpinMutex mtx_;
-  RandomGenerator rng_;
+  u32 rng_state_ = 1;  // Random number generator state
   SimThread threads_[kMaxSimThreads];
   int current_;
   int thread_count_;
