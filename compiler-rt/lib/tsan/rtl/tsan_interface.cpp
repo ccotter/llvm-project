@@ -92,7 +92,9 @@ int __tsan_simulate(void (*callback)(void* arg), void* arg) {
   return SimulateRun(callback, arg);
 }
 
-// Support for -fsanitize-thread-simulate-main linker wrapping
+#if SANITIZER_LINUX
+// Support for -fsanitize-thread-simulate-main linker wrapping.
+// The --wrap linker feature is only available on GNU LD (Linux), not on macOS.
 extern "C" SANITIZER_WEAK_ATTRIBUTE int __real_main(int argc, char** argv,
                                                     char** envp);
 
@@ -120,6 +122,7 @@ extern "C" int __wrap_main(int argc, char** argv, char** envp) {
     return args.exit_code;
   return sim_result;
 }
+#endif  // SANITIZER_LINUX
 
 void __tsan_simulate_annotate_wait(void* addr) {
   SimulateAnnotateWait((uptr)addr);

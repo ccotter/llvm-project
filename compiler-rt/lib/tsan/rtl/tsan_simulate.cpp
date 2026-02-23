@@ -787,24 +787,21 @@ void SimulateThreadRegisterImpl(uptr thread_handle) {
 
 void SimulateThreadWaitScheduledImpl() {
   int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
+  CHECK_GE(idx, 0);
   // Wait until scheduler picks us (blocking).
   sim_sched->ThreadStart(idx);
 }
 
 void SimulateThreadFinishImpl() {
   int idx = sim_thread_idx;
+  CHECK_GE(idx, 0);
   sim_thread_idx = -1;
-  if (idx < 0)
-    return;
   sim_sched->ThreadFinish(idx);
 }
 
 void SimulateThreadBlockImpl() {
   int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
+  CHECK_GE(idx, 0);
   sim_sched->BeforeBlockingCall(idx);
 }
 

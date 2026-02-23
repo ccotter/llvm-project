@@ -852,6 +852,14 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
                      options::OPT_fno_sanitize_thread_atomics, TsanAtomics);
     TsanSimulateMain = Args.hasArg(options::OPT_fsanitize_thread_simulate_main);
 
+    // -fsanitize-thread-simulate-main requires --wrap=main linker support,
+    // which is only available on Linux with GNU ld.
+    if (TsanSimulateMain && DiagnoseErrors && !TC.getTriple().isOSLinux()) {
+      D.Diag(diag::err_drv_unsupported_opt_for_target)
+          << "-fsanitize-thread-simulate-main" << TC.getTriple().str();
+      TsanSimulateMain = false;
+    }
+
     // Check for conflicting -Wl,--wrap=main when using
     // -fsanitize-thread-simulate-main
     if (TsanSimulateMain && DiagnoseErrors) {
