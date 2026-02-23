@@ -67,4 +67,4 @@ int main() {
 
 // CHECK: ThreadSanitizer: simulation starting
 // CHECK: ThreadSanitizer: deadlock detected at iteration {{[0-9]+}} - all threads are blocked
-// CHECK: ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration={{[0-9]+}}
+// CHECK: ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_scheduler=random:simulate_start_iteration={{[0-9]+}}

@@ -78,7 +78,7 @@ void SimulateReportDeadlock() {
       sim_current_iteration);
   Printf(
       "ThreadSanitizer: to reproduce, set "
-      "TSAN_OPTIONS=simulate_start_iteration=%d\n",
+      "TSAN_OPTIONS=simulate_scheduler=random:simulate_start_iteration=%d\n",
       sim_current_iteration);
   Die();
 }
@@ -149,13 +149,11 @@ class SimScheduler {
     return idx;
   }
 
-  // Store this thread's pthread_t handle.
   void SetThreadHandle(int idx, uptr handle) {
     SpinMutexLock lock(&mtx_);
     threads_[idx].thread_handle = handle;
   }
 
-  // Reset scheduler state for a new iteration.
   void ResetForIteration() {
     SpinMutexLock lock(&mtx_);
     current_ = -1;
@@ -167,20 +165,11 @@ class SimScheduler {
     annotate_waitset_count_ = 0;
   }
 
-  // Seed the RNG and post the first runnable thread's semaphore.
   void StartIteration(u32 seed) {
     SpinMutexLock lock(&mtx_);
     rng_state_ = seed;
     depth_ = 0;
-    // Pick the first Runnable thread (should be the main thread at idx 0).
-    for (int i = 0; i < thread_count_; i++) {
-      if (threads_[i].state == SimThread::Runnable) {
-        current_ = i;
-        threads_[i].sem.Post();
-        return;
-      }
-    }
-    current_ = -1;
+    current_ = 0;
   }
 
   void DumpStates(int chosen = -1, int current = -1) {
@@ -653,7 +642,8 @@ class SimScheduler {
         target--;
       }
     }
-    CHECK(false); // should not reach here
+    CHECK(false);  // should not reach here
+    return -1;
   }
 
   // Must be called with mtx_ held. Picks the next runnable thread and posts
@@ -775,8 +765,7 @@ class SimStateGuard {
 
 void SimulateScheduleImpl() {
   int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
+  CHECK_GE(idx, 0);
   if (!sim_sched->ShouldSchedule())
     return;
 
@@ -878,6 +867,45 @@ void SimulateAnnotateWakeAllImpl(uptr addr) {
   sim_sched->AnnotateWakeAll(addr);
 }
 
+int CheckForErors(int iter, int start_iter) {
+  if (atomic_load_relaxed(&sim_unsupported_interceptor_called)) {
+    Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n", iter);
+    Printf(
+        "ThreadSanitizer: to reproduce, set "
+        "TSAN_OPTIONS=simulate_scheduler=random:simulate_start_iteration=%d\n",
+        iter);
+    Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
+           iter - start_iter + 1);
+    return -1;
+  }
+
+  if (atomic_load_relaxed(&sim_max_depth_hit)) {
+    Printf(
+        "ThreadSanitizer: to reproduce, set "
+        "TSAN_OPTIONS=simulate_scheduler=random:simulate_start_iteration=%d\n",
+        iter);
+    Printf(
+        "ThreadSanitizer: simulation stopped due to max depth after %d "
+        "iterations\n",
+        iter - start_iter + 1);
+    return -1;
+  }
+
+  if (atomic_load_relaxed(&sim_race_detected)) {
+    Printf(
+        "ThreadSanitizer: to reproduce, set "
+        "TSAN_OPTIONS=simulate_scheduler=random:simulate_start_iteration=%d\n",
+        iter);
+    Printf(
+        "ThreadSanitizer: simulation stopped due to race detection after %d "
+        "iterations\n",
+        iter - start_iter + 1);
+    return -1;
+  }
+
+  return 0;
+}
+
 int SimulateRun(void (*callback)(void*), void* arg) {
   const char* sched = flags()->simulate_scheduler;
   if (!sched || !sched[0] || internal_strcmp(sched, "random") != 0) {
@@ -903,12 +931,18 @@ int SimulateRun(void (*callback)(void*), void* arg) {
   atomic_store_relaxed(&sim_race_detected, 0);
 
   int iterations = flags()->simulate_iterations;
-  if (iterations <= 0)
-    iterations = 1000;
+  if (iterations <= 0) {
+    Printf("ThreadSanitizer: simulate_iterations must be > 0 (got %d)\n",
+           iterations);
+    return -1;
+  }
 
   int start_iter = flags()->simulate_start_iteration;
-  if (start_iter < 0)
-    start_iter = 0;
+  if (start_iter < 0) {
+    Printf("ThreadSanitizer: simulate_start_iteration must be >= 0 (got %d)\n",
+           start_iter);
+    return -1;
+  }
 
   int max_depth = flags()->simulate_max_depth;
   Printf(
@@ -916,82 +950,34 @@ int SimulateRun(void (*callback)(void*), void* arg) {
       "scheduler=%s)\n",
       start_iter, start_iter + iterations - 1, max_depth, sched);
 
-  // Allocate scheduler once on the heap for all iterations.
   void* sched_mem = InternalAlloc(sizeof(SimScheduler));
   SimScheduler* sched_ptr = new (sched_mem) SimScheduler();
   sim_sched = sched_ptr;
 
-  // Activate simulation
   SimStateGuard guard(sched_ptr);
 
   for (int iter = start_iter; iter < start_iter + iterations; iter++) {
-    // Track current iteration for error reporting.
     sim_current_iteration = iter;
 
-    // Reset scheduler state for this iteration.
     sched_ptr->ResetForIteration();
 
-    // Register the calling (main) thread as thread 0.
     int main_idx = sched_ptr->AddThread();
     sim_thread_idx = main_idx;
-    // Set the main thread's pthread_t handle for join tracking.
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
     sched_ptr->StartIteration(iter);
 
-    // Wait for our turn (StartIteration posted our semaphore).
-    sched_ptr->GetSemaphore(main_idx)->Wait();
-
-    // Run the test callback for this iteration.
-    DPrintf(1, "Start callback... iter=%d\n", iter);
+    DPrintf(1, "Start callback iter=%d\n", iter);
     callback(arg);
-    DPrintf(1, "End callback...\n");
+    DPrintf(1, "End callback iter=%d\n", iter);
 
-    // Check if no threads were spawned (only main thread exists).
-    // If so, there's no parallelism to explore, so exit successfully.
     if (iter == start_iter && sched_ptr->GetThreadCount() == 1) {
       Printf("ThreadSanitizer: simulation exiting - no threads were spawned\n");
-      return 0;  // Success: no parallelism to test
+      return 0;
     }
 
-    // Check if an error occurred during this iteration.
-    if (atomic_load_relaxed(&sim_unsupported_interceptor_called)) {
-      Printf("ThreadSanitizer: unsupported interceptor at iteration %d\n",
-             iter);
-      Printf(
-          "ThreadSanitizer: to reproduce, set "
-          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
-          iter);
-      Printf("ThreadSanitizer: simulation aborted after %d iterations\n",
-             iter - start_iter + 1);
-      return -1;  // Error: unsupported interceptor
-    }
-
-    // Check if max depth was hit during this iteration.
-    if (atomic_load_relaxed(&sim_max_depth_hit)) {
-      Printf(
-          "ThreadSanitizer: to reproduce, set "
-          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
-          iter);
-      Printf(
-          "ThreadSanitizer: simulation stopped due to max depth after %d "
-          "iterations\n",
-          iter - start_iter + 1);
-      return -1;  // Error: max depth hit
-    }
-
-    // Check if a race was detected during this iteration.
-    if (atomic_load_relaxed(&sim_race_detected)) {
-      Printf(
-          "ThreadSanitizer: to reproduce, set "
-          "TSAN_OPTIONS=simulate_start_iteration=%d\n",
-          iter);
-      Printf(
-          "ThreadSanitizer: simulation stopped due to race detection after %d "
-          "iterations\n",
-          iter - start_iter + 1);
-      return -1;  // Error: race detected
-    }
+    if (int rc = CheckForErors(iter, start_iter); rc)
+      return rc;
 
     // Main thread finished; unregister from the scheduler.
     sched_ptr->ThreadFinish(main_idx);
