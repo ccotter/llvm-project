@@ -8,13 +8,13 @@
 // Test join-based deadlock detection.
 // Scenario: Thread A waits on B, B waits on C, C waits on A - circular join dependency
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <assert.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
-void wait_until_n(int* counter, int n) {
+void wait_until_n(int *counter, int n) {
   __atomic_fetch_add(counter, 1, __ATOMIC_SEQ_CST);
   while (__atomic_load_n(counter, __ATOMIC_SEQ_CST) < n)
     ; // spin
@@ -23,7 +23,7 @@ void wait_until_n(int* counter, int n) {
 pthread_t thread_a, thread_b, thread_c;
 int ready_count = 0;
 
-void* thread_a_func(void* arg) {
+void *thread_a_func(void *arg) {
   printf("In A before\n");
   pthread_join(thread_b, nullptr);
   printf("In A after\n");
@@ -32,7 +32,7 @@ void* thread_a_func(void* arg) {
   return nullptr;
 }
 
-void* thread_b_func(void* arg) {
+void *thread_b_func(void *arg) {
   printf("In B before\n");
   pthread_join(thread_c, nullptr);
   printf("In B after\n");
@@ -41,7 +41,7 @@ void* thread_b_func(void* arg) {
   return nullptr;
 }
 
-void* thread_c_func(void* arg) {
+void *thread_c_func(void *arg) {
   printf("In C before\n");
   pthread_join(thread_a, nullptr);
   printf("In C after\n");
@@ -50,7 +50,7 @@ void* thread_c_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   // Reset counter
   __atomic_store_n(&ready_count, 0, __ATOMIC_SEQ_CST);
 

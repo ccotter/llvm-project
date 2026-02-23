@@ -89,7 +89,7 @@ inline bool MustIgnoreInterceptor(ThreadState *thr) {
 // The simulation will abort at the end of the current iteration.
 #define SIMULATE_CHECK_UNSUPPORTED(func) \
   if (UNLIKELY(SimulateIsActive())) {    \
-    SimulateReportUnsupported(#func);     \
+    SimulateReportUnsupported(#func);    \
     return {};                           \
   }
 

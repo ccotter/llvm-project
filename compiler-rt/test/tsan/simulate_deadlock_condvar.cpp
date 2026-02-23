@@ -4,17 +4,17 @@
 // Test condition variable deadlock detection.
 // Scenario: Two threads both wait on condvar, no one signals - they're deadlocked
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <assert.h>
 #include <unistd.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 pthread_cond_t condvar;
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   pthread_mutex_lock(&mutex);
   // Wait on condition variable that will never be signaled
   pthread_cond_wait(&condvar, &mutex);
@@ -22,7 +22,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   pthread_mutex_init(&mutex, nullptr);
   pthread_cond_init(&condvar, nullptr);
 
@@ -42,7 +42,7 @@ void test_callback(void* arg) {
 
 int main() {
   // Deadlock will cause Die() - this will not return
-  alarm(10);  // Safety timeout
+  alarm(10); // Safety timeout
   __tsan_simulate(test_callback, nullptr);
   fprintf(stderr, "Test FAILED: simulation should have died on deadlock\n");
   return 1;
@@ -51,4 +51,3 @@ int main() {
 // CHECK: ThreadSanitizer: simulation starting
 // CHECK: ThreadSanitizer: deadlock detected at iteration {{[0-9]+}} - all threads are blocked
 // CHECK: ThreadSanitizer: to reproduce, set TSAN_OPTIONS=simulate_start_iteration={{[0-9]+}}
-

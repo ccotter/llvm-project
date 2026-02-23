@@ -7,19 +7,20 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 int thread_started = 0;
 int thread_finished = 0;
 
-void* worker_thread(void* arg) {
+void *worker_thread(void *arg) {
   pthread_mutex_lock(&mutex);
   thread_started = 1;
   pthread_mutex_unlock(&mutex);
 
   // Do some work
-  for (volatile int i = 0; i < 100; i++) {}
+  for (volatile int i = 0; i < 100; i++) {
+  }
 
   pthread_mutex_lock(&mutex);
   thread_finished = 1;
@@ -28,7 +29,7 @@ void* worker_thread(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   thread_started = 0;
   thread_finished = 0;
   pthread_mutex_init(&mutex, nullptr);

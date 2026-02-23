@@ -7,18 +7,18 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_t thread_a, thread_b;
 int ready_count = 0;
 
-void* thread_b_func(void* arg) {
+void *thread_b_func(void *arg) {
   // Thread B just increments counter and exits
   __atomic_fetch_add(&ready_count, 1, __ATOMIC_SEQ_CST);
   return nullptr;
 }
 
-void* thread_a_func(void* arg) {
+void *thread_a_func(void *arg) {
   // Thread A waits for B to be ready, then joins it
   while (__atomic_load_n(&ready_count, __ATOMIC_SEQ_CST) < 1) {
     // Wait for B to signal ready
@@ -27,7 +27,7 @@ void* thread_a_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   // Reset counter
   __atomic_store_n(&ready_count, 0, __ATOMIC_SEQ_CST);
 

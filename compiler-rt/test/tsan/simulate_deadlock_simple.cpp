@@ -10,15 +10,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex_a;
 pthread_mutex_t mutex_b;
 
-void* thread1_func(void* arg) {
+void *thread1_func(void *arg) {
   pthread_mutex_lock(&mutex_a);
   // Small busy-wait to increase chance of interleaving
-  for (volatile int i = 0; i < 100; i++) {}
+  for (volatile int i = 0; i < 100; i++) {
+  }
   pthread_mutex_lock(&mutex_b);
 
   // Critical section
@@ -27,10 +28,11 @@ void* thread1_func(void* arg) {
   return nullptr;
 }
 
-void* thread2_func(void* arg) {
+void *thread2_func(void *arg) {
   pthread_mutex_lock(&mutex_b);
   // Small busy-wait to increase chance of interleaving
-  for (volatile int i = 0; i < 100; i++) {}
+  for (volatile int i = 0; i < 100; i++) {
+  }
   pthread_mutex_lock(&mutex_a);
 
   // Critical section
@@ -39,7 +41,7 @@ void* thread2_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   pthread_mutex_init(&mutex_a, nullptr);
   pthread_mutex_init(&mutex_b, nullptr);
 

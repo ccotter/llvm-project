@@ -7,9 +7,9 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   // Do nothing - no threads spawned
   fprintf(stderr, "Callback executed with no threads\n");
 }

@@ -7,18 +7,18 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
-int shared_var = 0;  // Deliberately unprotected to cause race
+int shared_var = 0; // Deliberately unprotected to cause race
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   for (int i = 0; i < 10; i++) {
-    shared_var++;  // RACE: no synchronization
+    shared_var++; // RACE: no synchronization
   }
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   shared_var = 0;
 
   pthread_t t1, t2;

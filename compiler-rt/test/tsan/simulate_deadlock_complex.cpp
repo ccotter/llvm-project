@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 const int kThreads = 4;
 pthread_mutex_t mutexes[kThreads];
@@ -17,13 +17,14 @@ struct thread_arg {
   int index;
 };
 
-void* thread_func(void* arg) {
-  int idx = ((thread_arg*)arg)->index;
+void *thread_func(void *arg) {
+  int idx = ((thread_arg *)arg)->index;
   int next_idx = (idx + 1) % kThreads;
 
   pthread_mutex_lock(&mutexes[idx]);
   // Busy-wait to increase interleaving
-  for (volatile int i = 0; i < 100; i++) {}
+  for (volatile int i = 0; i < 100; i++) {
+  }
   pthread_mutex_lock(&mutexes[next_idx]);
 
   // Critical section
@@ -32,7 +33,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   // Initialize mutexes
   for (int i = 0; i < kThreads; i++) {
     pthread_mutex_init(&mutexes[i], nullptr);
@@ -59,7 +60,9 @@ void test_callback(void* arg) {
 }
 
 int main() {
-  fprintf(stderr, "Starting complex lock-order-inversion test (4 threads, 4 mutexes)...\n");
+  fprintf(
+      stderr,
+      "Starting complex lock-order-inversion test (4 threads, 4 mutexes)...\n");
   int result = __tsan_simulate(test_callback, nullptr);
 
   fprintf(stderr, "Simulation returned: %d\n", result);

@@ -7,12 +7,12 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 int counter = 0;
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   // Each thread does many lock/unlock cycles
   for (int i = 0; i < 50; i++) {
     pthread_mutex_lock(&mutex);
@@ -22,7 +22,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   counter = 0;
   pthread_mutex_init(&mutex, nullptr);
 
@@ -41,7 +41,8 @@ void test_callback(void* arg) {
 
   // Verify correct result
   if (counter != num_threads * 50) {
-    fprintf(stderr, "ERROR: Expected counter=%d, got %d\n", num_threads * 50, counter);
+    fprintf(stderr, "ERROR: Expected counter=%d, got %d\n", num_threads * 50,
+            counter);
   } else {
     fprintf(stderr, "Counter verified: %d\n", counter);
   }

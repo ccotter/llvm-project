@@ -4,15 +4,15 @@
 // Test that simulation completes successfully when within depth limit.
 // Opposite of simulate_max_depth_hit.cpp - verifies no false positives.
 
+#include <atomic>
 #include <pthread.h>
 #include <stdio.h>
-#include <atomic>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 std::atomic<int> counter(0);
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   // Do moderate number of atomic operations (well under depth limit)
   for (int i = 0; i < 50; i++) {
     counter.fetch_add(1, std::memory_order_relaxed);
@@ -20,7 +20,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   counter.store(0, std::memory_order_relaxed);
 
   pthread_t t1, t2;

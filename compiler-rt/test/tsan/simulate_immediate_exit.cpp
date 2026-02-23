@@ -7,14 +7,14 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   // Thread does nothing and exits immediately
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   pthread_t threads[5];
 
   // Create threads that do nothing

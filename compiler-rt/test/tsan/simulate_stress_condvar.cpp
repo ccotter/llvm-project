@@ -7,14 +7,14 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 pthread_cond_t condvar;
 int ready = 0;
 int workers_done = 0;
 
-void* worker_thread(void* arg) {
+void *worker_thread(void *arg) {
   pthread_mutex_lock(&mutex);
 
   // Wait for signal
@@ -28,7 +28,7 @@ void* worker_thread(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   ready = 0;
   workers_done = 0;
   pthread_mutex_init(&mutex, nullptr);
@@ -43,7 +43,8 @@ void test_callback(void* arg) {
   }
 
   // Give threads time to start waiting
-  for (volatile int i = 0; i < 10; i++) {}
+  for (volatile int i = 0; i < 10; i++) {
+  }
 
   // Signal all workers
   pthread_mutex_lock(&mutex);
@@ -62,7 +63,8 @@ void test_callback(void* arg) {
   if (workers_done == num_workers) {
     fprintf(stderr, "All workers completed: %d\n", workers_done);
   } else {
-    fprintf(stderr, "ERROR: Expected %d workers, got %d\n", num_workers, workers_done);
+    fprintf(stderr, "ERROR: Expected %d workers, got %d\n", num_workers,
+            workers_done);
   }
 }
 

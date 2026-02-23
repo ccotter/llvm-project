@@ -7,13 +7,13 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 const int num_mutexes = 10;
 pthread_mutex_t mutexes[num_mutexes];
 int counters[num_mutexes];
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   int mutex_id = (long)arg;
 
   pthread_mutex_lock(&mutexes[mutex_id]);
@@ -23,7 +23,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   // Initialize mutexes and counters
   for (int i = 0; i < num_mutexes; i++) {
     pthread_mutex_init(&mutexes[i], nullptr);
@@ -36,8 +36,8 @@ void test_callback(void* arg) {
 
   for (int i = 0; i < num_mutexes; i++) {
     for (int j = 0; j < threads_per_mutex; j++) {
-      pthread_create(&threads[i * threads_per_mutex + j], nullptr,
-                     thread_func, (void*)(long)i);
+      pthread_create(&threads[i * threads_per_mutex + j], nullptr, thread_func,
+                     (void *)(long)i);
     }
   }
 
@@ -50,8 +50,8 @@ void test_callback(void* arg) {
   int errors = 0;
   for (int i = 0; i < num_mutexes; i++) {
     if (counters[i] != threads_per_mutex) {
-      fprintf(stderr, "ERROR: mutex %d counter=%d, expected %d\n",
-              i, counters[i], threads_per_mutex);
+      fprintf(stderr, "ERROR: mutex %d counter=%d, expected %d\n", i,
+              counters[i], threads_per_mutex);
       errors++;
     }
     pthread_mutex_destroy(&mutexes[i]);

@@ -4,15 +4,15 @@
 // Test that max depth limit is enforced.
 // We create a loop with many scheduling points that should exceed the depth limit.
 
+#include <atomic>
 #include <pthread.h>
 #include <stdio.h>
-#include <atomic>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 std::atomic<int> counter(0);
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   // Create many scheduling points by doing atomic operations
   // Each atomic operation is a potential schedule point
   for (int i = 0; i < 200; i++) {
@@ -21,7 +21,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   counter.store(0, std::memory_order_relaxed);
 
   pthread_t t1, t2;
@@ -31,7 +31,8 @@ void test_callback(void* arg) {
   pthread_join(t1, nullptr);
   pthread_join(t2, nullptr);
 
-  fprintf(stderr, "Iteration completed with counter=%d\n", counter.load(std::memory_order_relaxed));
+  fprintf(stderr, "Iteration completed with counter=%d\n",
+          counter.load(std::memory_order_relaxed));
 }
 
 int main() {
@@ -41,7 +42,8 @@ int main() {
   fprintf(stderr, "Simulation returned: %d\n", result);
 
   if (result == -1) {
-    fprintf(stderr, "Test PASSED: max depth correctly detected (exit code -1)\n");
+    fprintf(stderr,
+            "Test PASSED: max depth correctly detected (exit code -1)\n");
     return 0;
   } else {
     fprintf(stderr, "Test FAILED: expected exit code -1, got %d\n", result);

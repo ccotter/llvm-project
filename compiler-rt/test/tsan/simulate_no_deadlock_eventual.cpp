@@ -4,16 +4,16 @@
 // Test that simulation doesn't falsely detect deadlock when threads eventually make progress.
 // Scenario: Threads temporarily block on mutex but eventually acquire and complete
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <assert.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 int counter = 0;
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   // Each thread acquires the mutex, increments counter, and releases
   pthread_mutex_lock(&mutex);
   counter++;
@@ -21,7 +21,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   pthread_mutex_init(&mutex, nullptr);
 
   const int num_threads = 4;

@@ -10,12 +10,12 @@
 #include <pthread.h>
 #include <stdio.h>
 
-extern "C" int __tsan_simulate(void (*callback)(void*), void* arg);
+extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 pthread_mutex_t mutex;
 int counter = 0;
 
-void* thread_func(void* arg) {
+void *thread_func(void *arg) {
   for (int i = 0; i < 10; i++) {
     pthread_mutex_lock(&mutex);
     counter++;
@@ -24,7 +24,7 @@ void* thread_func(void* arg) {
   return nullptr;
 }
 
-void test_callback(void* arg) {
+void test_callback(void *arg) {
   counter = 0;
   pthread_mutex_init(&mutex, nullptr);
 
