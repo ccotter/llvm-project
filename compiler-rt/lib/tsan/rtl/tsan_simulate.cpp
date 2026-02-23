@@ -118,18 +118,13 @@ struct Waitset {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Simulation scheduler
-// ---------------------------------------------------------------------------
-
-// Controls which thread runs at each scheduling point. Exactly one thread is
-// designated as "current" and executes user code. Other runnable threads
+// SimScheduler controls which thread runs at each scheduling point. Exactly one
+// thread is designated as "current" and executes user code. Other runnable threads
 // park on their per-thread semaphore until the scheduler selects them.
 class SimScheduler {
  public:
   SimScheduler() : current_(-1), thread_count_(0), depth_(0) {
     internal_memset(threads_, 0, sizeof(threads_));
-    // Cache and validate schedule_probability once at initialization
     schedule_probability_ = flags()->simulate_schedule_probability;
   }
 
@@ -253,13 +248,12 @@ class SimScheduler {
     threads_[caller_idx].sem.Wait();
   }
 
-  // ------- New thread lifecycle -------
-
   // Called by a newly created thread after AddThread(). If no thread is
   // currently running (current_ == -1), the new thread becomes current and
   // returns immediately. Otherwise it parks until the scheduler selects it.
   void ThreadStart(int idx) {
     mtx_.Lock();
+    CHECK_NE(current_, -1);
     if (current_ == -1) {
       current_ = idx;
       mtx_.Unlock();
@@ -269,15 +263,12 @@ class SimScheduler {
     threads_[idx].sem.Wait();
   }
 
-  // Called when a thread finishes its user callback. Removes the thread from
-  // the runnable set and wakes the next runnable thread (if any).
-  // Also wakes any thread that was blocked joining on this thread.
   void ThreadFinish(int idx) {
     mtx_.Lock();
     threads_[idx].state = SimThread::Finished;
     uptr my_handle = threads_[idx].thread_handle;
+    CHECK_NE(my_handle, 0);
 
-    // Find any thread that was joining on this thread and make it runnable.
     if (my_handle != 0) {
       for (int i = 0; i < thread_count_; i++) {
         if (threads_[i].joining_on == my_handle) {
@@ -512,13 +503,11 @@ class SimScheduler {
   }
 
   // Check if we should perform scheduling at this point based on probability.
-  // Always returns true if probability >= 100, otherwise uses RNG.
   bool ShouldSchedule() {
     if (schedule_probability_ >= 100)
       return true;
     if (schedule_probability_ <= 0)
       return false;
-    // Generate random value [0, 99] and compare to probability percentage
     u32 rand_val = RandN(&rng_state_, 100);
     return rand_val < static_cast<u32>(schedule_probability_);
   }
