@@ -47,8 +47,16 @@ extern bool sim_active;
 // Returns true if simulation mode is active for the current process.
 ALWAYS_INLINE bool SimulateIsActive() { return sim_active; }
 
-// Implementation of schedule point logic (called only when active).
+// Impl functions are called only when sim_active is true.
 void SimulateScheduleImpl();
+void SimulateReportUnsupportedImpl(const char* func_name);
+void SimulateReportRaceImpl();
+void SimulateThreadRegisterImpl(uptr thread_handle);
+void SimulateThreadWaitScheduledImpl();
+void SimulateThreadFinishImpl();
+void SimulateThreadBlockImpl();
+void SimulateJoinBlockImpl(uptr thread_handle);
+void SimulateThreadUnblockImpl();
 
 // Called at each scheduling point (atomic op, mutex lock/unlock, thread
 // create/join, condvar signal/wait, etc.). If simulation is active, this may
@@ -59,32 +67,17 @@ ALWAYS_INLINE void SimulateSchedule() {
   SimulateScheduleImpl();
 }
 
-void SimulateReportUnsupportedImpl(const char* func_name);
-void SimulateReportRaceImpl();
-
-// Called when an unsupported interceptor is invoked during simulation.
-// Prints an error message and sets the failure flag.
 ALWAYS_INLINE void SimulateReportUnsupported(const char* func_name) {
   if (!SimulateIsActive())
     return;
   SimulateReportUnsupportedImpl(func_name);
 }
 
-// Called when a data race is detected during simulation.
-// Sets the race_detected flag to abort the simulation.
 ALWAYS_INLINE void SimulateReportRace() {
   if (!SimulateIsActive())
     return;
   SimulateReportRaceImpl();
 }
-
-// Implementation functions for thread lifecycle.
-void SimulateThreadRegisterImpl(uptr thread_handle);
-void SimulateThreadWaitScheduledImpl();
-void SimulateThreadFinishImpl();
-void SimulateThreadBlockImpl();
-void SimulateJoinBlockImpl(uptr thread_handle);
-void SimulateThreadUnblockImpl();
 
 // Called by a new thread to register with the scheduler (non-blocking).
 // Must be called before signaling the parent thread to ensure deterministic

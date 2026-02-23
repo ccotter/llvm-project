@@ -18,9 +18,7 @@
 //     may yield to another thread chosen by the random scheduler.
 //   - For blocking OS calls (pthread_join, pthread_mutex_lock when contended),
 //     the calling thread marks itself as Blocked before the OS call and
-//     re-registers as Running after the OS call returns.
-//   - A trylock-loop is used for pthread_mutex_lock to avoid deadlocking
-//     when the mutex holder is parked by the scheduler.
+//     re-registers as Runnable after the OS call returns.
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,8 +37,8 @@ namespace __tsan {
 struct SimThread {
   enum State : u32 {
     Unused = 0,
-    Running,  // Runnable — may be selected by the scheduler.
-    Blocked,  // Blocked on mutex/condvar — scheduler must not pick this thread.
+    Runnable,  // Runnable - may be selected by the scheduler.
+    Blocked,  // Blocked on mutex/condvar - scheduler must not pick this thread.
     Finished,  // Thread has exited the simulation.
   };
 
@@ -145,7 +143,7 @@ class SimScheduler {
     SpinMutexLock lock(&mtx_);
     CHECK_LT(thread_count_, kMaxSimThreads);
     int idx = thread_count_++;
-    threads_[idx].state = SimThread::Running;
+    threads_[idx].state = SimThread::Runnable;
     threads_[idx].thread_handle = 0;
     threads_[idx].joining_on = 0;
     return idx;
@@ -174,9 +172,9 @@ class SimScheduler {
     SpinMutexLock lock(&mtx_);
     rng_state_ = seed;
     depth_ = 0;
-    // Pick the first Running thread (should be the main thread at idx 0).
+    // Pick the first Runnable thread (should be the main thread at idx 0).
     for (int i = 0; i < thread_count_; i++) {
-      if (threads_[i].state == SimThread::Running) {
+      if (threads_[i].state == SimThread::Runnable) {
         current_ = i;
         threads_[i].sem.Post();
         return;
@@ -201,8 +199,8 @@ class SimScheduler {
           case SimThread::Unused:
             state_str = "Unused";
             break;
-          case SimThread::Running:
-            state_str = "Running";
+          case SimThread::Runnable:
+            state_str = "Runnable";
             break;
           case SimThread::Blocked:
             state_str = "Blocked";
@@ -231,7 +229,7 @@ class SimScheduler {
     mtx_.Lock();
 
     if (caller_idx != current_) {
-      // Not the current thread — no-op. This can happen briefly during
+      // Not the current thread - no-op. This can happen briefly during
       // blocking-call transitions.
       // TODO - is this tue ^^ ??
       mtx_.Unlock();
@@ -260,7 +258,7 @@ class SimScheduler {
     DumpStates(chosen, caller_idx);
 
     if (chosen == caller_idx) {
-      // Random picked us — keep running.
+      // Random picked us -  keep running.
       mtx_.Unlock();
       return;
     }
@@ -300,7 +298,7 @@ class SimScheduler {
     if (my_handle != 0) {
       for (int i = 0; i < thread_count_; i++) {
         if (threads_[i].joining_on == my_handle) {
-          threads_[i].state = SimThread::Running;
+          threads_[i].state = SimThread::Runnable;
           threads_[i].joining_on = 0;
         }
       }
@@ -320,7 +318,7 @@ class SimScheduler {
 
   // Called BEFORE a blocking OS call (pthread_join, pthread_cond_wait, etc.).
   // Marks this thread as Blocked so the scheduler won't pick it, and wakes
-  // another runnable thread. The calling thread does NOT park — it proceeds
+  // another runnable thread. The calling thread does NOT park - it proceeds
   // to the blocking OS call.
   void BeforeBlockingCall(int idx) {
     mtx_.Lock();
@@ -357,12 +355,12 @@ class SimScheduler {
     return false;  // Thread not found
   }
 
-  // Called AFTER a blocking OS call returns. Marks this thread as Running
+  // Called AFTER a blocking OS call returns. Marks this thread as Runnable
   // (runnable) again. If no thread is currently running, this thread becomes
   // current and returns immediately. Otherwise it parks until selected.
   void AfterBlockingCall(int idx) {
     mtx_.Lock();
-    threads_[idx].state = SimThread::Running;
+    threads_[idx].state = SimThread::Runnable;
 
     if (current_ == -1) {
       current_ = idx;
@@ -383,7 +381,7 @@ class SimScheduler {
     mtx_.Lock();
 
     if (caller_idx != current_) {
-      // Not the current thread — shouldn't happen.
+      // Not the current thread - shouldn't happen.
       mtx_.Unlock();
       return;
     }
@@ -423,7 +421,7 @@ class SimScheduler {
 
     // Remove one waiter randomly and mark it as runnable.
     int thread_idx = ws->RemoveOne(&rng_state_);
-    threads_[thread_idx].state = SimThread::Running;
+    threads_[thread_idx].state = SimThread::Runnable;
 
     // If no thread is current, make the unblocked thread current and wake it.
     if (current_ == -1) {
@@ -479,7 +477,7 @@ class SimScheduler {
 
     // Remove one waiter randomly and mark it as runnable.
     int thread_idx = ws->RemoveOne(&rng_state_);
-    threads_[thread_idx].state = SimThread::Running;
+    threads_[thread_idx].state = SimThread::Runnable;
 
     // If no thread is current, make the unblocked thread current and wake it.
     if (current_ == -1) {
@@ -511,7 +509,7 @@ class SimScheduler {
     int woken[kMaxSimThreads];
     int n = ws->RemoveAll(woken);
     for (int i = 0; i < n; i++) {
-      threads_[woken[i]].state = SimThread::Running;
+      threads_[woken[i]].state = SimThread::Runnable;
     }
 
     // If no thread is current, pick one of the woken threads.
@@ -521,7 +519,7 @@ class SimScheduler {
       threads_[woken[idx]].sem.Post();
       // Wake the rest later when scheduled.
       for (int i = 0; i < n; i++) {
-        if (i != idx && threads_[woken[i]].state == SimThread::Running) {
+        if (i != idx && threads_[woken[i]].state == SimThread::Runnable) {
           // They'll be picked up by scheduler.
         }
       }
@@ -573,7 +571,7 @@ class SimScheduler {
 
     // Remove one waiter randomly and mark it as runnable.
     int thread_idx = ws->RemoveOne(&rng_state_);
-    threads_[thread_idx].state = SimThread::Running;
+    threads_[thread_idx].state = SimThread::Runnable;
 
     // If no thread is current, make the unblocked thread current and wake it.
     if (current_ == -1) {
@@ -605,7 +603,7 @@ class SimScheduler {
     int woken[kMaxSimThreads];
     int n = ws->RemoveAll(woken);
     for (int i = 0; i < n; i++) {
-      threads_[woken[i]].state = SimThread::Running;
+      threads_[woken[i]].state = SimThread::Runnable;
     }
 
     // If no thread is current, pick one of the woken threads.
@@ -615,7 +613,7 @@ class SimScheduler {
       threads_[woken[idx]].sem.Post();
       // Wake the rest later when scheduled.
       for (int i = 0; i < n; i++) {
-        if (i != idx && threads_[woken[i]].state == SimThread::Running) {
+        if (i != idx && threads_[woken[i]].state == SimThread::Runnable) {
           // They'll be picked up by scheduler.
         }
       }
@@ -640,7 +638,7 @@ class SimScheduler {
   int CountRunnable() const {
     int n = 0;
     for (int i = 0; i < thread_count_; i++) {
-      if (threads_[i].state == SimThread::Running)
+      if (threads_[i].state == SimThread::Runnable)
         n++;
     }
     return n;
@@ -649,13 +647,13 @@ class SimScheduler {
   int PickRandomRunnable(int runnable) {
     int target = RandN(&rng_state_, runnable);
     for (int i = 0; i < thread_count_; i++) {
-      if (threads_[i].state == SimThread::Running) {
+      if (threads_[i].state == SimThread::Runnable) {
         if (target == 0)
           return i;
         target--;
       }
     }
-    return -1;  // unreachable
+    CHECK(false); // should not reach here
   }
 
   // Must be called with mtx_ held. Picks the next runnable thread and posts
