@@ -130,12 +130,7 @@ class SimScheduler {
   SimScheduler() : current_(-1), thread_count_(0), depth_(0) {
     internal_memset(threads_, 0, sizeof(threads_));
     // Cache and validate schedule_probability once at initialization
-    int prob = flags()->simulate_schedule_probability;
-    if (prob < 0)
-      prob = 0;
-    else if (prob > 100)
-      prob = 100;
-    schedule_probability_ = prob;
+    schedule_probability_ = flags()->simulate_schedule_probability;
   }
 
   // Register a new thread. Returns its scheduler index.
@@ -764,32 +759,29 @@ class SimStateGuard {
 };
 
 void SimulateScheduleImpl() {
-  int idx = sim_thread_idx;
-  CHECK_GE(idx, 0);
+  CHECK_GE(sim_thread_idx, 0);
   if (!sim_sched->ShouldSchedule())
     return;
 
   if (flags()->simulate_print_schedule_stacks) {
     ThreadState* thr = cur_thread();
-    Printf("=========== Schedule point (thread %d) ===========\n", idx);
+    Printf("=========== Schedule point (thread %d) ===========\n", sim_thread_idx);
     PrintCurrentStack(thr, StackTrace::GetCurrentPc());
     Printf("==================================================\n");
   }
 
-  sim_sched->Schedule(idx);
+  sim_sched->Schedule(sim_thread_idx);
 }
 
 void SimulateThreadRegisterImpl(uptr thread_handle) {
-  int idx = sim_sched->AddThread();
-  sim_thread_idx = idx;
-  sim_sched->SetThreadHandle(idx, thread_handle);
+  sim_thread_idx = sim_sched->AddThread();
+  sim_sched->SetThreadHandle(sim_thread_idx, thread_handle);
 }
 
 void SimulateThreadWaitScheduledImpl() {
-  int idx = sim_thread_idx;
-  CHECK_GE(idx, 0);
+  CHECK_GE(sim_thread_idx, 0);
   // Wait until scheduler picks us (blocking).
-  sim_sched->ThreadStart(idx);
+  sim_sched->ThreadStart(sim_thread_idx);
 }
 
 void SimulateThreadFinishImpl() {
@@ -800,34 +792,27 @@ void SimulateThreadFinishImpl() {
 }
 
 void SimulateThreadBlockImpl() {
-  int idx = sim_thread_idx;
-  CHECK_GE(idx, 0);
-  sim_sched->BeforeBlockingCall(idx);
+  CHECK_GE(sim_thread_idx, 0);
+  sim_sched->BeforeBlockingCall(sim_thread_idx);
 }
 
 void SimulateJoinBlockImpl(uptr thread_handle) {
-  int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
+  CHECK_GE(sim_thread_idx, 0);
   // Only mark ourselves as blocked if the target thread is still active.
   // If it's already finished, pthread_join will return immediately.
   if (sim_sched->IsThreadActive(thread_handle)) {
-    sim_sched->BeforeJoinCall(idx, thread_handle);
+    sim_sched->BeforeJoinCall(sim_thread_idx, thread_handle);
   }
 }
 
 void SimulateThreadUnblockImpl() {
-  int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
-  sim_sched->AfterBlockingCall(idx);
+  CHECK_GE(sim_thread_idx, 0);
+  sim_sched->AfterBlockingCall(sim_thread_idx);
 }
 
 void SimulateMutexBlockImpl(uptr mutex_addr) {
-  int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
-  sim_sched->MutexBlock(idx, mutex_addr);
+  CHECK_GE(sim_thread_idx, 0);
+  sim_sched->MutexBlock(sim_thread_idx, mutex_addr);
 }
 
 void SimulateMutexUnblockImpl(uptr mutex_addr) {
@@ -835,10 +820,8 @@ void SimulateMutexUnblockImpl(uptr mutex_addr) {
 }
 
 void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr) {
-  int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
-  sim_sched->CondWait(idx, cond_addr, mutex_addr);
+  CHECK_GE(sim_thread_idx, 0);
+  sim_sched->CondWait(sim_thread_idx, cond_addr, mutex_addr);
 }
 
 void SimulateCondSignalImpl(uptr cond_addr) {
@@ -850,10 +833,8 @@ void SimulateCondBroadcastImpl(uptr cond_addr) {
 }
 
 void SimulateAnnotateWaitImpl(uptr addr) {
-  int idx = sim_thread_idx;
-  if (idx < 0)
-    return;
-  sim_sched->AnnotateWait(idx, addr);
+  CHECK_GE(sim_thread_idx, 0);
+  sim_sched->AnnotateWait(sim_thread_idx, addr);
 }
 
 void SimulateAnnotateWakeOneImpl(uptr addr) {
@@ -941,6 +922,13 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     return -1;
   }
 
+  int prob = flags()->simulate_schedule_probability;
+  if (prob < 0 || prob > 100) {
+    Printf("ThreadSanitizer: simulate_schedule_probabilitymust be >=0 and <= 100 (got %d)\n",
+           prob);
+    return -1;
+  }
+
   int max_depth = flags()->simulate_max_depth;
   Printf(
       "ThreadSanitizer: simulation starting (iterations %d..%d, max_depth=%d, "
@@ -959,6 +947,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     sched_ptr->ResetForIteration();
 
     int main_idx = sched_ptr->AddThread();
+    CHECK_EQ(main_idx, 0);
     sim_thread_idx = main_idx;
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
