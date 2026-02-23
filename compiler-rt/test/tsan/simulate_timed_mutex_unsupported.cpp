@@ -4,29 +4,35 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
-pthread_spinlock_t spinlock;
+pthread_mutex_t mutex;
 
 void *thread_func(void *arg) {
-  pthread_spin_lock(&spinlock);
-  pthread_spin_unlock(&spinlock);
+  // This should trigger the unsupported interceptor error
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  ts.tv_sec += 1; // 1 second timeout
+
+  pthread_mutex_timedlock(&mutex, &ts);
+  pthread_mutex_unlock(&mutex);
   return nullptr;
 }
 
 void test_callback(void *arg) {
-  pthread_spin_init(&spinlock, PTHREAD_PROCESS_PRIVATE);
+  pthread_mutex_init(&mutex, nullptr);
 
   pthread_t t;
   pthread_create(&t, nullptr, thread_func, nullptr);
   pthread_join(t, nullptr);
 
-  pthread_spin_destroy(&spinlock);
+  pthread_mutex_destroy(&mutex);
 }
 
 int main() { return __tsan_simulate(test_callback, nullptr); }
 
-// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_spin_lock
+// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_mutex_timedlock
 // CHECK: Simulation does not support this synchronization primitive
-// CHECK: ThreadSanitizer: unsupported interceptor at iteration 0
+// CHECK: ThreadSanitizer: simulation aborted after 1 iterations

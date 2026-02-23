@@ -3,52 +3,49 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
 const int num_mutexes = 10;
+const int num_threads = 5;
 pthread_mutex_t mutexes[num_mutexes];
-int counters[num_mutexes];
+int counter = 0;
 
 void *thread_func(void *arg) {
-  long mutex_id = (long)arg;
+  // Lock all mutexes in order
+  for (int i = 0; i < num_mutexes; i++)
+    pthread_mutex_lock(&mutexes[i]);
 
-  pthread_mutex_lock(&mutexes[mutex_id]);
-  counters[mutex_id]++;
-  pthread_mutex_unlock(&mutexes[mutex_id]);
+  // Critical section: increment counter
+  counter++;
+
+  // Unlock all mutexes in reverse order
+  for (int i = num_mutexes - 1; i >= 0; i--)
+    pthread_mutex_unlock(&mutexes[i]);
 
   return nullptr;
 }
 
 void test_callback(void *arg) {
-  for (int i = 0; i < num_mutexes; i++) {
+  for (int i = 0; i < num_mutexes; i++)
     pthread_mutex_init(&mutexes[i], nullptr);
-    counters[i] = 0;
-  }
+  counter = 0;
 
-  // Create thread pairs for each mutex
-  const int threads_per_mutex = 2;
-  pthread_t threads[num_mutexes * threads_per_mutex];
+  pthread_t threads[num_threads];
 
-  for (int i = 0; i < num_mutexes; i++) {
-    for (int j = 0; j < threads_per_mutex; j++) {
-      pthread_create(&threads[i * threads_per_mutex + j], nullptr, thread_func,
-                     (void *)(long)i);
-    }
-  }
+  for (int i = 0; i < num_threads; i++)
+    pthread_create(&threads[i], nullptr, thread_func, nullptr);
 
-  // Join all threads
-  for (int i = 0; i < num_mutexes * threads_per_mutex; i++) {
+  for (int i = 0; i < num_threads; i++)
     pthread_join(threads[i], nullptr);
-  }
 
-  for (int i = 0; i < num_mutexes; i++) {
-    assert(counters[i] == threads_per_mutex);
+  assert(counter == num_threads);
+
+  for (int i = 0; i < num_mutexes; i++)
     pthread_mutex_destroy(&mutexes[i]);
-  }
 }
 
 int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation starting
+// CHECK: ThreadSanitizer: simulation finished

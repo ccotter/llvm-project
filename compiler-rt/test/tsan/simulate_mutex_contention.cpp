@@ -1,10 +1,7 @@
-// RUN: %clangxx_tsan -O1 %s -o %t && env TSAN_OPTIONS="simulate_scheduler=random" %run %t 2>&1 | FileCheck %s
-//
-// Test the waitset-based mutex blocking: multiple threads contend for the
-// same mutex, exercising the park/unpark mechanism.
+// RUN: %clangxx_tsan -O1 %s -o %t && env TSAN_OPTIONS="simulate_scheduler=random:simulate_iterations=10" %run %t 2>&1 | FileCheck %s
 
+#include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
@@ -21,7 +18,6 @@ void *thread_func(void *arg) {
 }
 
 void test_callback(void *) {
-  // Reset shared counter for this iteration.
   shared = 0;
 
   pthread_mutex_init(&mtx, nullptr);
@@ -29,35 +25,17 @@ void test_callback(void *) {
   const int kThreads = 4;
   pthread_t threads[kThreads];
 
-  // Create multiple threads that will contend for the mutex.
-  for (int i = 0; i < kThreads; i++) {
+  for (int i = 0; i < kThreads; i++)
     pthread_create(&threads[i], nullptr, thread_func, nullptr);
-  }
 
-  // Join all threads.
-  for (int i = 0; i < kThreads; i++) {
+  for (int i = 0; i < kThreads; i++)
     pthread_join(threads[i], nullptr);
-  }
 
-  // Verify correct result.
-  if (shared == kThreads * 10) {
-    fprintf(stderr, "OK: shared = %d\n", shared);
-  } else {
-    fprintf(stderr, "ERROR: shared = %d, expected %d\n", shared, kThreads * 10);
-  }
+  assert(shared == kThreads * 10);
 
   pthread_mutex_destroy(&mtx);
 }
 
-int main() {
-  int ret = __tsan_simulate(test_callback, nullptr);
-  if (ret != 0) {
-    fprintf(stderr, "Simulation failed with error code: %d\n", ret);
-    return 1;
-  }
-  return 0;
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
-// CHECK: OK: shared = 40
-// CHECK-NOT: ERROR
 // CHECK-NOT: WARNING: ThreadSanitizer: data race

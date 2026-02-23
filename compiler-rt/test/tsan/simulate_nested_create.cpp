@@ -64,19 +64,8 @@ void test_callback(void *arg) {
   }
 }
 
-int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-
-  if (result == 0) {
-    fprintf(stderr, "Test PASSED: nested thread creation works\n");
-    return 0;
-  } else {
-    fprintf(stderr, "Test FAILED: unexpected return value %d\n", result);
-    return 1;
-  }
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation starting
 // CHECK: Nested threads verified: 3
 // CHECK: ThreadSanitizer: simulation finished
-// CHECK: Test PASSED: nested thread creation works

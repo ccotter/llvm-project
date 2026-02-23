@@ -1,13 +1,11 @@
 // RUN: %clangxx_tsan %s -o %t
-// RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=2 %run %t 2>&1 | FileCheck %s
+// RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=2 not %run %t 2>&1 | FileCheck %s
 
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
-
-// TODO - update the test to bail when the pthread timed APIs are called, not rw mutexes
 
 pthread_rwlock_t rwlock;
 
@@ -28,25 +26,8 @@ void test_callback(void *arg) {
   pthread_rwlock_destroy(&rwlock);
 }
 
-int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-
-  printf("__tsan_simulate returned: %d\n", result);
-
-  // Should return -1 (unsupported interceptor error)
-  if (result == -1) {
-    printf(
-        "Test PASSED: simulation correctly detected unsupported interceptor\n");
-  } else {
-    printf("Test FAILED: expected return value -1, got %d\n", result);
-    return 1;
-  }
-
-  return 0;
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_rwlock_rdlock
 // CHECK: Simulation does not support this synchronization primitive
 // CHECK: ThreadSanitizer: simulation aborted after 1 iterations
-// CHECK: __tsan_simulate returned: -1
-// CHECK: Test PASSED: simulation correctly detected unsupported interceptor

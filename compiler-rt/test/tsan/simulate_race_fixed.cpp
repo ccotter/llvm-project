@@ -40,24 +40,8 @@ void test_callback(void *arg) {
   }
 }
 
-int main() {
-  fprintf(stderr, "Starting synchronized test...\n");
-  int result = __tsan_simulate(test_callback, nullptr);
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
-  fprintf(stderr, "Simulation returned: %d\n", result);
-
-  if (result == 0) {
-    fprintf(stderr, "Test PASSED: no race with proper synchronization\n");
-    return 0;
-  } else {
-    fprintf(stderr, "Test FAILED: expected return value 0, got %d\n", result);
-    return 1;
-  }
-}
-
-// CHECK: Starting synchronized test
 // CHECK: ThreadSanitizer: simulation starting
 // CHECK-NOT: WARNING: ThreadSanitizer: data race
 // CHECK: ThreadSanitizer: simulation finished
-// CHECK: Simulation returned: 0
-// CHECK: Test PASSED: no race with proper synchronization

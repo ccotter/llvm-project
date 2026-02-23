@@ -1,9 +1,7 @@
 // RUN: %clangxx_tsan -O1 %s -o %t
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=20 %run %t 2>&1 | FileCheck %s
-//
-// Test heavy mutex contention with multiple threads.
-// Verifies waitset handling under stress with many lock/unlock operations.
 
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 
@@ -13,7 +11,6 @@ pthread_mutex_t mutex;
 int counter = 0;
 
 void *thread_func(void *arg) {
-  // Each thread does many lock/unlock cycles
   for (int i = 0; i < 50; i++) {
     pthread_mutex_lock(&mutex);
     counter++;
@@ -39,28 +36,10 @@ void test_callback(void *arg) {
 
   pthread_mutex_destroy(&mutex);
 
-  // Verify correct result
-  if (counter != num_threads * 50) {
-    fprintf(stderr, "ERROR: Expected counter=%d, got %d\n", num_threads * 50,
-            counter);
-  } else {
-    fprintf(stderr, "Counter verified: %d\n", counter);
-  }
+  assert(counter == num_threads * 50);
 }
 
-int main() {
-  int result = __tsan_simulate(test_callback, nullptr);
-
-  if (result == 0) {
-    fprintf(stderr, "Test PASSED: stress test completed\n");
-    return 0;
-  } else {
-    fprintf(stderr, "Test FAILED: unexpected return value %d\n", result);
-    return 1;
-  }
-}
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation starting
-// CHECK: Counter verified: 400
 // CHECK: ThreadSanitizer: simulation finished
-// CHECK: Test PASSED: stress test completed

@@ -7,26 +7,26 @@
 
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
-pthread_spinlock_t spinlock;
+pthread_rwlock_t rwlock;
 
 void *thread_func(void *arg) {
-  pthread_spin_lock(&spinlock);
-  pthread_spin_unlock(&spinlock);
+  pthread_rwlock_rdlock(&rwlock);
+  pthread_rwlock_unlock(&rwlock);
   return nullptr;
 }
 
 void test_callback(void *arg) {
-  pthread_spin_init(&spinlock, PTHREAD_PROCESS_PRIVATE);
+  pthread_rwlock_init(&rwlock, nullptr);
 
   pthread_t t;
   pthread_create(&t, nullptr, thread_func, nullptr);
   pthread_join(t, nullptr);
 
-  pthread_spin_destroy(&spinlock);
+  pthread_rwlock_destroy(&rwlock);
 }
 
 int main() { return __tsan_simulate(test_callback, nullptr); }
 
-// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_spin_lock
+// CHECK: ThreadSanitizer: simulation error - unsupported interceptor called: pthread_rwlock_rdlock
 // CHECK: Simulation does not support this synchronization primitive
-// CHECK: ThreadSanitizer: unsupported interceptor at iteration 0
+// CHECK: ThreadSanitizer: simulation aborted after 1 iterations
