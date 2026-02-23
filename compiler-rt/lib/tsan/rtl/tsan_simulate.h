@@ -44,10 +44,8 @@ int SimulateRun(void (*callback)(void*), void* arg);
 
 extern bool sim_active;
 
-// Returns true if simulation mode is active for the current process.
 ALWAYS_INLINE bool SimulateIsActive() { return sim_active; }
 
-// Impl functions are called only when sim_active is true.
 void SimulateScheduleImpl();
 void SimulateReportUnsupportedImpl(const char* func_name);
 void SimulateReportRaceImpl();
@@ -58,9 +56,10 @@ void SimulateThreadBlockImpl();
 void SimulateJoinBlockImpl(uptr thread_handle);
 void SimulateThreadUnblockImpl();
 
-// Called at each scheduling point (atomic op, mutex lock/unlock, thread
-// create/join, condvar signal/wait, etc.). If simulation is active, this may
-// context-switch to another runnable thread.
+// SimulateSchedule is the key hook for simulation. It's called at each
+// scheduling point (atomic op, mutex/cv op, thread create/join). When
+// simulation is active, SimulateSchedule will check if another thread should
+// run, and if so, context switch to that thread.
 ALWAYS_INLINE void SimulateSchedule() {
   if (!SimulateIsActive())
     return;

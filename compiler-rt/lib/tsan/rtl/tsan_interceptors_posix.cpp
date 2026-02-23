@@ -1071,9 +1071,6 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
     Processor *proc = ProcCreate();
     ProcWire(proc, thr);
     ThreadStart(thr, p->tid, GetTid(), ThreadType::Regular);
-    // Register with simulation scheduler (non-blocking).
-    // This must happen before signaling parent to ensure deterministic
-    // thread registration order.
     SimulateThreadRegister(p->pthread_handle);
     p->started.Post();
   }
@@ -1629,7 +1626,6 @@ TSAN_INTERCEPTOR(int, pthread_spin_init, void *m, int pshared) {
 
 TSAN_INTERCEPTOR(int, pthread_spin_destroy, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_destroy, m);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_spin_destroy);
   int res = REAL(pthread_spin_destroy)(m);
   if (res == 0) {
     MutexDestroy(thr, pc, (uptr)m);
@@ -1681,7 +1677,6 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_init, void *m, void *a) {
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_destroy, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_destroy, m);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_rwlock_destroy);
   int res = REAL(pthread_rwlock_destroy)(m);
   if (res == 0) {
     MutexDestroy(thr, pc, (uptr)m);
@@ -1773,7 +1768,6 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_unlock, void *m) {
 #if !SANITIZER_APPLE
 TSAN_INTERCEPTOR(int, pthread_barrier_init, void *b, void *a, unsigned count) {
   SCOPED_TSAN_INTERCEPTOR(pthread_barrier_init, b, a, count);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_barrier_init);
   MemoryAccess(thr, pc, (uptr)b, 1, kAccessWrite);
   int res = REAL(pthread_barrier_init)(b, a, count);
   return res;
@@ -1781,7 +1775,6 @@ TSAN_INTERCEPTOR(int, pthread_barrier_init, void *b, void *a, unsigned count) {
 
 TSAN_INTERCEPTOR(int, pthread_barrier_destroy, void *b) {
   SCOPED_TSAN_INTERCEPTOR(pthread_barrier_destroy, b);
-  SIMULATE_CHECK_UNSUPPORTED(pthread_barrier_destroy);
   MemoryAccess(thr, pc, (uptr)b, 1, kAccessWrite);
   int res = REAL(pthread_barrier_destroy)(b);
   return res;

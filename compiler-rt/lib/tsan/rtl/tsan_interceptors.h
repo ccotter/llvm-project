@@ -86,7 +86,7 @@ inline bool MustIgnoreInterceptor(ThreadState *thr) {
 
 // Mark an interceptor as unsupported during simulation. If simulation is
 // active, reports an error but continues with normal TSAN instrumentation.
-// The simulation will abort at the end of the current iteration.
+// The simulation will return an error at the end of the current iteration.
 #define SIMULATE_CHECK_UNSUPPORTED(func) \
   if (UNLIKELY(SimulateIsActive())) {    \
     SimulateReportUnsupported(#func);    \
