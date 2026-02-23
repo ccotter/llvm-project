@@ -124,18 +124,6 @@ extern "C" int __wrap_main(int argc, char** argv, char** envp) {
 }
 #endif  // SANITIZER_LINUX
 
-void __tsan_simulate_annotate_wait(void* addr) {
-  SimulateAnnotateWait((uptr)addr);
-}
-
-void __tsan_simulate_annotate_wake_one(void* addr) {
-  SimulateAnnotateWakeOne((uptr)addr);
-}
-
-void __tsan_simulate_annotate_wake_all(void* addr) {
-  SimulateAnnotateWakeAll((uptr)addr);
-}
-
 void __tsan_acquire(void *addr) {
   Acquire(cur_thread(), CALLERPC, (uptr)addr);
 }

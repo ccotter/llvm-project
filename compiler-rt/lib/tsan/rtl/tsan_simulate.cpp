@@ -157,7 +157,6 @@ class SimScheduler {
     internal_memset(threads_, 0, sizeof(threads_));
     mutex_waitset_count_ = 0;
     cond_waitset_count_ = 0;
-    annotate_waitset_count_ = 0;
   }
 
   void StartIteration(u32 seed) {
@@ -512,100 +511,6 @@ class SimScheduler {
     mtx_.Unlock();
   }
 
-  void AnnotateWait(int caller_idx, uptr addr) {
-    mtx_.Lock();
-
-    if (caller_idx != current_) {
-      mtx_.Unlock();
-      return;
-    }
-
-    // Add this thread to the annotated address's waitset.
-    Waitset* ws = GetOrCreateAnnotateWaitset(addr);
-    ws->AddWaiter(caller_idx);
-
-    // Mark thread as blocked.
-    threads_[caller_idx].state = SimThread::Blocked;
-
-    // Pick next runnable thread and wake it.
-    PickNextAndWake();
-
-    mtx_.Unlock();
-
-    // Park this thread until woken by wake_one/wake_all.
-    threads_[caller_idx].sem.Wait();
-  }
-
-  void AnnotateWakeOne(uptr addr) {
-    mtx_.Lock();
-
-    // Find the waitset for this address.
-    Waitset* ws = nullptr;
-    for (int i = 0; i < annotate_waitset_count_; i++) {
-      if (annotate_waitset_addrs_[i] == addr) {
-        ws = &annotate_waitsets_[i];
-        break;
-      }
-    }
-
-    if (!ws || ws->count == 0) {
-      mtx_.Unlock();
-      return;
-    }
-
-    // Remove one waiter randomly and mark it as runnable.
-    int thread_idx = ws->RemoveOne(&rng_state_);
-    threads_[thread_idx].state = SimThread::Runnable;
-
-    // If no thread is current, make the unblocked thread current and wake it.
-    if (current_ == -1) {
-      current_ = thread_idx;
-      threads_[thread_idx].sem.Post();
-    }
-
-    mtx_.Unlock();
-  }
-
-  void AnnotateWakeAll(uptr addr) {
-    mtx_.Lock();
-
-    // Find the waitset for this address.
-    Waitset* ws = nullptr;
-    for (int i = 0; i < annotate_waitset_count_; i++) {
-      if (annotate_waitset_addrs_[i] == addr) {
-        ws = &annotate_waitsets_[i];
-        break;
-      }
-    }
-
-    if (!ws || ws->count == 0) {
-      mtx_.Unlock();
-      return;
-    }
-
-    // Wake all waiting threads.
-    int woken[kMaxSimThreads];
-    int n = ws->RemoveAll(woken);
-    for (int i = 0; i < n; i++) {
-      threads_[woken[i]].state = SimThread::Runnable;
-    }
-
-    // If no thread is current, pick one of the woken threads.
-    if (current_ == -1 && n > 0) {
-      int idx = RandN(&rng_state_, n);
-      current_ = woken[idx];
-      threads_[woken[idx]].sem.Post();
-      // Wake the rest later when scheduled.
-      for (int i = 0; i < n; i++) {
-        if (i != idx && threads_[woken[i]].state == SimThread::Runnable) {
-          // They'll be picked up by scheduler.
-        }
-      }
-    }
-
-    mtx_.Unlock();
-  }
-
   // Check if we should perform scheduling at this point based on probability.
   // Always returns true if probability >= 100, otherwise uses RNG.
   bool ShouldSchedule() {
@@ -694,19 +599,6 @@ class SimScheduler {
     return &cond_waitsets_[idx];
   }
 
-  // Get or create waitset for an annotated address (e.g., futex).
-  Waitset* GetOrCreateAnnotateWaitset(uptr addr) {
-    for (int i = 0; i < annotate_waitset_count_; i++) {
-      if (annotate_waitset_addrs_[i] == addr)
-        return &annotate_waitsets_[i];
-    }
-    CHECK_LT(annotate_waitset_count_, kMaxWaitsets);
-    int idx = annotate_waitset_count_++;
-    annotate_waitset_addrs_[idx] = addr;
-    new (&annotate_waitsets_[idx]) Waitset();
-    return &annotate_waitsets_[idx];
-  }
-
   SpinMutex mtx_;
   u32 rng_state_ = 1;  // Random number generator state
   SimThread threads_[kMaxSimThreads];
@@ -723,9 +615,6 @@ class SimScheduler {
   uptr cond_waitset_addrs_[kMaxWaitsets];
   Waitset cond_waitsets_[kMaxWaitsets];
   int cond_waitset_count_ = 0;
-  uptr annotate_waitset_addrs_[kMaxWaitsets];
-  Waitset annotate_waitsets_[kMaxWaitsets];
-  int annotate_waitset_count_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -831,19 +720,6 @@ void SimulateCondSignalImpl(uptr cond_addr) {
 
 void SimulateCondBroadcastImpl(uptr cond_addr) {
   sim_sched->CondBroadcast(cond_addr);
-}
-
-void SimulateAnnotateWaitImpl(uptr addr) {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->AnnotateWait(sim_thread_idx, addr);
-}
-
-void SimulateAnnotateWakeOneImpl(uptr addr) {
-  sim_sched->AnnotateWakeOne(addr);
-}
-
-void SimulateAnnotateWakeAllImpl(uptr addr) {
-  sim_sched->AnnotateWakeAll(addr);
 }
 
 int CheckForErors(int iter, int start_iter) {

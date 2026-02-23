@@ -151,36 +151,6 @@ ALWAYS_INLINE void SimulateCondBroadcast(uptr cond_addr) {
   SimulateCondBroadcastImpl(cond_addr);
 }
 
-// TODO - remove below for now.
-
-// Implementation functions for annotations.
-void SimulateAnnotateWaitImpl(uptr addr);
-void SimulateAnnotateWakeOneImpl(uptr addr);
-void SimulateAnnotateWakeAllImpl(uptr addr);
-
-// Called to mark a thread as waiting on a custom address (e.g., futex word).
-// Adds the thread to the address's waitset and parks it.
-ALWAYS_INLINE void SimulateAnnotateWait(uptr addr) {
-  if (!SimulateIsActive())
-    return;
-  SimulateAnnotateWaitImpl(addr);
-}
-
-// Called to wake one thread waiting on a custom address (e.g., futex_wake(1)).
-ALWAYS_INLINE void SimulateAnnotateWakeOne(uptr addr) {
-  if (!SimulateIsActive())
-    return;
-  SimulateAnnotateWakeOneImpl(addr);
-}
-
-// Called to wake all threads waiting on a custom address (e.g.,
-// futex_wake_all()).
-ALWAYS_INLINE void SimulateAnnotateWakeAll(uptr addr) {
-  if (!SimulateIsActive())
-    return;
-  SimulateAnnotateWakeAllImpl(addr);
-}
-
 }  // namespace __tsan
 
 #endif  // TSAN_SIMULATE_H
