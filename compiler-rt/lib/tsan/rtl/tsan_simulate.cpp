@@ -510,7 +510,6 @@ class SimScheduler {
   int current_;
   int thread_count_;
   int depth_;
-  int schedule_probability_;
 
   // Resource waitsets: map from resource address to waitset.
   WaitsetMap mutex_waitsets_;

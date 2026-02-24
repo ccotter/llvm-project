@@ -1,5 +1,8 @@
 // RUN: %clangxx_tsan %s -o %t
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=2 not %run %t 2>&1 | FileCheck %s
+//
+// pthread_mutex_timedlock is not available on Apple
+// UNSUPPORTED: darwin
 
 #include <pthread.h>
 #include <stdlib.h>
