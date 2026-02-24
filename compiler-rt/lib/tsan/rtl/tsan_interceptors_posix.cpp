@@ -1078,7 +1078,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   AdaptiveDelay::BeforeChildThreadRuns();
   SimulateThreadWaitScheduled();
 
-  void *res = callback(param);
+  void* res = callback(param);
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
   volatile int foo = 42;
@@ -1365,10 +1365,10 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
     BlockingCall bc(thr);
     CondMutexUnlockCtx<Fn> arg = {si, thr, pc, m, c, fn};
     res = call_pthread_cancel_with_cleanup(
-        [](void *arg) -> int {
+        [](void* arg) -> int {
           return ((const CondMutexUnlockCtx<Fn> *)arg)->Cancel();
         },
-        [](void *arg) { ((const CondMutexUnlockCtx<Fn> *)arg)->Unlock(); },
+        [](void* arg) { ((const CondMutexUnlockCtx<Fn>*)arg)->Unlock(); },
         &arg);
   }
   if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);

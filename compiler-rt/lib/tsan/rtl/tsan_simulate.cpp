@@ -527,9 +527,6 @@ bool sim_active;
 // Pointer to the current scheduler instance (valid while sim_active == true).
 static SimScheduler* sim_sched;
 
-// Per-thread scheduler index. -1 when not participating in simulation.
-static THREADLOCAL int sim_thread_idx = -1;
-
 class SimStateGuard {
   SimScheduler* sched_;
 
@@ -537,7 +534,7 @@ class SimStateGuard {
   SimStateGuard(SimScheduler* sched) : sched_(sched) { sim_active = true; }
   ~SimStateGuard() {
     sim_active = false;
-    sim_thread_idx = -1;
+    cur_thread()->sim_thread_idx = -1;
     sim_sched = nullptr;
     if (sched_) {
       sched_->~SimScheduler();
@@ -549,55 +546,61 @@ class SimStateGuard {
 };
 
 void SimulateScheduleImpl() {
-  CHECK_GE(sim_thread_idx, 0);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
   if (!sim_sched->ShouldSchedule())
     return;
 
   if (flags()->simulate_print_schedule_stacks) {
-    ThreadState* thr = cur_thread();
     Printf("=========== Schedule point (thread %d) ===========\n",
-           sim_thread_idx);
+           thr->sim_thread_idx);
     PrintCurrentStack(thr, StackTrace::GetCurrentPc());
     Printf("==================================================\n");
   }
 
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->Schedule(sim_thread_idx);
+  CHECK_GE(thr->sim_thread_idx, 0);
+  sim_sched->Schedule(thr->sim_thread_idx);
 }
 
 void SimulateThreadRegisterImpl(uptr thread_handle) {
-  sim_thread_idx = sim_sched->RegisterThread();
-  sim_sched->SetThreadHandle(sim_thread_idx, thread_handle);
+  ThreadState* thr = cur_thread();
+  thr->sim_thread_idx = sim_sched->RegisterThread();
+  sim_sched->SetThreadHandle(thr->sim_thread_idx, thread_handle);
 }
 
 void SimulateThreadWaitScheduledImpl() {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->ThreadStart(sim_thread_idx);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
+  sim_sched->ThreadStart(thr->sim_thread_idx);
 }
 
 void SimulateThreadFinishImpl() {
-  int idx = sim_thread_idx;
+  ThreadState* thr = cur_thread();
+  int idx = thr->sim_thread_idx;
   CHECK_GE(idx, 0);
-  sim_thread_idx = -1;
+  thr->sim_thread_idx = -1;
   sim_sched->ThreadFinish(idx);
 }
 
 void SimulateJoinBlockImpl(uptr thread_handle) {
-  CHECK_GE(sim_thread_idx, 0);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
   // Only mark ourselves as blocked if the target thread is still active.
   // If it's already finished, pthread_join will return immediately.
   if (sim_sched->IsThreadActive(thread_handle))
-    sim_sched->BeforeJoinCall(sim_thread_idx, thread_handle);
+    sim_sched->BeforeJoinCall(thr->sim_thread_idx, thread_handle);
 }
 
 void SimulateThreadUnblockImpl() {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->AfterBlockingCall(sim_thread_idx);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
+  sim_sched->AfterBlockingCall(thr->sim_thread_idx);
 }
 
 void SimulateMutexBlockImpl(uptr mutex_addr) {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->MutexBlock(sim_thread_idx, mutex_addr);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
+  sim_sched->MutexBlock(thr->sim_thread_idx, mutex_addr);
 }
 
 void SimulateMutexUnblockImpl(uptr mutex_addr) {
@@ -605,8 +608,9 @@ void SimulateMutexUnblockImpl(uptr mutex_addr) {
 }
 
 void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr) {
-  CHECK_GE(sim_thread_idx, 0);
-  sim_sched->CondWait(sim_thread_idx, cond_addr, mutex_addr);
+  ThreadState* thr = cur_thread();
+  CHECK_GE(thr->sim_thread_idx, 0);
+  sim_sched->CondWait(thr->sim_thread_idx, cond_addr, mutex_addr);
 }
 
 void SimulateCondSignalImpl(uptr cond_addr) {
@@ -721,7 +725,7 @@ int SimulateRun(void (*callback)(void*), void* arg) {
 
     int main_idx = sched_ptr->RegisterThread();
     CHECK_EQ(main_idx, 0);
-    sim_thread_idx = main_idx;
+    cur_thread()->sim_thread_idx = main_idx;
     sched_ptr->SetThreadHandle(main_idx, (uptr)pthread_self());
 
     sched_ptr->StartIteration(iter);
