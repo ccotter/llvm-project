@@ -52,7 +52,6 @@ void SimulateReportRaceImpl();
 void SimulateThreadRegisterImpl(uptr thread_handle);
 void SimulateThreadWaitScheduledImpl();
 void SimulateThreadFinishImpl();
-void SimulateJoinBlockImpl(uptr thread_handle);
 void SimulateThreadUnblockImpl();
 
 // SimulateSchedule is the key hook for simulation. It's called at each
@@ -93,12 +92,6 @@ ALWAYS_INLINE void SimulateThreadFinish() {
   if (!SimulateIsActive())
     return;
   SimulateThreadFinishImpl();
-}
-
-ALWAYS_INLINE void SimulateJoinBlock(uptr thread_handle) {
-  if (!SimulateIsActive())
-    return;
-  SimulateJoinBlockImpl(thread_handle);
 }
 
 ALWAYS_INLINE void SimulateThreadUnblock() {
@@ -143,6 +136,20 @@ ALWAYS_INLINE void SimulateCondBroadcast(uptr cond_addr) {
     return;
   SimulateCondBroadcastImpl(cond_addr);
 }
+
+bool SimulateJoinBlock(uptr thread_handle);
+void SimulateJoinResume();
+template <class JoinFunction>
+int SimulateJoin(void* th, void** ret, JoinFunction join_function) {
+  bool sim_blocked = SimulateJoinBlock((uptr)th);
+  int res = join_function(th, ret);
+  if (sim_blocked)
+    SimulateJoinResume();
+  return res;
+}
+
+void Hook1();
+void Hook2();
 
 }  // namespace __tsan
 

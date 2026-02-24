@@ -1143,7 +1143,9 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (attr == &myattr)
     pthread_attr_destroy(&myattr);
   AdaptiveDelay::AfterThreadCreation();
+  Hook1();
   SimulateSchedule();
+  Hook2();
   return res;
 }
 
@@ -1167,8 +1169,13 @@ TSAN_INTERCEPTOR(int, pthread_join, void *th, void **ret) {
 #endif
   Tid tid = ThreadConsumeTid(thr, pc, (uptr)th);
   ThreadIgnoreBegin(thr, pc);
-  SimulateJoinBlock((uptr)th);
-  int res = BLOCK_REAL(pthread_join)(th, ret);
+  int res;
+  if (SimulateIsActive())
+    res = SimulateJoin(th, ret, [thr](void* th, void** ret) {
+      return BLOCK_REAL(pthread_join)(th, ret);
+    });
+  else
+    res = BLOCK_REAL(pthread_join)(th, ret);
   ThreadIgnoreEnd(thr);
   if (res == 0) {
     ThreadJoin(thr, pc, tid);

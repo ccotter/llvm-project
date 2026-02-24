@@ -34,6 +34,8 @@ extern "C" void* pthread_self();
 
 namespace __tsan {
 
+static atomic_uint32_t concurrent_callers;
+
 static constexpr int kMaxSimThreads = 64;
 
 static int sim_current_iteration = 0;
@@ -166,9 +168,11 @@ class SimScheduler {
     internal_memset(threads_, 0, sizeof(threads_));
   }
 
+  void SetCurrent(int n) { current_ = n; }
+
   void ResetForIteration() {
     SpinMutexLock lock(&mtx_);
-    current_ = -1;
+    SetCurrent(-1);
     thread_count_ = 0;
     depth_ = 0;
     internal_memset(threads_, 0, sizeof(threads_));
@@ -181,6 +185,23 @@ class SimScheduler {
   // Called by the currently running thread. May randomly switch to another
   // runnable thread.
   void Schedule(int caller_idx) {
+    struct Guard {
+      Guard() {
+        addr = &concurrent_callers;
+        int old = atomic_fetch_add(addr, 1, memory_order_relaxed);
+        CHECK_EQ(old, 0);
+      }
+      ~Guard() { release(); }
+      void release() {
+        if (addr) {
+          int old = atomic_fetch_add(addr, -1, memory_order_relaxed);
+          CHECK_EQ(old, 1);
+        }
+        addr = nullptr;
+      }
+      atomic_uint32_t* addr;
+    } g;
+
     if (atomic_load_relaxed(&sim_max_depth_hit))
       return;
 
@@ -208,7 +229,8 @@ class SimScheduler {
         return;
 
       // Context switch: wake the chosen thread, park ourselves.
-      current_ = chosen;
+      SetCurrent(chosen);
+      g.release();
       threads_[chosen].sem.Post();
     }
     threads_[caller_idx].sem.Wait();
@@ -220,7 +242,7 @@ class SimScheduler {
     SpinMutexLock lock(&mtx_);
     rng_state_ = seed;
     depth_ = 0;
-    current_ = 0;
+    SetCurrent(0);
   }
 
   int RegisterThread() {
@@ -313,7 +335,7 @@ class SimScheduler {
       threads_[idx].state = SimThread::Runnable;
 
       if (current_ == -1)
-        current_ = idx;
+        SetCurrent(idx);
     }
     // Another thread is running. Park until selected.
     threads_[idx].sem.Wait();
@@ -352,7 +374,7 @@ class SimScheduler {
 
     // If no thread is current, make the unblocked thread current and wake it.
     if (current_ == -1) {
-      current_ = thread_idx;
+      SetCurrent(thread_idx);
       threads_[thread_idx].sem.Post();
     }
     // Otherwise it will be picked up by next Schedule() or when current
@@ -363,6 +385,7 @@ class SimScheduler {
     {
       SpinMutexLock lock(&mtx_);
 
+      CHECK_EQ(caller_idx, current_);
       if (caller_idx != current_)
         return;
 
@@ -453,7 +476,7 @@ class SimScheduler {
     int runnable = CountRunnable();
     if (runnable == 0) {
       DumpStates();
-      current_ = -1;
+      SetCurrent(-1);
       int blocked = 0;
       for (int i = 0; i < thread_count_; i++)
         if (threads_[i].state == SimThread::Blocked)
@@ -468,7 +491,7 @@ class SimScheduler {
 
     int chosen = PickRandomRunnable(runnable);
     DumpStates(chosen);
-    current_ = chosen;
+    SetCurrent(chosen);
     threads_[chosen].sem.Post();
   }
 
@@ -504,6 +527,7 @@ class SimScheduler {
   }
 
  private:
+ public:
   SpinMutex mtx_;
   u32 rng_state_ = 0;
   SimThread threads_[kMaxSimThreads];
@@ -526,6 +550,9 @@ bool sim_active;
 
 // Pointer to the current scheduler instance (valid while sim_active == true).
 static SimScheduler* sim_sched;
+
+void Hook1() {}
+void Hook2() {}
 
 class SimStateGuard {
   SimScheduler* sched_;
@@ -582,13 +609,25 @@ void SimulateThreadFinishImpl() {
   sim_sched->ThreadFinish(idx);
 }
 
-void SimulateJoinBlockImpl(uptr thread_handle) {
+bool SimulateJoinBlock(uptr thread_handle) {
   ThreadState* thr = cur_thread();
   CHECK_GE(thr->sim_thread_idx, 0);
   // Only mark ourselves as blocked if the target thread is still active.
   // If it's already finished, pthread_join will return immediately.
-  if (sim_sched->IsThreadActive(thread_handle))
+  if (sim_sched->IsThreadActive(thread_handle)) {
     sim_sched->BeforeJoinCall(thr->sim_thread_idx, thread_handle);
+    return true;
+  }
+  return false;
+}
+
+void SimulateJoinResume() {
+  // After BLOCK_REAL(pthread_join) returns, the target thread's ThreadFinish
+  // marked us as Runnable and PickNextAndWake may have posted our semaphore.
+  // We must consume that post to re-sync with the scheduler, otherwise the
+  // pending post causes a future sem.Wait() to return spuriously, allowing
+  // two threads to run simultaneously.
+  sim_sched->threads_[cur_thread()->sim_thread_idx].sem.Wait();
 }
 
 void SimulateThreadUnblockImpl() {
