@@ -238,7 +238,9 @@ void ThreadContext::OnStarted(void *arg) {
 
 void ThreadFinish(ThreadState *thr) {
   DPrintf("#%d: ThreadFinish\n", thr->tid);
+#if !SANITIZER_GO
   SimulateThreadFinish();
+#endif
   ThreadCheckIgnore(thr);
   if (thr->stk_addr && thr->stk_size)
     DontNeedShadowFor(thr->stk_addr, thr->stk_size);
