@@ -1331,42 +1331,9 @@ int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si, const Fn &fn,
 
   // In simulation mode, use the waitset approach instead of real blocking.
   if (SimulateIsActive()) {
-    // Simulated wait - must unlock the real mutex before parking.
-    // This matches pthread_cond_wait semantics: atomically unlock and wait.
-    // Call the real pthread function directly (not through interceptor).
-    res = REAL(pthread_mutex_unlock)(m);
-    if (res != 0) {
-      // Unlock failed - should not happen, but handle it.
-      MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
+    res = SimulateCondWait(thr, pc, c, m);
+    if (res != 0 && res != errno_EOWNERDEAD)
       return res;
-    }
-
-    // Wake any thread waiting for this mutex in the simulation waitset.
-    // This is critical! The real pthread_mutex_unlock doesn't wake threads
-    // from the simulation's waitset, so we must do it explicitly.
-    SimulateMutexUnblock((uptr)m);
-
-    // Park this thread on the condvar's waitset until signal/broadcast wakes
-    // it.
-    SimulateCondWait((uptr)c, (uptr)m);
-
-    // After waking, re-acquire the mutex (mimicking pthread_cond_wait
-    // behavior). This may require multiple attempts if another thread holds the
-    // mutex.
-    SimulateSchedule();
-    while (true) {
-      // Call the real pthread function directly (not through interceptor).
-      res = REAL(pthread_mutex_trylock)(m);
-      if (res == 0 || res == errno_EOWNERDEAD)
-        break;
-      if (res != errno_EBUSY) {
-        // Some other error - give up.
-        MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
-        return res;
-      }
-      // Mutex is busy - park on the mutex's waitset.
-      SimulateMutexBlock((uptr)m);
-    }
   } else {
     // Enable signal delivery while the thread is blocked.
     BlockingCall bc(thr);
@@ -1504,7 +1471,6 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
       res = REAL(pthread_mutex_trylock)(m);
       if (res != errno_EBUSY)
         break;
-      // Add ourselves to the waitset and park.
       SimulateMutexBlock((uptr)m);
     }
   } else {

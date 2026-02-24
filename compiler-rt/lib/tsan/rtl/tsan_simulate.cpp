@@ -24,14 +24,17 @@
 
 #include "tsan_simulate.h"
 
+#include "interception/interception.h"
 #include "sanitizer_common/sanitizer_atomic.h"
+#include "sanitizer_common/sanitizer_errno.h"
 #include "sanitizer_common/sanitizer_mutex.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
 #include "tsan_flags.h"
 #include "tsan_rtl.h"
 
 extern "C" void* pthread_self();
-
+DECLARE_REAL(int, pthread_mutex_unlock, void* m)
+DECLARE_REAL(int, pthread_mutex_trylock, void* m)
 namespace __tsan {
 
 static atomic_uint32_t concurrent_callers;
@@ -646,12 +649,6 @@ void SimulateMutexUnblockImpl(uptr mutex_addr) {
   sim_sched->MutexUnblock(mutex_addr);
 }
 
-void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr) {
-  ThreadState* thr = cur_thread();
-  CHECK_GE(thr->sim_thread_idx, 0);
-  sim_sched->CondWait(thr->sim_thread_idx, cond_addr, mutex_addr);
-}
-
 void SimulateCondSignalImpl(uptr cond_addr) {
   sim_sched->CondSignal(cond_addr);
 }
@@ -781,12 +778,38 @@ int SimulateRun(void (*callback)(void*), void* arg) {
     if (int rc = CheckForErors(iter, start_iter); rc)
       return rc;
 
-    // Main thread finished; unregister from the scheduler.
     sched_ptr->ThreadFinish(main_idx);
   }
 
   Printf("ThreadSanitizer: simulation finished (%d iterations)\n", iterations);
-  return 0;  // Success
+  return 0;
+}
+
+int SimulateCondWait(ThreadState* thr, uptr pc, void* c, void* m) {
+  int res = REAL(pthread_mutex_unlock)(m);
+  CHECK_EQ(res, 0);
+
+  SimulateMutexUnblock((uptr)m);
+
+  int idx = cur_thread()->sim_thread_idx;
+  CHECK_GE(idx, 0);
+  sim_sched->CondWait(idx, (uptr)c, (uptr)m);
+
+  // After waking, re-acquire the mutex (mimicking pthread_cond_wait
+  // behavior).
+  SimulateSchedule();
+  while (true) {
+    res = REAL(pthread_mutex_trylock)(m);
+    if (res == 0 || res == errno_EOWNERDEAD)
+      break;
+    if (res != errno_EBUSY) {
+      // Some other error - give up.
+      MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
+      return res;
+    }
+    SimulateMutexBlock((uptr)m);
+  }
+  return res;
 }
 
 }  // namespace __tsan

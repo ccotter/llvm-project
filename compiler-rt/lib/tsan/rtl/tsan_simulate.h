@@ -103,7 +103,6 @@ ALWAYS_INLINE void SimulateThreadUnblock() {
 // Implementation functions for mutex and condvar.
 void SimulateMutexBlockImpl(uptr mutex_addr);
 void SimulateMutexUnblockImpl(uptr mutex_addr);
-void SimulateCondWaitImpl(uptr cond_addr, uptr mutex_addr);
 void SimulateCondSignalImpl(uptr cond_addr);
 void SimulateCondBroadcastImpl(uptr cond_addr);
 
@@ -117,12 +116,6 @@ ALWAYS_INLINE void SimulateMutexUnblock(uptr mutex_addr) {
   if (!SimulateIsActive())
     return;
   SimulateMutexUnblockImpl(mutex_addr);
-}
-
-ALWAYS_INLINE void SimulateCondWait(uptr cond_addr, uptr mutex_addr) {
-  if (!SimulateIsActive())
-    return;
-  SimulateCondWaitImpl(cond_addr, mutex_addr);
 }
 
 ALWAYS_INLINE void SimulateCondSignal(uptr cond_addr) {
@@ -147,6 +140,9 @@ int SimulateJoin(void* th, void** ret, JoinFunction join_function) {
     SimulateJoinResume();
   return res;
 }
+
+class ThreadState;
+int SimulateCondWait(ThreadState* thr, uptr pc, void* c, void* m);
 
 void Hook1();
 void Hook2();
