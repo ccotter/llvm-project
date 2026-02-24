@@ -35,4 +35,5 @@ int main() { return __tsan_simulate(test_callback, nullptr); }
 // CHECK: All immediate-exit threads joined successfully
 // CHECK: All immediate-exit threads joined successfully
 // CHECK: All immediate-exit threads joined successfully
+// CHECK-NOT: All immediate-exit threads joined successfully
 // CHECK: ThreadSanitizer: simulation finished

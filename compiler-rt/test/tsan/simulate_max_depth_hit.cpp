@@ -1,13 +1,13 @@
 // RUN: %clangxx_tsan -O1 %s -o %t
-// RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=100:simulate_max_depth=100 %run %t 2>&1 | FileCheck %s
-//
+// RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=100:simulate_max_depth=100 not %run %t 2>&1 | FileCheck %s
+
+#include <assert.h>
 #include <atomic>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
-std::atomic<int> counter(0);
+static std::atomic<int> counter(0);
 
 void *thread_func(void *arg) {
   for (int i = 0; i < 200; i++) {
@@ -15,6 +15,8 @@ void *thread_func(void *arg) {
   }
   return nullptr;
 }
+
+static int called;
 
 void test_callback(void *arg) {
   counter.store(0, std::memory_order_relaxed);
@@ -26,13 +28,14 @@ void test_callback(void *arg) {
   pthread_join(t1, nullptr);
   pthread_join(t2, nullptr);
 
-  fprintf(stderr, "Iteration completed with counter=%d\n",
-          counter.load(std::memory_order_relaxed));
+  ++called;
 }
 
 int main() {
+  called = 0;
   int result = __tsan_simulate(test_callback, nullptr);
-  return result != -1;
+  assert(called == 1);
+  return result;
 }
 
 // CHECK: ThreadSanitizer: simulation stopped due to max depth

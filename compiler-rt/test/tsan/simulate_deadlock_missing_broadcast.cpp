@@ -7,7 +7,6 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 #include <unistd.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
@@ -61,7 +60,7 @@ void test_callback(void *arg) {
 int main() {
   alarm(10); // Test timeout
   __tsan_simulate(test_callback, nullptr);
-  fprintf(stderr, "Test FAILED: simulation should have died on deadlock\n");
+  assert(false);
   return 1;
 }
 

@@ -4,8 +4,8 @@
 // Test threads creating other threads (nested thread creation).
 // Verifies that thread tracking handles hierarchical thread creation.
 
+#include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
@@ -56,16 +56,10 @@ void test_callback(void *arg) {
 
   pthread_mutex_destroy(&mutex);
 
-  // Should have 3 threads total: level1 + level2 + level3
-  if (counter != 3) {
-    fprintf(stderr, "ERROR: Expected counter=3, got %d\n", counter);
-  } else {
-    fprintf(stderr, "Nested threads verified: %d\n", counter);
-  }
+  assert(counter == 3);
 }
 
 int main() { return __tsan_simulate(test_callback, nullptr); }
 
 // CHECK: ThreadSanitizer: simulation starting
-// CHECK: Nested threads verified: 3
 // CHECK: ThreadSanitizer: simulation finished

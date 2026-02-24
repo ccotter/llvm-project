@@ -4,8 +4,8 @@
 // Test thread_local object destruction.
 // Verifies that thread_local destructors are called and can safely decrement atomics.
 
-#include <atomic>
 #include <assert.h>
+#include <atomic>
 #include <pthread.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
@@ -15,13 +15,9 @@ std::atomic<int> dtor_count(0);
 
 class ThreadLocalObject {
 public:
-  ThreadLocalObject() {
-    ctor_count.fetch_add(1, std::memory_order_relaxed);
-  }
-  
-  ~ThreadLocalObject() {
-    dtor_count.fetch_add(1, std::memory_order_relaxed);
-  }
+  ThreadLocalObject() { ctor_count.fetch_add(1, std::memory_order_relaxed); }
+
+  ~ThreadLocalObject() { dtor_count.fetch_add(1, std::memory_order_relaxed); }
 };
 
 void *thread_func(void *arg) {
@@ -33,7 +29,7 @@ void *thread_func(void *arg) {
 void test_callback(void *arg) {
   ctor_count.store(0, std::memory_order_relaxed);
   dtor_count.store(0, std::memory_order_relaxed);
-  
+
   pthread_t t;
   pthread_create(&t, nullptr, thread_func, nullptr);
   pthread_join(t, nullptr);
@@ -41,7 +37,7 @@ void test_callback(void *arg) {
   pthread_join(t, nullptr);
   pthread_create(&t, nullptr, thread_func, nullptr);
   pthread_join(t, nullptr);
-  
+
   assert(ctor_count.load(std::memory_order_relaxed) == 3);
   assert(dtor_count.load(std::memory_order_relaxed) == 3);
 }

@@ -4,15 +4,15 @@
 #include "test.h"
 #include <assert.h>
 #include <atomic>
+#include <stdio.h>
 
-// TODO - why doesn't 'sanitizer/tsan_interface.h' see the decl?
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);
 
 std::atomic<bool> keep_running(true);
 
 void *background_thread(void *arg) {
   while (keep_running.load(std::memory_order_relaxed)) {
-    usleep(10000); // 10ms
+    usleep(10000);
   }
   return nullptr;
 }

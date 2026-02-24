@@ -7,7 +7,6 @@
 // TSAN should detect the lock-order-inversion (potential deadlock).
 
 #include <pthread.h>
-#include <stdio.h>
 #include <unistd.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
@@ -17,12 +16,8 @@ pthread_mutex_t mutex_b;
 
 void *thread1_func(void *arg) {
   pthread_mutex_lock(&mutex_a);
-  // Small busy-wait to increase chance of interleaving
-  for (volatile int i = 0; i < 100; i++) {
-  }
   pthread_mutex_lock(&mutex_b);
 
-  // Critical section
   pthread_mutex_unlock(&mutex_b);
   pthread_mutex_unlock(&mutex_a);
   return nullptr;
@@ -30,12 +25,8 @@ void *thread1_func(void *arg) {
 
 void *thread2_func(void *arg) {
   pthread_mutex_lock(&mutex_b);
-  // Small busy-wait to increase chance of interleaving
-  for (volatile int i = 0; i < 100; i++) {
-  }
   pthread_mutex_lock(&mutex_a);
 
-  // Critical section
   pthread_mutex_unlock(&mutex_a);
   pthread_mutex_unlock(&mutex_b);
   return nullptr;
@@ -56,16 +47,8 @@ void test_callback(void *arg) {
   pthread_mutex_destroy(&mutex_b);
 }
 
-int main() {
-  fprintf(stderr, "Starting lock-order-inversion detection test...\n");
-  int result = __tsan_simulate(test_callback, nullptr);
+int main() { return __tsan_simulate(test_callback, nullptr); }
 
-  fprintf(stderr, "Simulation returned: %d\n", result);
-  fprintf(stderr, "Test PASSED: lock-order-inversion detected\n");
-  return 0;
-}
-
-// CHECK: Starting lock-order-inversion detection test
+// CHECK: ThreadSanitizer: simulation starting
 // CHECK: WARNING: ThreadSanitizer: lock-order-inversion (potential deadlock)
 // CHECK: Cycle in lock order graph
-// CHECK: Test PASSED
