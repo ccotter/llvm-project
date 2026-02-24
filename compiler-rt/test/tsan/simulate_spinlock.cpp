@@ -2,7 +2,6 @@
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=2 not %run %t 2>&1 | FileCheck %s
 
 #include <pthread.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *arg), void *arg);

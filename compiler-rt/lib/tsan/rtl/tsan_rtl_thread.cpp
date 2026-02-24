@@ -16,6 +16,7 @@
 #include "tsan_platform.h"
 #include "tsan_report.h"
 #include "tsan_sync.h"
+#include "tsan_simulate.h"
 
 namespace __tsan {
 
@@ -237,6 +238,7 @@ void ThreadContext::OnStarted(void *arg) {
 
 void ThreadFinish(ThreadState *thr) {
   DPrintf("#%d: ThreadFinish\n", thr->tid);
+  SimulateThreadFinish();
   ThreadCheckIgnore(thr);
   if (thr->stk_addr && thr->stk_size)
     DontNeedShadowFor(thr->stk_addr, thr->stk_size);

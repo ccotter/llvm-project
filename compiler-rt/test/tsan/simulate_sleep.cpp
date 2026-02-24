@@ -1,7 +1,6 @@
 // RUN: %clangxx_tsan -O1 %s -o %t && env TSAN_OPTIONS="simulate_scheduler=random:simulate_iterations=10" not %run %t 2>&1 | FileCheck %s
 
 #include <pthread.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 

@@ -2,11 +2,11 @@
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=10:simulate_probability=0.5 %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-PROB50
 // RUN: %env_tsan_opts=atexit_sleep_ms=0:abort_on_error=0:simulate_scheduler=random:simulate_iterations=10:simulate_probability=1.0 %run %t 2>&1 | FileCheck %s --check-prefix=CHECK-PROB100
 //
-// This is a basic functional test that the parameter works.
+// This is a basic functional test that the parameter works; no
+// validation of the probabilities are done by the test.
 
 #include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 

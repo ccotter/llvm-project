@@ -562,6 +562,7 @@ void SimulateScheduleImpl() {
     Printf("==================================================\n");
   }
 
+  CHECK_GE(sim_thread_idx, 0);
   sim_sched->Schedule(sim_thread_idx);
 }
 

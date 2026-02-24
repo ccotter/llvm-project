@@ -1079,7 +1079,6 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   SimulateThreadWaitScheduled();
 
   void *res = callback(param);
-  SimulateThreadFinish();
   // Prevent the callback from being tail called,
   // it mixes up stack traces.
   volatile int foo = 42;
@@ -1493,16 +1492,12 @@ TSAN_INTERCEPTOR(int, pthread_mutex_lock, void *m) {
   AdaptiveDelay::SyncOp();
   int res;
   if (SimulateIsActive()) {
-    // In simulation mode, use the waitset approach: try to lock, and if busy,
-    // add to waitset and park. Repeat until we acquire the lock.
     SimulateSchedule();
     while (true) {
       res = REAL(pthread_mutex_trylock)(m);
       if (res != errno_EBUSY)
         break;
-      // Mutex is held — add ourselves to the waitset and park.
-      // When woken, we'll retry (might succeed or fail if another thread got it
-      // first).
+      // Add ourselves to the waitset and park.
       SimulateMutexBlock((uptr)m);
     }
   } else {

@@ -6,7 +6,6 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <stdio.h>
 
 extern "C" int __tsan_simulate(void (*callback)(void *), void *arg);
 
