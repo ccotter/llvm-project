@@ -1076,7 +1076,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
   }
 
   AdaptiveDelay::BeforeChildThreadRuns();
-  SimulateThreadWaitScheduled();
+  SimulateBeforeChildThreadRuns();
 
   void* res = callback(param);
   // Prevent the callback from being tail called,
@@ -1143,9 +1143,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
   if (attr == &myattr)
     pthread_attr_destroy(&myattr);
   AdaptiveDelay::AfterThreadCreation();
-  Hook1();
   SimulateSchedule();
-  Hook2();
   return res;
 }
 

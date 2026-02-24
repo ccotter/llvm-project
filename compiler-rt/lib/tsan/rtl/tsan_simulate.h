@@ -50,9 +50,8 @@ void SimulateScheduleImpl();
 void SimulateReportUnsupportedImpl(const char* func_name);
 void SimulateReportRaceImpl();
 void SimulateThreadRegisterImpl(uptr thread_handle);
-void SimulateThreadWaitScheduledImpl();
+void SimulateBeforeChildThreadRunsImpl();
 void SimulateThreadFinishImpl();
-void SimulateThreadUnblockImpl();
 
 // SimulateSchedule is the key hook for simulation. It's called at each
 // scheduling point (atomic op, mutex/cv op, thread create/join). When
@@ -64,17 +63,7 @@ ALWAYS_INLINE void SimulateSchedule() {
   SimulateScheduleImpl();
 }
 
-ALWAYS_INLINE void SimulateReportUnsupported(const char* func_name) {
-  if (!SimulateIsActive())
-    return;
-  SimulateReportUnsupportedImpl(func_name);
-}
-
-ALWAYS_INLINE void SimulateReportRace() {
-  if (!SimulateIsActive())
-    return;
-  SimulateReportRaceImpl();
-}
+// Thread lifecycle
 
 ALWAYS_INLINE void SimulateThreadRegister(uptr thread_handle) {
   if (!SimulateIsActive())
@@ -82,10 +71,10 @@ ALWAYS_INLINE void SimulateThreadRegister(uptr thread_handle) {
   SimulateThreadRegisterImpl(thread_handle);
 }
 
-ALWAYS_INLINE void SimulateThreadWaitScheduled() {
+ALWAYS_INLINE void SimulateBeforeChildThreadRuns() {
   if (!SimulateIsActive())
     return;
-  SimulateThreadWaitScheduledImpl();
+  SimulateBeforeChildThreadRunsImpl();
 }
 
 ALWAYS_INLINE void SimulateThreadFinish() {
@@ -94,13 +83,8 @@ ALWAYS_INLINE void SimulateThreadFinish() {
   SimulateThreadFinishImpl();
 }
 
-ALWAYS_INLINE void SimulateThreadUnblock() {
-  if (!SimulateIsActive())
-    return;
-  SimulateThreadUnblockImpl();
-}
+// Mutex/cv ops
 
-// Implementation functions for mutex and condvar.
 void SimulateMutexBlockImpl(uptr mutex_addr);
 void SimulateMutexUnblockImpl(uptr mutex_addr);
 void SimulateCondSignalImpl(uptr cond_addr);
@@ -130,22 +114,31 @@ ALWAYS_INLINE void SimulateCondBroadcast(uptr cond_addr) {
   SimulateCondBroadcastImpl(cond_addr);
 }
 
-bool SimulateJoinBlock(uptr thread_handle);
-void SimulateJoinResume();
+bool SimulateJoinBlockImpl(uptr thread_handle);
+void SimulateJoinResumeImpl();
 template <class JoinFunction>
 int SimulateJoin(void* th, void** ret, JoinFunction join_function) {
-  bool sim_blocked = SimulateJoinBlock((uptr)th);
+  bool sim_blocked = SimulateJoinBlockImpl((uptr)th);
   int res = join_function(th, ret);
   if (sim_blocked)
-    SimulateJoinResume();
+    SimulateJoinResumeImpl();
   return res;
 }
 
-class ThreadState;
+struct ThreadState;
 int SimulateCondWait(ThreadState* thr, uptr pc, void* c, void* m);
 
-void Hook1();
-void Hook2();
+ALWAYS_INLINE void SimulateReportUnsupported(const char* func_name) {
+  if (!SimulateIsActive())
+    return;
+  SimulateReportUnsupportedImpl(func_name);
+}
+
+ALWAYS_INLINE void SimulateReportRace() {
+  if (!SimulateIsActive())
+    return;
+  SimulateReportRaceImpl();
+}
 
 }  // namespace __tsan
 

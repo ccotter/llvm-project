@@ -554,9 +554,6 @@ bool sim_active;
 // Pointer to the current scheduler instance (valid while sim_active == true).
 static SimScheduler* sim_sched;
 
-void Hook1() {}
-void Hook2() {}
-
 class SimStateGuard {
   SimScheduler* sched_;
 
@@ -598,7 +595,7 @@ void SimulateThreadRegisterImpl(uptr thread_handle) {
   sim_sched->SetThreadHandle(thr->sim_thread_idx, thread_handle);
 }
 
-void SimulateThreadWaitScheduledImpl() {
+void SimulateBeforeChildThreadRunsImpl() {
   ThreadState* thr = cur_thread();
   CHECK_GE(thr->sim_thread_idx, 0);
   sim_sched->ThreadStart(thr->sim_thread_idx);
@@ -612,7 +609,7 @@ void SimulateThreadFinishImpl() {
   sim_sched->ThreadFinish(idx);
 }
 
-bool SimulateJoinBlock(uptr thread_handle) {
+bool SimulateJoinBlockImpl(uptr thread_handle) {
   ThreadState* thr = cur_thread();
   CHECK_GE(thr->sim_thread_idx, 0);
   // Only mark ourselves as blocked if the target thread is still active.
@@ -624,7 +621,7 @@ bool SimulateJoinBlock(uptr thread_handle) {
   return false;
 }
 
-void SimulateJoinResume() {
+void SimulateJoinResumeImpl() {
   // After BLOCK_REAL(pthread_join) returns, the target thread's ThreadFinish
   // marked us as Runnable and PickNextAndWake may have posted our semaphore.
   // We must consume that post to re-sync with the scheduler, otherwise the
@@ -789,7 +786,7 @@ int SimulateCondWait(ThreadState* thr, uptr pc, void* c, void* m) {
   int res = REAL(pthread_mutex_unlock)(m);
   CHECK_EQ(res, 0);
 
-  SimulateMutexUnblock((uptr)m);
+  SimulateMutexUnblockImpl((uptr)m);
 
   int idx = cur_thread()->sim_thread_idx;
   CHECK_GE(idx, 0);
@@ -807,7 +804,7 @@ int SimulateCondWait(ThreadState* thr, uptr pc, void* c, void* m) {
       MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
       return res;
     }
-    SimulateMutexBlock((uptr)m);
+    SimulateMutexBlockImpl((uptr)m);
   }
   return res;
 }
