@@ -205,6 +205,9 @@ namespace __sanitizer {
   unsigned pthread_t_sz = sizeof(pthread_t);
   unsigned pthread_mutex_t_sz = sizeof(pthread_mutex_t);
   unsigned pthread_cond_t_sz = sizeof(pthread_cond_t);
+  unsigned pthread_rwlock_t_sz = sizeof(pthread_rwlock_t);
+  unsigned pthread_spinlock_t_sz = sizeof(pthread_spinlock_t);
+  unsigned pthread_barrier_t_sz = sizeof(pthread_barrier_t);
   unsigned pid_t_sz = sizeof(pid_t);
   unsigned timeval_sz = sizeof(timeval);
   unsigned uid_t_sz = sizeof(uid_t);

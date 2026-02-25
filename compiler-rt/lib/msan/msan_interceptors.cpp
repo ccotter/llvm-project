@@ -1516,6 +1516,23 @@ int OnExit() {
     return mmap_interceptor(REAL(mmap), addr, sz, prot, flags, fd, off);       \
   } while (false)
 
+#define COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, ptr, size) \
+  do {                                                             \
+    sptr __offset = __msan_test_shadow(ptr, size);                 \
+    if (__msan::IsInSymbolizerOrUnwider())                         \
+      break;                                                       \
+    if (__offset >= 0 && __msan::flags()->report_umrs) {           \
+      GET_CALLER_PC_BP;                                            \
+      ReportUMRInsideAddressRange(__func__, ptr, size, __offset);  \
+      __msan::PrintWarningWithOrigin(                              \
+          pc, bp, __msan_get_origin((const char*)ptr + __offset)); \
+      if (__msan::flags()->halt_on_error) {                        \
+        Printf("Exiting\n");                                       \
+        Die();                                                     \
+      }                                                            \
+    }                                                              \
+  } while (false)
+
 #include "sanitizer_common/sanitizer_platform_interceptors.h"
 #include "sanitizer_common/sanitizer_common_interceptors_memintrinsics.inc"
 #include "sanitizer_common/sanitizer_common_interceptors.inc"

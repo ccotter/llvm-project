@@ -5154,6 +5154,184 @@ INTERCEPTOR_PTHREAD_BARRIERATTR_GET(pshared, sizeof(int)) // !mac !android
 #define INIT_PTHREAD_BARRIERATTR_GETPSHARED
 #endif
 
+// Pthread synchronization object memory access validators
+// These validate that pthread synchronization objects are in accessible memory
+// to catch use-after-free and other memory errors. TSAN has its own specialized
+// interceptors for race detection, so these are disabled for TSAN.
+#if SANITIZER_INTERCEPT_PTHREAD_SYNC_MEMORY_ACCESS
+
+// pthread_mutex_t validator
+#  define INTERCEPTOR_PTHREAD_MUTEX(func, ...)                           \
+    INTERCEPTOR(int, pthread_mutex_##func, void* mutex, ##__VA_ARGS__) { \
+      void* ctx;                                                         \
+      COMMON_INTERCEPTOR_ENTER(ctx, pthread_mutex_##func, mutex,         \
+                               ##__VA_ARGS__);                           \
+      COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, mutex,             \
+                                                 pthread_mutex_t_sz);    \
+      return REAL(pthread_mutex_##func)(mutex, ##__VA_ARGS__);           \
+    }
+
+INTERCEPTOR_PTHREAD_MUTEX(lock)
+INTERCEPTOR_PTHREAD_MUTEX(unlock)
+INTERCEPTOR_PTHREAD_MUTEX(trylock)
+INTERCEPTOR_PTHREAD_MUTEX(destroy)
+INTERCEPTOR(int, pthread_mutex_init, void* mutex, void* attr) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_mutex_init, mutex, attr);
+  // No validation - init functions are meant to initialize uninitialized memory
+  int res = REAL(pthread_mutex_init)(mutex, attr);
+  if (res == 0) {
+    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, mutex, pthread_mutex_t_sz);
+  }
+  return res;
+}
+
+// pthread_cond_t validator
+#  define INTERCEPTOR_PTHREAD_COND(func, ...)                                  \
+    INTERCEPTOR(int, pthread_cond_##func, void* cond, ##__VA_ARGS__) {         \
+      void* ctx;                                                               \
+      COMMON_INTERCEPTOR_ENTER(ctx, pthread_cond_##func, cond, ##__VA_ARGS__); \
+      COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, cond,                    \
+                                                 pthread_cond_t_sz);           \
+      return REAL(pthread_cond_##func)(cond, ##__VA_ARGS__);                   \
+    }
+
+INTERCEPTOR_PTHREAD_COND(signal)
+INTERCEPTOR_PTHREAD_COND(broadcast)
+INTERCEPTOR_PTHREAD_COND(destroy)
+INTERCEPTOR(int, pthread_cond_init, void* cond, void* attr) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_cond_init, cond, attr);
+  // No validation - init functions are meant to initialize uninitialized memory
+  int res = REAL(pthread_cond_init)(cond, attr);
+  if (res == 0) {
+    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, cond, pthread_cond_t_sz);
+  }
+  return res;
+}
+INTERCEPTOR(int, pthread_cond_wait, void* cond, void* mutex) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_cond_wait, cond, mutex);
+  COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, cond, pthread_cond_t_sz);
+  return REAL(pthread_cond_wait)(cond, mutex);
+}
+INTERCEPTOR(int, pthread_cond_timedwait, void* cond, void* mutex,
+            void* abstime) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_cond_timedwait, cond, mutex, abstime);
+  COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, cond, pthread_cond_t_sz);
+  return REAL(pthread_cond_timedwait)(cond, mutex, abstime);
+}
+
+// pthread_rwlock_t validator
+#  define INTERCEPTOR_PTHREAD_RWLOCK(func, ...)                            \
+    INTERCEPTOR(int, pthread_rwlock_##func, void* rwlock, ##__VA_ARGS__) { \
+      void* ctx;                                                           \
+      COMMON_INTERCEPTOR_ENTER(ctx, pthread_rwlock_##func, rwlock,         \
+                               ##__VA_ARGS__);                             \
+      COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, rwlock,              \
+                                                 pthread_rwlock_t_sz);     \
+      return REAL(pthread_rwlock_##func)(rwlock, ##__VA_ARGS__);           \
+    }
+
+INTERCEPTOR_PTHREAD_RWLOCK(rdlock)
+INTERCEPTOR_PTHREAD_RWLOCK(wrlock)
+INTERCEPTOR_PTHREAD_RWLOCK(unlock)
+INTERCEPTOR_PTHREAD_RWLOCK(tryrdlock)
+INTERCEPTOR_PTHREAD_RWLOCK(trywrlock)
+INTERCEPTOR_PTHREAD_RWLOCK(destroy)
+INTERCEPTOR(int, pthread_rwlock_init, void* rwlock, void* attr) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_rwlock_init, rwlock, attr);
+  // No validation - init functions are meant to initialize uninitialized memory
+  int res = REAL(pthread_rwlock_init)(rwlock, attr);
+  if (res == 0) {
+    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, rwlock, pthread_rwlock_t_sz);
+  }
+  return res;
+}
+
+// pthread_spinlock_t validator
+#  define INTERCEPTOR_PTHREAD_SPIN(func, ...)                              \
+    INTERCEPTOR(int, pthread_spin_##func, void* spinlock, ##__VA_ARGS__) { \
+      void* ctx;                                                           \
+      COMMON_INTERCEPTOR_ENTER(ctx, pthread_spin_##func, spinlock,         \
+                               ##__VA_ARGS__);                             \
+      COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, spinlock,            \
+                                                 pthread_spinlock_t_sz);   \
+      return REAL(pthread_spin_##func)(spinlock, ##__VA_ARGS__);           \
+    }
+
+INTERCEPTOR_PTHREAD_SPIN(lock)
+INTERCEPTOR_PTHREAD_SPIN(unlock)
+INTERCEPTOR_PTHREAD_SPIN(trylock)
+INTERCEPTOR_PTHREAD_SPIN(destroy)
+INTERCEPTOR(int, pthread_spin_init, void* spinlock, int pshared) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_spin_init, spinlock, pshared);
+  // No validation - init functions are meant to initialize uninitialized memory
+  int res = REAL(pthread_spin_init)(spinlock, pshared);
+  if (res == 0) {
+    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, spinlock, pthread_spinlock_t_sz);
+  }
+  return res;
+}
+
+// pthread_barrier_t (32 bytes on x86_64 Linux)
+#  define INTERCEPTOR_PTHREAD_BARRIER(func, ...)                             \
+    INTERCEPTOR(int, pthread_barrier_##func, void* barrier, ##__VA_ARGS__) { \
+      void* ctx;                                                             \
+      COMMON_INTERCEPTOR_ENTER(ctx, pthread_barrier_##func, barrier,         \
+                               ##__VA_ARGS__);                               \
+      COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, barrier, 32);          \
+      return REAL(pthread_barrier_##func)(barrier, ##__VA_ARGS__);           \
+    }
+
+INTERCEPTOR_PTHREAD_BARRIER(wait)
+INTERCEPTOR_PTHREAD_BARRIER(destroy)
+INTERCEPTOR(int, pthread_barrier_init, void* barrier, void* attr,
+            unsigned count) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, pthread_barrier_init, barrier, attr, count);
+  // No validation - init functions are meant to initialize uninitialized memory
+  int res = REAL(pthread_barrier_init)(barrier, attr, count);
+  if (res == 0) {
+    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, barrier, pthread_barrier_t_sz);
+  }
+  return res;
+}
+
+#  define INIT_PTHREAD_SYNC_MEMORY_ACCESS                \
+    COMMON_INTERCEPT_FUNCTION(pthread_mutex_lock);       \
+    COMMON_INTERCEPT_FUNCTION(pthread_mutex_unlock);     \
+    COMMON_INTERCEPT_FUNCTION(pthread_mutex_trylock);    \
+    COMMON_INTERCEPT_FUNCTION(pthread_mutex_init);       \
+    COMMON_INTERCEPT_FUNCTION(pthread_mutex_destroy);    \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_init);        \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_destroy);     \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_wait);        \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_timedwait);   \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_signal);      \
+    COMMON_INTERCEPT_FUNCTION(pthread_cond_broadcast);   \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_init);      \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_destroy);   \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_rdlock);    \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_wrlock);    \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_unlock);    \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_tryrdlock); \
+    COMMON_INTERCEPT_FUNCTION(pthread_rwlock_trywrlock); \
+    COMMON_INTERCEPT_FUNCTION(pthread_spin_init);        \
+    COMMON_INTERCEPT_FUNCTION(pthread_spin_destroy);     \
+    COMMON_INTERCEPT_FUNCTION(pthread_spin_lock);        \
+    COMMON_INTERCEPT_FUNCTION(pthread_spin_unlock);      \
+    COMMON_INTERCEPT_FUNCTION(pthread_spin_trylock);     \
+    COMMON_INTERCEPT_FUNCTION(pthread_barrier_init);     \
+    COMMON_INTERCEPT_FUNCTION(pthread_barrier_destroy);  \
+    COMMON_INTERCEPT_FUNCTION(pthread_barrier_wait);
+#else
+#  define INIT_PTHREAD_SYNC_MEMORY_ACCESS
+#endif  // SANITIZER_INTERCEPT_PTHREAD_SYNC_MEMORY_ACCESS
+
 #if SANITIZER_INTERCEPT_TMPNAM
 INTERCEPTOR(char *, tmpnam, char *s) {
   void *ctx;
@@ -10570,6 +10748,7 @@ static void InitializeCommonInterceptors() {
   INIT_PTHREAD_CONDATTR_GETPSHARED;
   INIT_PTHREAD_CONDATTR_GETCLOCK;
   INIT_PTHREAD_BARRIERATTR_GETPSHARED;
+  INIT_PTHREAD_SYNC_MEMORY_ACCESS;
   INIT_TMPNAM;
   INIT_TMPNAM_R;
   INIT_PTSNAME;

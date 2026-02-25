@@ -178,6 +178,15 @@ DECLARE_REAL_AND_INTERCEPTOR(void, free, void*)
       *begin = *end = 0;                               \
     }
 
+#  define COMMON_INTERCEPTOR_VALIDATE_PTHREAD_OBJECT(ctx, ptr, size)         \
+    do {                                                                     \
+      if (uptr poisoned_addr = __asan_region_is_poisoned((uptr)ptr, size)) { \
+        GET_CALLER_PC_BP_SP;                                                 \
+        ReportGenericError(pc, bp, sp, poisoned_addr, false /*is_write*/,    \
+                           size, 0 /*exp*/, true /*fatal*/);                 \
+      }                                                                      \
+    } while (false)
+
 template <class Mmap>
 static void* mmap_interceptor(Mmap real_mmap, void* addr, SIZE_T length,
                               int prot, int flags, int fd, OFF64_T offset) {

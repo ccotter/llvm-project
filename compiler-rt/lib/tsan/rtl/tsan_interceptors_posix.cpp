@@ -2686,6 +2686,11 @@ static void HandleRecvmsg(ThreadState *thr, uptr pc,
 #define COMMON_INTERCEPTOR_USER_CALLBACK_END() \
   SCOPED_TSAN_INTERCEPTOR_USER_CALLBACK_END()
 
+// TSAN has its own specialized pthread synchronization interceptors
+// for race detection, so disable the common memory access validators
+#undef SANITIZER_INTERCEPT_PTHREAD_SYNC_MEMORY_ACCESS
+#define SANITIZER_INTERCEPT_PTHREAD_SYNC_MEMORY_ACCESS 0
+
 #include "sanitizer_common/sanitizer_common_interceptors.inc"
 
 static int sigaction_impl(int sig, const __sanitizer_sigaction *act,
