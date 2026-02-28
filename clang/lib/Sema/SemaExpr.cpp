@@ -15030,6 +15030,11 @@ QualType Sema::CheckAddressOfOperand(ExprResult &OrigOp, SourceLocation OpLoc) {
           while (cast<RecordDecl>(Ctx)->isAnonymousStructOrUnion())
             Ctx = Ctx->getParent();
 
+          // The qualifier must refer to a class type; if it refers to
+          // a non-class type like an enum, we cannot form a member pointer.
+          if (!DRE->getQualifier().getAsRecordDecl())
+            return QualType();
+
           QualType MPTy = Context.getMemberPointerType(
               op->getType(), DRE->getQualifier(), cast<CXXRecordDecl>(Ctx));
           // Under the MS ABI, lock down the inheritance model now.
