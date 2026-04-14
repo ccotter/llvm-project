@@ -307,8 +307,33 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
   }
 
   if (TrivialForCodegen) {
-    if (isa<CXXDestructorDecl>(MD))
+    if (isa<CXXDestructorDecl>(MD)) {
+      // When MSAN use-after-dtor is enabled, poison the memory of
+      // trivially-destructible objects on explicit destructor calls.
+      // This enables detection of use-after-destroy bugs in containers
+      // like std::variant that explicitly destroy trivial alternatives.
+      if (CGM.getCodeGenOpts().SanitizeMemoryUseAfterDtor &&
+          SanOpts.has(SanitizerKind::Memory)) {
+        const CXXRecordDecl *ClassDecl = MD->getParent();
+        if (!ClassDecl->isEmpty()) {
+          const ASTRecordLayout &Layout =
+              getContext().getASTRecordLayout(ClassDecl);
+          CharUnits ClassSize = Layout.getSize();
+          if (ClassSize.isPositive()) {
+            SanitizerScope SanScope(this);
+            llvm::Value *Ptr = This.getPointer(*this);
+            llvm::Value *SizeVal =
+                llvm::ConstantInt::get(SizeTy, ClassSize.getQuantity());
+            llvm::FunctionType *FnType =
+                llvm::FunctionType::get(VoidTy, {VoidPtrTy, SizeTy}, false);
+            llvm::FunctionCallee Fn = CGM.CreateRuntimeFunction(
+                FnType, "__sanitizer_dtor_callback_fields");
+            EmitNounwindRuntimeCall(Fn, {Ptr, SizeVal});
+          }
+        }
+      }
       return RValue::get(nullptr);
+    }
 
     if (TrivialAssignment) {
       // We don't like to generate the trivial copy/move assignment operator

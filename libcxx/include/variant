@@ -774,6 +774,14 @@ _LIBCPP_VARIANT_DESTRUCTOR(
     _Trait::_TriviallyAvailable,
     _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 ~__dtor() = default,
     _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 void __destroy() noexcept {
+      if (!this->valueless_by_exception()) {
+        __visitation::__base::__visit_alt(
+            [](auto& __alt) noexcept {
+              using __alt_type = __remove_cvref_t<decltype(__alt)>;
+              __alt.~__alt_type();
+            },
+            *this);
+      }
       this->__index = __variant_npos<__index_t>;
     } _LIBCPP_EAT_SEMICOLON);
 
