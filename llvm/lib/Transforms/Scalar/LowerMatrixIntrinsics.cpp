@@ -371,7 +371,10 @@ class LowerMatrixIntrinsics {
     bool IsColumnMajor = true;
 
   public:
-    MatrixTy() = default;
+    // Workaround: GCC in C++20 mode rejects `= default` here, since that needs
+    // OpInfoTy's default member initializers before the enclosing class is
+    // complete.
+    MatrixTy() {}
     explicit MatrixTy(bool IsColumnMajor) : IsColumnMajor(IsColumnMajor) {}
     MatrixTy(bool IsColumnMajor, ArrayRef<Value *> Vectors)
         : Vectors(Vectors), IsColumnMajor(IsColumnMajor) {}
